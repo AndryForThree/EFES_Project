@@ -1,0 +1,20 @@
+Cyclone IV Dev Board (60 euro spedizione inclusa)
+https://it.aliexpress.com/item/1005007601840259.html?spm=a2g0o.detail.pcDetailTopMoreOtherSeller.1.8e5eEPSCEPSChW&gps-id=pcDetailTopMoreOtherSeller&scm=1007.40050.354490.0&scm_id=1007.40050.354490.0&scm-url=1007.40050.354490.0&pvid=1408e611-43bb-490f-b9e3-a89288f390d5&_t=gps-id%3ApcDetailTopMoreOtherSeller%2Cscm-url%3A1007.40050.354490.0%2Cpvid%3A1408e611-43bb-490f-b9e3-a89288f390d5%2Ctpp_buckets%3A668%232846%238108%231977&pdp_ext_f=%7B%22order%22%3A%2242%22%2C%22eval%22%3A%221%22%2C%22sceneId%22%3A%2230050%22%2C%22fromPage%22%3A%22recommend%22%7D&pdp_npi=6%40dis%21EUR%2153.99%2153.99%21%21%2160.32%2160.32%21%4021038efe17902048122212224e101e%2112000041465790584%21rec%21IT%21%21ABXZ%211%210%21n_tag%3A-29910%3Bd%3Aeeab8772%3Bm03_new_user%3A-29895&utparam-url=scene%3ApcDetailTopMoreOtherSeller%7Cquery_from%3A%7Cx_object_id%3A1005007601840259%7C_p_origin_prod%3A
+
+https://it.aliexpress.com/item/1005002986003759.html?aff_fsk=_oEb2ydP&aff_platform=aff_feeds&aff_short_key=_oEb2ydP&cn=329442&cv=1d61e7e808105e679605700da0ce5276&dp=17902089532560160011718811191008005&isdl=y&src=Connexity2023ITpdp_npi%3D6%40dis%21EUR%2150.39%2150.39%21%21%21377.74%21377.74%21%4012000023073654335%21affd%21%21%21%211%210%21
+
+
+==============================================================================================
+Sensori Steering (Effetto Hall)
+==============================================================================================
+
+Sensore Effetto Hall (Steering) -> 2 euro ma PCB needed, no eval board (60 euro), ratiometric output
+https://eu.mouser.com/it/ProductDetail/Texas-Instruments/TMAG6180EDGKRQ1?qs=ZcfC38r4PovPIbGi4A%2FhwA%3D%3D
+
+Sensore Effetto Hall (DUal Die GMR, 360° Sensor) -> TLE5009A16DE2210XUMA1
+https://eu.mouser.com/it/ProductDetail/Infineon-Technologies/TLE5009A16DE2210XUMA1?qs=fzAzNaZoZhbeQNMGJ3bQZw%3D%3Dà
+
+
+=============================================================================================
+ADC
+=============================================================================================
