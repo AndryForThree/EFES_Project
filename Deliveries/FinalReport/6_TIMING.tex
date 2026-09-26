@@ -1,0 +1,801 @@
+
+\chapter{Interfacing and Timing}
+
+This section describes the externally visible communication interfaces of WattMate, focusing on the associated data protocol and timing constraints.
+
+In particular, the Bluetooth Low Energy interface is described, since it is the only digital data interface exposed to external devices. 
+On the other hand, USB is not treated as a digital communication interface in this project, even though two USB-C connectors are included in the power path under measurement. 
+WattMate only observes the electrical quantities associated with this power path. 
+Therefore, USB data transfers and the related communication protocols are ignored by the device.
+
+Internal interfaces used for measurement acquisition, display update, and firmware task communication are described in the hardware and firmware sections. 
+They are not described in detail in this section, since they are not relevant to an external device connecting to WattMate according to the intended use model.
+
+
+\section{Bluetooth Low Energy Protocol Overview}
+\label{sec:ble_protocol_overview}
+
+This section introduces the Bluetooth Low Energy mechanisms required to understand the WattMate external interface. 
+Only the parts of the protocol that are relevant for this project are described: device discovery through advertising, connection management through GAP, and application data exchange through ATT/GATT. 
+The WattMate-specific advertising data, GATT characteristics, payload formats, and timing diagrams are reported in Section~\ref{sec:wattmate_ble_interface_behaviour}.
+
+\subsection{Advertising and Device Discovery}
+\label{sec:ble_advertising_discovery}
+
+Bluetooth Low Energy advertising is the standard mechanism used by a peripheral device to periodically announce its presence before a connection is established. 
+Nearby central devices can scan for these packets, inspect the advertised information, and decide whether to initiate a connection.
+
+In the Bluetooth specification, packet field sizes are expressed in \emph{octets}. 
+An octet corresponds to an 8-bit byte; the standard term is kept in this section to remain consistent with the BLE nomenclature.
+
+At Link Layer level, a BLE packet is composed of four main fields: preamble, access address, Protocol Data Unit (PDU), and cyclic redundancy check. 
+The first and last fields support synchronization and error detection, while the PDU is the field that carries the protocol information exchanged between devices~\cite{bluetooth_core_link_layer}. 
+The simplified packet structure is shown in Figure~\ref{fig:ble_ll_packet_format}.
+
+\begin{figure}[H]
+	\centering
+	\small
+	\renewcommand{\arraystretch}{1.25}
+	\begin{tabular}{|c|c|c|c|}
+		\hline
+		\textbf{Preamble} & \textbf{Access Address} & \textbf{PDU} & \textbf{CRC} \\
+		\hline
+		1 octet & 4 octets & variable & 3 octets \\
+		\hline
+	\end{tabular}
+	\caption{BLE Link Layer packet format.}
+	\label{fig:ble_ll_packet_format}
+\end{figure}
+
+For advertising packets, the PDU can be represented as a header followed by a variable-length payload. 
+The header specifies the advertising PDU type and the payload length, while the payload carries the information associated with the advertising event~\cite{bluetooth_core_link_layer}.
+
+\begin{figure}[H]
+	\centering
+	\small
+	\renewcommand{\arraystretch}{1.25}
+	\begin{tabular}{|c|c|}
+		\hline
+		\textbf{Advertising PDU Header} & \textbf{Advertising PDU Payload} \\
+		\hline
+		2 octets & variable length \\
+		\hline
+	\end{tabular}
+	\caption{BLE advertising PDU format.}
+	\label{fig:ble_adv_pdu_format}
+\end{figure}
+
+The discovery information inside the advertising payload is encoded as a sequence of Advertising Data structures. 
+Each structure contains a length field, an Advertising Data type, and the associated data. 
+The type field defines how the following octets must be interpreted by the scanner~\cite{bluetooth_css_data_types}.
+
+\begin{figure}[H]
+	\centering
+	\small
+	\renewcommand{\arraystretch}{1.25}
+	\begin{tabular}{|c|c|c|}
+		\hline
+		\textbf{Length} & \textbf{AD Type} & \textbf{AD Data} \\
+		\hline
+		1 octet & 1 octet & Length - 1 octets \\
+		\hline
+	\end{tabular}
+	\caption{Generic Advertising Data structure.}
+	\label{fig:ble_ad_structure}
+\end{figure}
+
+
+Advertising timing is mainly controlled by the advertising interval. 
+A shorter interval reduces the expected discovery time, while a longer interval reduces the amount of wireless activity. 
+The Bluetooth specification also adds a small pseudo-random advertising delay to the configured interval, in order to reduce the probability of repeated collisions between advertisers~\cite{bluetooth_core_link_layer}.
+
+The project-specific advertising configuration, including the advertised fields, scan response content, and selected timing values, is reported in Section~\ref{sec:wattmate_advertising_data}.
+
+
+
+
+
+\subsection{GAP Roles and Connection Management}
+\label{sec:ble_connection_roles}
+
+The Generic Access Profile (GAP) defines the procedures and roles used by BLE devices to become discoverable, establish a link, terminate a link, and manage the basic parameters of a connection~\cite{bluetooth_core_gap}. 
+For the connected use case considered in this project, the relevant GAP roles are the central and the peripheral.
+
+\paragraph{Central and peripheral roles.}
+After a peripheral device has been discovered through advertising, a central device can initiate a BLE connection. 
+The peripheral is the device that advertises and accepts the connection, while the central is the device that scans, selects the peripheral, and starts the connection procedure.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{BLE central and peripheral roles during discovery and connection establishment.}
+	\label{tab:ble_connection_roles}
+	\begin{tabular}{p{0.22\textwidth} p{0.30\textwidth} p{0.30\textwidth}}
+		\toprule
+		\textbf{Phase} & \textbf{Central role} & \textbf{Peripheral role} \\
+		\midrule
+		Discovery &
+		Scans for advertising packets. &
+		Advertises its presence. \\
+		
+		Connection setup &
+		Initiates the connection. &
+		Accepts the connection. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+The central and peripheral roles define how the BLE link is established and maintained, but they do not impose a fixed direction for application data once the connection is active. 
+Data exchange is handled by the upper protocol layers, mainly through ATT/GATT in the use case considered in this report.
+
+After the BLE link has been established, the central device can discover the GATT database exposed by the peripheral. 
+This discovery phase allows the central to identify the available services, characteristics, and supported access operations before starting the actual application data exchange~\cite{bluetooth_core_gatt}. 
+The GATT data model is described in Section~\ref{sec:ble_gatt_data_model}.
+
+
+
+
+\paragraph{Connection events.}
+A BLE connection is organized into periodic connection events. 
+A connection event is a time window in which the two devices can exchange Link Layer packets. 
+These packets may carry Link Layer control information or data produced by upper protocol layers. 
+For application-level BLE communication, the relevant upper-layer traffic is typically carried through ATT/GATT, described in Section~\ref{sec:ble_gatt_data_model}. 
+Therefore, a connection event does not imply that a new application value is exchanged; it only defines when packet exchange can occur and helps keep the two devices synchronized.
+
+
+
+
+\paragraph{Connection timing parameters.}
+The timing behaviour of a BLE connection is controlled by a set of standard parameters. 
+The parameters most relevant to an application using periodic data exchange are summarized in Table~\ref{tab:ble_connection_parameters}. 
+They define the timing of the BLE link, while the application protocol independently defines when new data are produced and sent.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Main BLE connection parameters relevant to application-level timing.}
+	\label{tab:ble_connection_parameters}
+	\begin{tabularx}{\textwidth}{l X}
+		\toprule
+		\textbf{Parameter} &  \textbf{Meaning} \\
+		\midrule
+		Connection interval &
+		Time between the start of two consecutive connection events. It defines how often the devices have the opportunity to exchange packets during an active connection. \\
+		
+		Peripheral latency &
+		Maximum number of consecutive connection events that the peripheral may skip when it has no data to exchange. This can reduce wireless activity while keeping the connection active. \\
+		
+		Supervision timeout &
+		Maximum allowed time without a successful connection event before the connection is considered lost. \\
+		
+		PHY mode &
+		Physical layer mode used by the link, such as LE 1M PHY or LE 2M PHY. It affects packet airtime and achievable throughput, but it does not directly define the application update period. \\
+		\bottomrule
+	\end{tabularx}
+\end{table}
+
+During an active connection, some parameters can be updated using standard BLE procedures. 
+For example, the connection interval can be changed to modify the latency and activity of the link, and the PHY mode can be updated if both devices support the requested mode~\cite{bluetooth_core_link_layer}. 
+The project-specific connection sequence and selected timing values are reported in Section~\ref{sec:wattmate_connection_timing}.
+
+
+
+\subsection{ATT and GATT Data Model}
+\label{sec:ble_gatt_data_model}
+
+At application level, BLE data are commonly organized using the Generic Attribute Profile (GATT), which is built on top of the Attribute Protocol (ATT). 
+ATT provides the attribute-based access mechanism, while GATT defines how these attributes are structured into services, characteristics, values, and descriptors~\cite{bluetooth_core_gatt}.
+
+A GATT server exposes a database of attributes. 
+A GATT client accesses this database to discover the available services and to interact with the characteristic values exposed by the server. 
+A service groups related data objects, while each characteristic represents one specific data item or control point. 
+Each characteristic has one value and may include one or more descriptors, used to provide additional information or configuration associated with that characteristic.
+
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}[
+		font=\small,
+		node distance=6mm and 10mm,
+		box/.style={draw, rounded corners, align=center, minimum height=8mm, inner sep=4pt},
+		smallbox/.style={draw, rounded corners, align=center, minimum height=6mm, inner sep=3pt},
+		group/.style={draw, rounded corners, dashed, inner sep=6pt}
+		]
+		
+		% Top level
+		\node[box] (server) {\textbf{GATT Server}};
+		
+		% Services
+		\node[box, below left=12mm and 18mm of server] (service1) {\textbf{Service 1}};
+		\node[below right=14mm and 18mm of server] (more_services) {\(\cdots\)};
+		
+		\draw[-latex] (server) -- (service1);
+		\draw[-latex] (server) -- (more_services);
+		
+		% Characteristics under Service 1
+		\node[box, below left=10mm and 10mm of service1] (char11) {\textbf{Characteristic 1}};
+		\node[below right=12mm and 12mm of service1] (more_chars) {\(\cdots\)};
+		
+		\draw[-latex] (service1) -- (char11);
+		\draw[-latex] (service1) -- (more_chars);
+		
+		% Characteristic internal structure
+		\node[smallbox, below left=8mm and 8mm of char11] (val11) {Value};
+		\node[smallbox, below right=8mm and 8mm of char11] (desc11) {Descriptor(s)};
+		
+		\draw[-latex] (char11) -- (val11);
+		\draw[-latex] (char11) -- (desc11);
+		
+		% Dashed contour around the whole service subtree
+		\node[group, fit=(service1)(char11)(more_chars)(val11)(desc11)] {};
+		
+	\end{tikzpicture}
+	\caption{Simplified hierarchical organization of a GATT server.}
+	\label{fig:ble_gatt_data_model}
+\end{figure}
+
+
+\paragraph{Data exchange procedures.}
+Once the GATT database has been discovered, the client can interact with the exposed characteristics according to their access properties.
+
+At ATT level, each operation is encoded as an ATT Protocol Data Unit. 
+The procedures considered in this report can be represented, in simplified form, by an opcode, an attribute handle, and an optional value field~\cite{bluetooth_core_att}. 
+The opcode identifies the operation, the handle identifies the target attribute inside the GATT database, and the value field carries the data associated with the operation.
+
+\begin{figure}[H]
+	\centering
+	\small
+	\renewcommand{\arraystretch}{1.25}
+	\begin{tabular}{|c|c|c|}
+		\hline
+		\textbf{Opcode} & \textbf{Attribute Handle} & \textbf{Value} \\
+		\hline
+		1 octet & 2 octets & variable length \\
+		\hline
+	\end{tabular}
+	\caption{Simplified ATT PDU structure for characteristic value operations.}
+	\label{fig:ble_att_pdu_format}
+\end{figure}
+
+For a characteristic write, the handle identifies the writable characteristic value and the value field contains the data written by the client. 
+For a characteristic notification, the handle identifies the notified characteristic value and the value field contains the data sent by the server. 
+CCCD configuration follows the same principle, but the handle refers to the Client Characteristic Configuration Descriptor associated with the characteristic.
+
+The procedures relevant for this project are summarized in Table~\ref{tab:ble_gatt_procedures}.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{GATT procedures relevant to application data exchange.}
+	\label{tab:ble_gatt_procedures}
+	\begin{tabular}{p{0.22\textwidth} p{0.25\textwidth} p{0.43\textwidth}}
+		\toprule
+		\textbf{Mechanism} & \textbf{Direction} & \textbf{Purpose} \\
+		\midrule
+		Characteristic write &
+		Client to server \newline
+		\emph{App to WattMate} &
+		The client writes a new value into a writable characteristic exposed by the server. 
+		This mechanism is suitable for commands or configuration values. \\
+		
+		Characteristic notification &
+		Server to client \newline
+		\emph{WattMate to App} &
+		The server sends an updated characteristic value to the client without requiring continuous polling. 
+		Notifications do not generate a specific GATT-level response from the client. \\
+		
+		CCCD configuration &
+		Client to server \newline
+		\emph{App to WattMate} &
+		The client writes the Client Characteristic Configuration Descriptor to enable or disable notifications or indications for a characteristic that supports them. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+
+This model separates the logical application protocol from the low-level BLE packet exchange. 
+The application only needs to define which services and characteristics are exposed, which access mechanisms are allowed, and how each characteristic value must be interpreted.
+
+The project-specific GATT service, characteristic UUIDs, access properties, CCCD usage, and payload formats are reported in Section~\ref{sec:wattmate_custom_gatt_service}.
+
+
+
+
+
+
+
+
+\section{WattMate BLE Interface Behaviour}
+\label{sec:wattmate_ble_interface_behaviour}
+
+This section describes the externally visible behaviour of the WattMate BLE interface. 
+The diagrams are given at protocol level: they do not represent the bit-level timing of BLE packets, but the sequence and periodicity of the operations that are relevant for discovery, connection setup, and measurement streaming.
+
+\subsection{Advertising Configuration and Timing}
+\label{sec:wattmate_advertising_data}
+
+WattMate uses legacy connectable and scannable BLE advertising for discovery and connection establishment. 
+The main advertising packet contains the standard flags and the complete local name \texttt{WattMate}, while the scan response contains the 128-bit UUID of the custom WattMate data service. 
+No measurement data are transmitted during advertising.
+
+Two advertising profiles are used. 
+Fast advertising is used after startup or explicit user interaction to reduce discovery latency. 
+If no connection is established within \(20\,\mathrm{s}\), WattMate switches to slow advertising to reduce wireless activity while remaining discoverable.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{WattMate advertising profiles.}
+	\label{tab:wattmate_advertising_profiles}
+	\begin{tabular}{p{0.25\textwidth} p{0.22\textwidth} p{0.38\textwidth}}
+		\toprule
+		\textbf{Profile} & \textbf{Interval} & \textbf{Use} \\
+		\midrule
+		Fast advertising &
+		\(100\,\mathrm{ms}\) &
+		Used after startup or explicit user interaction to make the device easier to discover. \\
+		
+		Slow advertising &
+		\(1000\,\mathrm{ms}\) &
+		Used after the fast advertising window when no connection has been established. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}[
+		x=0.55cm,
+		y=0.9cm,
+		font=\small,
+		axis/.style={-Latex, thick},
+		box/.style={draw, rounded corners, align=center, inner sep=4pt}
+		]
+		% Time axis
+		\draw[axis] (0,0) -- (24,0) node[right] {Time};
+		
+		% Phase bars
+		\draw[thick] (0,0.6) -- (8,0.6);
+		\draw[thick] (8,0.6) -- (21,0.6);
+		
+		% Ticks
+		\draw (0,0.15) -- (0,-0.15) node[below] {Startup};
+		\draw (8,0.15) -- (8,-0.15) node[below] {\(20\,\mathrm{s}\)};
+		\draw[dotted] (21,0.6) -- (23.2,0.6);
+		\node[above] at (22.1,0.6) {until connection};
+		
+		% Labels
+		\node[above] at (4,0.6) {Fast advertising};
+		\node[above] at (14.5,0.6) {Slow advertising};
+		
+		\node[box, below=8mm] at (4,0) {\(T_{adv}=100\,\mathrm{ms}\)};
+		\node[box, below=8mm] at (14.5,0) {\(T_{adv}=1000\,\mathrm{ms}\)};
+		
+		\draw[-Latex] (7.3,0.6) -- (8.7,0.6);
+	\end{tikzpicture}
+	\caption{WattMate advertising timing before connection establishment.}
+	\label{fig:wattmate_advertising_timing}
+\end{figure}
+
+\subsection{Custom GATT Service and Characteristics}
+\label{sec:wattmate_custom_gatt_service}
+
+After a BLE connection has been established, WattMate exposes its data through a custom GATT service. 
+All UUIDs used by the service follow the same base format:
+\[
+\texttt{f000xxxx-0451-4000-b000-000000000000}
+\]
+where \texttt{xxxx} identifies the specific service or characteristic.
+
+All multi-byte numeric fields transmitted by the WattMate GATT interface use little-endian byte order. 
+Payloads are binary and fixed-size, so an external BLE client can decode each characteristic value directly from its byte layout.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{WattMate custom GATT service and characteristics.}
+	\label{tab:wattmate_gatt_characteristics}
+	\begin{tabular}{p{0.24\textwidth} p{0.16\textwidth} p{0.16\textwidth} p{0.12\textwidth} p{0.22\textwidth}}
+		\toprule
+		\textbf{Name} & \textbf{UUID field} & \textbf{Property} & \textbf{Size} & \textbf{Direction} \\
+		\midrule
+		Data Service &
+		\texttt{0x1130} &
+		Service &
+		-- &
+		-- \\
+		
+		Telemetry &
+		\texttt{0x1131} &
+		Notify &
+		17 B &
+		WattMate to App \\
+		
+		Temperature &
+		\texttt{0x1132} &
+		Notify &
+		2 B &
+		WattMate to App \\
+		
+		Control &
+		\texttt{0x1133} &
+		Write &
+		1 B &
+		App to WattMate \\
+		
+		Battery Config &
+		\texttt{0x1134} &
+		Write &
+		2 B &
+		App to WattMate \\
+		
+		Battery Status &
+		\texttt{0x1135} &
+		Notify &
+		2 B &
+		WattMate to App \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Telemetry characteristic.}
+The Telemetry characteristic contains the main live electrical measurements and status flags.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Telemetry characteristic payload format.}
+	\label{tab:wattmate_telemetry_payload}
+	\begin{tabular}{p{0.13\textwidth} p{0.12\textwidth} p{0.16\textwidth} p{0.20\textwidth} p{0.29\textwidth}}
+		\toprule
+		\textbf{Offset} & \textbf{Size} & \textbf{Type} & \textbf{Field} & \textbf{Encoding} \\
+		\midrule
+		0--1 &
+		2 B &
+		\texttt{uint16} &
+		Voltage &
+		Bus voltage in millivolts. \\
+		
+		2--5 &
+		4 B &
+		\texttt{int32} &
+		Current &
+		Load current in microamperes. \\
+		
+		6--9 &
+		4 B &
+		\texttt{int32} &
+		Power &
+		Instantaneous power in microwatts. \\
+		
+		10--13 &
+		4 B &
+		\texttt{uint32} &
+		Session energy &
+		Accumulated session energy in microwatt-hours. \\
+		
+		14 &
+		1 B &
+		\texttt{uint8} &
+		Danger flags &
+		Bitfield described in Table~\ref{tab:wattmate_danger_flags}. \\
+		
+		15--16 &
+		2 B &
+		\texttt{uint16} &
+		State of Charge &
+		Percentage multiplied by 100. \texttt{10000} represents \(100.00\%\); \texttt{0xFFFF} represents an unknown value. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+Bit numbering starts from bit~0 as the least significant bit of the byte.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Telemetry danger flags bitfield.}
+	\label{tab:wattmate_danger_flags}
+	\begin{tabular}{p{0.16\textwidth} p{0.28\textwidth} p{0.46\textwidth}}
+		\toprule
+		\textbf{Bit} & \textbf{Flag} & \textbf{Meaning} \\
+		\midrule
+		0 &
+		Overvoltage &
+		Set when the measured voltage is above the configured safe range. \\
+		
+		1 &
+		Overcurrent &
+		Set when the measured current is above the configured safe range. \\
+		
+		2 &
+		Overtemperature &
+		Protocol-defined temperature warning flag. \\
+		
+		7--3 &
+		Reserved &
+		Reserved for future use and currently cleared. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Temperature characteristic.}
+The Temperature characteristic contains the temperature measured by the NTC sensor.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Temperature characteristic payload format.}
+	\label{tab:wattmate_temperature_payload}
+	\begin{tabular}{p{0.13\textwidth} p{0.12\textwidth} p{0.16\textwidth} p{0.20\textwidth} p{0.29\textwidth}}
+		\toprule
+		\textbf{Offset} & \textbf{Size} & \textbf{Type} & \textbf{Field} & \textbf{Encoding} \\
+		\midrule
+		0--1 &
+		2 B &
+		\texttt{int16} &
+		Temperature &
+		Temperature in centi-degrees Celsius. For example, \texttt{2534} represents \(25.34\,^{\circ}\mathrm{C}\). \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Control characteristic.}
+The Control characteristic is a 1-byte bitfield written by the mobile application. 
+Reserved bits must be kept cleared.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Control characteristic payload format.}
+	\label{tab:wattmate_control_payload}
+	\begin{tabular}{p{0.16\textwidth} p{0.28\textwidth} p{0.46\textwidth}}
+		\toprule
+		\textbf{Bit} & \textbf{Field} & \textbf{Meaning} \\
+		\midrule
+		0 &
+		Stream enable &
+		When set to 1, the measurement stream is enabled. When cleared, the stream is disabled. \\
+		
+		1 &
+		Battery data reset &
+		When set to 1, a reset of the battery-related data is requested. \\
+		
+		7--2 &
+		Reserved &
+		Reserved bits. They must be written as 0. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Battery Config characteristic.}
+The Battery Config characteristic is used to provide the nominal energy of the battery under test.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Battery Config characteristic payload format.}
+	\label{tab:wattmate_battery_config_payload}
+	\begin{tabular}{p{0.13\textwidth} p{0.12\textwidth} p{0.16\textwidth} p{0.20\textwidth} p{0.29\textwidth}}
+		\toprule
+		\textbf{Offset} & \textbf{Size} & \textbf{Type} & \textbf{Field} & \textbf{Encoding} \\
+		\midrule
+		0--1 &
+		2 B &
+		\texttt{uint16} &
+		Nominal energy &
+		Nominal battery energy in centi-watt-hours. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Battery Status characteristic.}
+The Battery Status characteristic contains the estimated battery State of Health.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{Battery Status characteristic payload format.}
+	\label{tab:wattmate_battery_status_payload}
+	\begin{tabular}{p{0.13\textwidth} p{0.12\textwidth} p{0.16\textwidth} p{0.20\textwidth} p{0.29\textwidth}}
+		\toprule
+		\textbf{Offset} & \textbf{Size} & \textbf{Type} & \textbf{Field} & \textbf{Encoding} \\
+		\midrule
+		0--1 &
+		2 B &
+		\texttt{uint16} &
+		State of Health &
+		Percentage multiplied by 100. \texttt{10000} represents \(100.00\%\); \texttt{0xFFFF} represents an unknown value. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+
+
+\subsection{WattMate BLE Timing Parameters}
+\label{sec:wattmate_ble_timing_parameters}
+
+The main BLE timing parameters used by WattMate are summarized in Table~\ref{tab:wattmate_ble_timing_parameters}. 
+These values describe the externally relevant timing behaviour of the interface. 
+BLE connection events may occur more frequently than the application data updates; therefore, the notification periods reported in the table must be interpreted as application-level streaming periods, not as BLE connection intervals.
+
+\begin{table}[H]
+	\centering
+	\small
+	\caption{WattMate BLE timing parameters.}
+	\label{tab:wattmate_ble_timing_parameters}
+	\begin{tabular}{p{0.28\textwidth} p{0.22\textwidth} p{0.40\textwidth}}
+		\toprule
+		\textbf{Parameter} & \textbf{Value} & \textbf{Meaning} \\
+		\midrule
+		Fast advertising interval &
+		\(100\,\mathrm{ms}\) &
+		Advertising interval used after startup or explicit user interaction to reduce discovery latency. \\
+		
+		Fast advertising window &
+		\(20\,\mathrm{s}\) &
+		Maximum duration of the fast advertising phase before switching to slow advertising if no connection is established. \\
+		
+		Slow advertising interval &
+		\(1000\,\mathrm{ms}\) &
+		Advertising interval used to keep the device discoverable with lower BLE activity. \\
+		
+		Preferred connection interval &
+		\(15\,\mathrm{ms}\) to \(45\,\mathrm{ms}\) &
+		Preferred BLE connection interval range requested by WattMate after connection establishment. The final value depends on the central device. \\
+		
+		Preferred peripheral latency &
+		\(0\) &
+		Requested value for peripheral latency, meaning that WattMate does not request to skip connection events. \\
+		
+		Supervision timeout &
+		\(2\,\mathrm{s}\) &
+		Maximum time without a successful connection event before the BLE link is considered lost. \\
+		
+		Connection parameter update delay &
+		\(6000\,\mathrm{ms}\) &
+		Delay after connection establishment before requesting the preferred connection timing parameters. \\
+		
+		Preferred PHY &
+		LE 2M PHY &
+		Preferred physical layer mode requested after connection establishment, if supported by the central device. \\
+		
+		Telemetry notification period &
+		\(500\,\mathrm{ms}\) &
+		Application-level period for live telemetry notifications. \\
+		
+		Temperature notification period &
+		\(500\,\mathrm{ms}\) &
+		Application-level period for temperature notifications. \\
+		
+		Battery status notification period &
+		Immediate at stream start, then about \(10.5\,\mathrm{s}\) &
+		Battery status is sent once when the stream starts and then at a slower rate than live measurements. \\
+		
+		RSSI update period &
+		\(1000\,\mathrm{ms}\) &
+		Period used to update the connection RSSI value while the device is connected. \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+
+
+\subsection{Connection and Stream Setup}
+\label{sec:wattmate_connection_timing}
+
+After discovery, the mobile application connects to WattMate and discovers the exposed GATT service. 
+Before streamed data can be received, the application enables notifications on the notified characteristics by configuring the corresponding CCCDs. 
+The measurement stream is then started through a write to the Control characteristic.
+
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}[
+		x=1cm,
+		y=0.85cm,
+		font=\small,
+		actor/.style={draw, rounded corners, align=center, minimum width=3.3cm, minimum height=0.8cm},
+		msg/.style={-Latex, thick},
+		note/.style={align=center}
+		]
+		% Actors
+		\node[actor] (app) at (0,0) {\textbf{Mobile App}\\Central / GATT Client};
+		\node[actor] (wm) at (8,0) {\textbf{WattMate}\\Peripheral / GATT Server};
+		
+		% Lifelines
+		\draw[dashed] (app.south) -- (0,-9.7);
+		\draw[dashed] (wm.south) -- (8,-9.7);
+		
+		% Discovery
+		\node[note] at (0,-1.0) {Scan};
+		\draw[msg] (8,-1.7) -- node[above] {Advertising packet} (0,-1.7);
+		\draw[msg] (0,-2.4) -- node[above] {Scan request} (8,-2.4);
+		\draw[msg] (8,-3.1) -- node[above] {Scan response} (0,-3.1);
+		
+		% Connection
+		\draw[msg] (0,-4.1) -- node[above] {Connection request} (8,-4.1);
+		\node[note] at (4,-4.65) {BLE link established};
+		
+		% GATT setup
+		\draw[msg] (0,-5.5) -- node[above] {Discover services and characteristics} (8,-5.5);
+		\draw[msg] (8,-6.3) -- node[above] {Service, characteristic and descriptor information} (0,-6.3);
+		
+		% Notification setup
+		\draw[msg] (0,-7.3) -- node[above] {CCCD configuration} (8,-7.3);
+		\draw[msg] (0,-8.3) -- node[above] {Control write: stream enable} (8,-8.3);
+		
+		% Stream
+		\draw[msg] (8,-9.3) -- node[above] {Measurement notifications} (0,-9.3);
+	\end{tikzpicture}
+	\caption{WattMate connection and stream setup sequence.}
+	\label{fig:wattmate_connection_setup}
+\end{figure}
+
+
+\subsection{Streaming Timing}
+\label{sec:wattmate_streaming_timing}
+
+Measurement data are sent only after the BLE connection is active, the required notification descriptors have been enabled, and the stream has been requested. 
+Telemetry and temperature notifications are sent every \(500\,\mathrm{ms}\). 
+Battery status is sent when the stream starts and then at a slower rate, because it changes more slowly than the live electrical measurements.
+
+\begin{figure}[H]
+	\centering
+	\begin{tikzpicture}[
+		x=0.95cm,
+		y=0.9cm,
+		font=\small,
+		axis/.style={-Latex, thick},
+		tick/.style={thick}
+		]
+		% Time axis
+		\draw[axis] (0,0) -- (12.5,0) node[right] {Time};
+		
+		% Tick marks
+		\foreach \x/\label in {
+			0/{\(0\)},
+			1/{\(0.5\,\mathrm{s}\)},
+			2/{\(1.0\,\mathrm{s}\)},
+			3/{\(1.5\,\mathrm{s}\)},
+			4/{\(2.0\,\mathrm{s}\)},
+			10/{\(\approx 10.5\,\mathrm{s}\)}
+		}{
+			\draw[tick] (\x,0.15) -- (\x,-0.15) node[below] {\label};
+		}
+		
+		% Stream enable marker
+		\draw[dashed] (0,2.55) -- (0,-0.4);
+		\node[above] at (0,2.55) {Stream enabled};
+		
+		% Telemetry row
+		\node[left] at (-0.2,1.8) {Telemetry};
+		\foreach \x in {0,1,2,3,4}{
+			\draw[fill=black] (\x,1.8) circle (1.8pt);
+		}
+		\draw[dotted] (4.3,1.8) -- (9.6,1.8);
+		\draw[fill=black] (10,1.8) circle (1.8pt);
+		\node[right] at (10.2,1.8) {every \(500\,\mathrm{ms}\)};
+		
+		% Temperature row
+		\node[left] at (-0.2,1.1) {Temperature};
+		\foreach \x in {0,1,2,3,4}{
+			\draw[fill=black] (\x,1.1) circle (1.8pt);
+		}
+		\draw[dotted] (4.3,1.1) -- (9.6,1.1);
+		\draw[fill=black] (10,1.1) circle (1.8pt);
+		\node[right] at (10.2,1.1) {every \(500\,\mathrm{ms}\)};
+		
+		% Battery row
+		\node[left] at (-0.2,0.4) {Battery status};
+		\draw[fill=black] (0,0.4) circle (1.8pt);
+		\node[above] at (0,0.55) {\scriptsize immediate};
+		\draw[dotted] (0.3,0.4) -- (9.6,0.4);
+		\draw[fill=black] (10,0.4) circle (1.8pt);
+		\node[right] at (10.2,0.4) {about \(10.5\,\mathrm{s}\)};
+		
+	\end{tikzpicture}
+	\caption{WattMate notification timing after the telemetry stream has been enabled.}
+	\label{fig:wattmate_streaming_timing}
+\end{figure}
+
+The notification timing is independent from the BLE connection interval. 
+Connection events define when BLE packets can be exchanged, while the stream period defines when new application-level notification data are produced.
