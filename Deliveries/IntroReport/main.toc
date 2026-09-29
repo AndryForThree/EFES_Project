@@ -1,0 +1,15 @@
+\contentsline {chapter}{\numberline {1}Introduction}{2}{chapter.1}%
+\contentsline {chapter}{\numberline {2}Project Specification}{3}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Overview}{3}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Human-Interaction Subsystem}{3}{section.2.2}%
+\contentsline {paragraph}{FPGA-Based Smart Sensor Processing}{4}{figure.caption.2}%
+\contentsline {paragraph}{Sensing Redundancy}{4}{figure.caption.2}%
+\contentsline {paragraph}{Human-Side Microcontroller}{5}{figure.caption.2}%
+\contentsline {paragraph}{Non-Volatile Memory}{5}{figure.caption.2}%
+\contentsline {paragraph}{CAN Communication}{5}{figure.caption.2}%
+\contentsline {paragraph}{Power Supply}{5}{figure.caption.2}%
+\contentsline {section}{\numberline {2.3}Road-Side Subsystem}{6}{section.2.3}%
+\contentsline {paragraph}{Local Steering Controller}{7}{figure.caption.3}%
+\contentsline {paragraph}{Steering Servo Actuator}{7}{figure.caption.3}%
+\contentsline {paragraph}{Simulated Vehicle Speed}{7}{figure.caption.3}%
+\contentsline {section}{\numberline {2.4}Course Topics Coverage}{7}{section.2.4}%

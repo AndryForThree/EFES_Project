@@ -123,8 +123,8 @@
 %-------------------------------------------------
 % -------------- Document Metadata ---------------
 %-------------------------------------------------
-\newcommand{\DocumentTitle}{WattMate}
-\newcommand{\DocumentSubtitle}{System Design Report}
+\newcommand{\DocumentTitle}{Vehicle Steer-by-Wire}
+\newcommand{\DocumentSubtitle}{Project Proposal Report}
 \newcommand{\DocumentCode}{PRJ-48}
 \newcommand{\DocumentVersion}{v1.0}
 \newcommand{\SystemRelease}{WM-SYS-001}
@@ -210,7 +210,7 @@ Doc \DocumentVersion\\ \DocumentDate
 \vspace{0.2cm}
 {\large Department of Electronics and Telecommunications \par}
 \vspace{0.5cm}
-{\large Electronic Systems Engineering \par}
+{\large Electronics for embedded systems \par}
 
 \vspace{1.5cm}
 
@@ -221,19 +221,9 @@ Doc \DocumentVersion\\ \DocumentDate
 
 \vspace{1.5cm}
 
-{\large Project ID: \DocumentCode \par}
-
 \vspace{2cm}
-
-% Document Control Block (IMPORTANT for datasheet style)
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{>{\bfseries}l l}
-System Release & \SystemRelease \\
-PCB Revision & \PcbRelease \\
-Mechanical Version & \MechRelease \\
-Firmware Version & \FWRelease \\
-Mobile APP Version & \AppRelease \\
-
 \hline
 Document Version & \DocumentVersion \\
 Release Date & \DocumentDate \\
@@ -245,15 +235,14 @@ Academic Year & \AcademicYear \\
 % Authors / Supervisor
 \begin{minipage}[t]{0.45\textwidth}
 \raggedright
-\textbf{Authors}\\[0.3cm]
-ARDUINI Giacomo --- s349096\\
-VIOLA Andrea --- s349537
+\textbf{Author}\\[0.3cm]
+Andrea VIOLA --- s349537
 \end{minipage}
 \hfill
 \begin{minipage}[t]{0.45\textwidth}
 \raggedleft
 \textbf{Professor}\\[0.3cm]
-Vincenzo Randazzo
+Claudio Passerone
 \end{minipage}
 
 \vfill
@@ -265,209 +254,16 @@ Vincenzo Randazzo
 % TABLE OF CONTENTS
 % =========================================================
 \tableofcontents
-\newpage
 
-\listoffigures
-\newpage
-
-\listoftables
-\newpage
-% =========================================================
-% REVISION HISTORY (Datasheet requirement)
-% =========================================================
-\chapter*{Document Revision History}
-\markboth{Document Revision History}{}
-\addcontentsline{toc}{chapter}{Document Revision History}
-
-\begin{longtable}{p{1.5cm} p{2.5cm} p{2.8cm} p{7cm}}
-\toprule
-\textbf{Version} & \textbf{Date} & \textbf{Author} & \textbf{Description} \\
-\midrule
-1.0 & \todayNum & Arduini Giacomo Viola Andrea & Initial release of PCB system design report \\
-\bottomrule
-\end{longtable}
-
-\vspace{0.5cm}
-
-% =========================================================
-% CONFIGURATION MANAGEMENT
-% =========================================================
-\chapter*{Configuration Management}
-\markboth{Configuration Management}{}
-\addcontentsline{toc}{chapter}{Configuration Management}
-
-This project is composed of independently versioned subsystems:
-PCB hardware, embedded firmware, and mechanical enclosure.
-A dedicated System Release identifier is used to track validated
-combinations of subsystem versions.
-
-\vspace{0.6cm}
-
-\renewcommand{\arraystretch}{1.35}
-\begin{center}
-\begin{tabular}{p{4cm} p{4cm} p{6cm}}
-\toprule
-\textbf{Subsystem} &
-\textbf{Identifier} &
-\textbf{Description} \\
-\midrule
-
-System Release &
-WM-SYS-XXX &
-Integrated and validated system configuration \\
-
-PCB Hardware &
-WM-PCB-XXX &
-PCB schematic, layout, manufacturing and assembly revision \\
-
-Mechanical Design &
-WM-MECH-XXX &
-Mechanical enclosure and CAD revision \\
-
-Firmware and Mobile APP&
-{\footnotesize v}MAJOR.MINOR.PATCH &
-Semantic versioning of software components\\
-
-\bottomrule
-\end{tabular}
-\end{center}
-
-\vspace{0.6cm}
-
-\section*{Versioning Rules}
-
-\begin{itemize}
-\item A new PCB revision is generated whenever manufacturing files require regeneration.
-
-\item A new mechanical revision is generated whenever CAD files or manufacturable geometry change.
-
-\item Firmware and Mobile APP follow semantic versioning:
-\[
-\text{\footnotesize v}\text{MAJOR}.\text{MINOR}.\text{PATCH}
-\]
-
-\item A new System Release is generated only after subsystem integration and validation.
-\end{itemize}
-
-\vspace{0.4cm}
-
-\section*{Current Configuration}
-
-\begin{center}
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{ll}
-\toprule
-System Release & \SystemRelease \\
-PCB Revision & \PcbRelease \\
-Mechanical Version & \MechRelease \\
-Firmware Version & \FWRelease \\
-Mobile APP Version & \AppRelease \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\newpage
-\section*{Design History}
-
-\vspace{0.6cm}
-
-\renewcommand{\arraystretch}{1.35}
-\begin{center}
-
-\begin{tabularx}{\textwidth}{p{2.8cm} p{4.2cm} p{2cm} X}
-\toprule
-\textbf{System Release} &
-\textbf{Subsystem Versions} &
-\textbf{Date} &
-\textbf{Description} \\
-\midrule
-
-WM-SYS-001 &
-PCB: WM-PCB-001 \newline MECH: WM-MECH-001 \newline FW: v1.0.0 \newline APP: v1.0.0 &
-\todayNum &
-Initial integrated system prototype. First PCB routing iteration validated together with baseline firmware and preliminary enclosure. \\
-
-\bottomrule
-\end{tabularx}
-
-\end{center}
-
-\vspace{0.4cm}
 
 %--------------------------------------------------
+	
 % System Design
-\include{1_SYS_Design}
+\include{1_SteeringSystem}
 
 %--------------------------------------------------
 % Hardware Design
-\include{2_HW_Design}
+\include{2_PossibleProjectVariations}
 
-
-%--------------------------------------------------
-% Firmware Design
-\include{3_FW_Design}
-
-%--------------------------------------------------
-% Mobile Application Design
-\include{4_APP_Design}
-
-%--------------------------------------------------
-
-%--------------------------------------------------
-% Mobile Application Design
-\include{6_TIMING}
-
-%--------------------------------------------------
-% Simulation and PErformance Estimation
-\include{2buis_POWER}
-%--------------------------------------------------
-
-% Tests
-\include{5_TEST}
-
-
-%\section{Compliance and Certifications}
-
-%--------------------------------------------------
-
-% Mechanical
-\include{7_MECH_Design}
-
-%--------------------------------------------------
-
-% Project Management
-\include{8_BOM}
-
-%--------------------------------------------------
-
-% Project Management
-\include{9_PRJ_MAN}
-
-%--------------------------------------------------
-\appendix
-
-\begin{landscape}
-  \chapter{Schematics}
-  \includepdf[pages=-, angle=90]{appendix/WM-PCB-001_Schematics.pdf}
-\end{landscape}
-
-\chapter{PCB Layout}
-\includepdf[pages=-]{appendix/WM-PCB-001_Layout.pdf}
-
-\begin{landscape}
-  \chapter{PCB Dimensions}
-  \includepdf[pages=-, angle=180]{appendix/WM-PCB-001_Drawing.pdf}
-\end{landscape}
-
-\begin{landscape}
-  \chapter{Enclosure Dimensions}
-  \includepdf[pages=-, angle=180]{appendix/WM-MECH-001_Drawing.pdf}
-\end{landscape}
-
-% Print all bibliography entries, even if not cited
-\nocite{*}
-
-% Print bibliography and add it to the table of contents
-\printbibliography[heading=bibintoc, title={Bibliography}]
 
 \end{document}
