@@ -1,0 +1,6 @@
+
+IDEA 1
+Pin planning optimization per la FPGA. Nel primo tentativo di compilazione io scelgo i pin, e Quartus ottimizza i circuiti interni alla FPGA per quei pin. In una fase successiva posso lasciare la scelta piu un-constrained (o quasi, perche comunque ho una board gia costruita, e quindi non ho liberta completa sui pin che posso accedere!) e vedere la differenza di performace che ottengo. Sarebbe carino poi da far vedere nel report come approfondimento!
+
+
+IDEA 2
