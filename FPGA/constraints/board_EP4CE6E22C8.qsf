@@ -1,0 +1,235 @@
+
+# ============================================================================
+# On-board CLOCKs
+# ============================================================================
+# The board provides two physical oscillators:
+#   - 50 MHz oscillator
+#   - 27 MHz oscillator
+#
+# Each oscillator is routed by the PCB to two dedicated clock-capable pins
+# of the Cyclone IV FPGA.
+#
+# IMPORTANT:
+# The two pins belonging to the same oscillator do NOT provide independent
+# clock sources. They carry the same physical clock signal because they are
+# connected to the same net on the PCB. For this reason the suffixes "_A" 
+# and "_B" only identify the two distinct FPGA pins receiving the same board clock.
+
+# ----------------------------------------------------------------------------
+# 50 MHz on-board oscillator
+# ----------------------------------------------------------------------------
+set_location_assignment PIN_24 -to CLK_50M_A
+set_location_assignment PIN_25 -to CLK_50M_B
+
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to CLK_50M_A
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to CLK_50M_B
+
+
+# ----------------------------------------------------------------------------
+# 27 MHz on-board oscillator
+# ----------------------------------------------------------------------------
+set_location_assignment PIN_90 -to CLK_27M_A
+set_location_assignment PIN_91 -to CLK_27M_B
+
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to CLK_27M_A
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to CLK_27M_B
+
+
+#============================================================
+# Reset
+#============================================================
+set_location_assignment PIN_88 -to RESET_N
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to RESET_N
+
+#============================================================
+# On-Board LEDs
+#============================================================
+set_location_assignment PIN_1  -to LEDS[0]
+set_location_assignment PIN_2  -to LEDS[1]
+set_location_assignment PIN_3  -to LEDS[2]
+set_location_assignment PIN_7  -to LEDS[3]
+set_location_assignment PIN_11 -to LEDS[4]
+
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to LEDS[4]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to LEDS[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to LEDS[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to LEDS[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to LEDS[0]
+
+
+#============================================================
+# On-Board BUTTONs
+#============================================================
+set_location_assignment PIN_73 -to BUTTONS[3]
+set_location_assignment PIN_80 -to BUTTONS[2]
+set_location_assignment PIN_89 -to BUTTONS[1]
+set_location_assignment PIN_114 -to BUTTONS[0]
+
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to BUTTONS[3]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to BUTTONS[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to BUTTONS[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to BUTTONS[0]
+
+
+#============================================================
+# On-Board FLASH Memory
+#============================================================
+# 64 Mbit (8 MB) general-purpose Serial NOR Flash memory.
+#
+# Connected directly to the FPGA through SPI.
+# WP# and HOLD# are tied to 3.3 V on the board, therefore
+# Standard SPI and Dual SPI are available, but Quad SPI is not.
+#
+# Signal direction is relative to the FPGA.
+
+set_location_assignment PIN_74 -to FLASH_MOSI
+set_location_assignment PIN_75 -to FLASH_SCK
+set_location_assignment PIN_84 -to FLASH_MISO
+set_location_assignment PIN_87 -to FLASH_CS_N
+
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to FLASH_MOSI
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to FLASH_SCK
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to FLASH_MISO
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to FLASH_CS_N
+
+
+#============================================================
+# Serial communication
+#============================================================
+# SERIAL_TX Direction: FPGA		-> USB-C
+# SERIAL_RX Direction: USB-C	-> FPGA
+set_location_assignment PIN_10 -to SERIAL_TX
+set_location_assignment PIN_23 -to SERIAL_RX
+
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to SERIAL_TX
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to SERIAL_RX
+
+
+#============================================================
+# General-Purpose I/O
+#============================================================
+#
+# Naming convention:
+#   IO_<FPGA physical pin>_BANK<bank number>
+#
+# Only FPGA I/O pins physically exposed on the board headers
+# are listed here.
+#
+# IMPORTANT:
+#   Banks 3 and 4 are powered by VIOB (See connector J5).
+#   Banks 7 and 8 are powered by VIOC (See connector J6).
+#
+#   VIOB and VIOC are configurable board I/O supply rails.
+#   Therefore the IO_STANDARD for these pins MUST match the
+#   voltage selected on the board.
+#
+#   For this reason no fixed IO_STANDARD is specified here.
+#============================================================
+
+#------------------------------------------------------------
+# BANK 2
+#------------------------------------------------------------
+
+set_location_assignment PIN_28 -to IO_28_BANK2
+set_location_assignment PIN_30 -to IO_30_BANK2
+set_location_assignment PIN_31 -to IO_31_BANK2
+set_location_assignment PIN_32 -to IO_32_BANK2
+set_location_assignment PIN_33 -to IO_33_BANK2
+set_location_assignment PIN_34 -to IO_34_BANK2
+
+
+#------------------------------------------------------------
+# BANK 3
+#------------------------------------------------------------
+
+set_location_assignment PIN_38 -to IO_38_BANK3
+set_location_assignment PIN_39 -to IO_39_BANK3
+set_location_assignment PIN_42 -to IO_42_BANK3
+set_location_assignment PIN_43 -to IO_43_BANK3
+set_location_assignment PIN_44 -to IO_44_BANK3
+set_location_assignment PIN_46 -to IO_46_BANK3
+set_location_assignment PIN_49 -to IO_49_BANK3
+set_location_assignment PIN_50 -to IO_50_BANK3
+set_location_assignment PIN_51 -to IO_51_BANK3
+set_location_assignment PIN_52 -to IO_52_BANK3
+set_location_assignment PIN_53 -to IO_53_BANK3
+
+
+#------------------------------------------------------------
+# BANK 4
+#------------------------------------------------------------
+
+set_location_assignment PIN_54 -to IO_54_BANK4
+set_location_assignment PIN_55 -to IO_55_BANK4
+set_location_assignment PIN_58 -to IO_58_BANK4
+set_location_assignment PIN_59 -to IO_59_BANK4
+set_location_assignment PIN_60 -to IO_60_BANK4
+set_location_assignment PIN_64 -to IO_64_BANK4
+set_location_assignment PIN_65 -to IO_65_BANK4
+set_location_assignment PIN_66 -to IO_66_BANK4
+set_location_assignment PIN_67 -to IO_67_BANK4
+set_location_assignment PIN_68 -to IO_68_BANK4
+set_location_assignment PIN_69 -to IO_69_BANK4
+set_location_assignment PIN_70 -to IO_70_BANK4
+set_location_assignment PIN_71 -to IO_71_BANK4
+set_location_assignment PIN_72 -to IO_72_BANK4
+
+#------------------------------------------------------------
+# BANK 5
+#------------------------------------------------------------
+
+set_location_assignment PIN_76 -to IO_76_BANK5
+set_location_assignment PIN_77 -to IO_77_BANK5
+set_location_assignment PIN_83 -to IO_83_BANK5
+set_location_assignment PIN_85 -to IO_85_BANK5
+set_location_assignment PIN_86 -to IO_86_BANK5
+
+
+#------------------------------------------------------------
+# BANK 6
+#------------------------------------------------------------
+
+set_location_assignment PIN_98  -to IO_98_BANK6
+set_location_assignment PIN_99  -to IO_99_BANK6
+set_location_assignment PIN_100 -to IO_100_BANK6
+set_location_assignment PIN_101 -to IO_101_BANK6
+set_location_assignment PIN_103 -to IO_103_BANK6
+set_location_assignment PIN_104 -to IO_104_BANK6
+set_location_assignment PIN_105 -to IO_105_BANK6
+set_location_assignment PIN_106 -to IO_106_BANK6
+
+#------------------------------------------------------------
+# BANK 7
+#------------------------------------------------------------
+
+set_location_assignment PIN_110 -to IO_110_BANK7
+set_location_assignment PIN_111 -to IO_111_BANK7
+set_location_assignment PIN_112 -to IO_112_BANK7
+set_location_assignment PIN_113 -to IO_113_BANK7
+set_location_assignment PIN_115 -to IO_115_BANK7
+set_location_assignment PIN_119 -to IO_119_BANK7
+set_location_assignment PIN_120 -to IO_120_BANK7
+set_location_assignment PIN_121 -to IO_121_BANK7
+set_location_assignment PIN_124 -to IO_124_BANK7
+set_location_assignment PIN_125 -to IO_125_BANK7
+set_location_assignment PIN_126 -to IO_126_BANK7
+set_location_assignment PIN_127 -to IO_127_BANK7
+
+
+
+#------------------------------------------------------------
+# BANK 8
+#------------------------------------------------------------
+
+set_location_assignment PIN_128 -to IO_128_BANK8
+set_location_assignment PIN_129 -to IO_129_BANK8
+set_location_assignment PIN_132 -to IO_132_BANK8
+set_location_assignment PIN_133 -to IO_133_BANK8
+set_location_assignment PIN_135 -to IO_135_BANK8
+set_location_assignment PIN_136 -to IO_136_BANK8
+set_location_assignment PIN_137 -to IO_137_BANK8
+set_location_assignment PIN_138 -to IO_138_BANK8
+set_location_assignment PIN_141 -to IO_141_BANK8
+set_location_assignment PIN_142 -to IO_142_BANK8
+set_location_assignment PIN_143 -to IO_143_BANK8
+set_location_assignment PIN_144 -to IO_144_BANK8

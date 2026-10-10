@@ -39,7 +39,7 @@
 
 set_global_assignment -name FAMILY "Cyclone IV E"
 set_global_assignment -name DEVICE EP4CE6E22C8
-set_global_assignment -name TOP_LEVEL_ENTITY SmartSensorPeripheral
+set_global_assignment -name TOP_LEVEL_ENTITY SmartSensorPeripheral_Wrapper
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 25.1STD.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "14:22:02  OCTOBER 01, 2026"
 set_global_assignment -name LAST_QUARTUS_VERSION "25.1std.0 Lite Edition"
@@ -55,3 +55,99 @@ set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_symbol
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_signal_integrity
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_boundary_scan
+set_global_assignment -name VHDL_FILE src/SmartSensorPeripheral_Wrapper.vhd
+set_global_assignment -name VHDL_FILE src/SmartSensorPeripheral.vhd
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_location_assignment PIN_24 -to CLK_50M_A
+set_location_assignment PIN_25 -to CLK_50M_B
+set_location_assignment PIN_90 -to CLK_27M_A
+set_location_assignment PIN_91 -to CLK_27M_B
+set_location_assignment PIN_88 -to RESET_N
+set_location_assignment PIN_1 -to LEDS[0]
+set_location_assignment PIN_2 -to LEDS[1]
+set_location_assignment PIN_3 -to LEDS[2]
+set_location_assignment PIN_7 -to LEDS[3]
+set_location_assignment PIN_11 -to LEDS[4]
+set_location_assignment PIN_73 -to BUTTONS[3]
+set_location_assignment PIN_80 -to BUTTONS[2]
+set_location_assignment PIN_89 -to BUTTONS[1]
+set_location_assignment PIN_114 -to BUTTONS[0]
+set_location_assignment PIN_74 -to FLASH_MOSI
+set_location_assignment PIN_75 -to FLASH_SCK
+set_location_assignment PIN_84 -to FLASH_MISO
+set_location_assignment PIN_87 -to FLASH_CS_N
+set_location_assignment PIN_10 -to SERIAL_TX
+set_location_assignment PIN_23 -to SERIAL_RX
+set_location_assignment PIN_28 -to IO_28_BANK2
+set_location_assignment PIN_30 -to IO_30_BANK2
+set_location_assignment PIN_31 -to IO_31_BANK2
+set_location_assignment PIN_32 -to IO_32_BANK2
+set_location_assignment PIN_33 -to IO_33_BANK2
+set_location_assignment PIN_34 -to IO_34_BANK2
+set_location_assignment PIN_38 -to IO_38_BANK3
+set_location_assignment PIN_39 -to IO_39_BANK3
+set_location_assignment PIN_42 -to IO_42_BANK3
+set_location_assignment PIN_43 -to IO_43_BANK3
+set_location_assignment PIN_44 -to IO_44_BANK3
+set_location_assignment PIN_46 -to IO_46_BANK3
+set_location_assignment PIN_49 -to IO_49_BANK3
+set_location_assignment PIN_50 -to IO_50_BANK3
+set_location_assignment PIN_51 -to IO_51_BANK3
+set_location_assignment PIN_52 -to IO_52_BANK3
+set_location_assignment PIN_53 -to IO_53_BANK3
+set_location_assignment PIN_54 -to IO_54_BANK4
+set_location_assignment PIN_55 -to IO_55_BANK4
+set_location_assignment PIN_58 -to IO_58_BANK4
+set_location_assignment PIN_59 -to IO_59_BANK4
+set_location_assignment PIN_60 -to IO_60_BANK4
+set_location_assignment PIN_64 -to IO_64_BANK4
+set_location_assignment PIN_65 -to IO_65_BANK4
+set_location_assignment PIN_66 -to IO_66_BANK4
+set_location_assignment PIN_67 -to IO_67_BANK4
+set_location_assignment PIN_68 -to IO_68_BANK4
+set_location_assignment PIN_69 -to IO_69_BANK4
+set_location_assignment PIN_70 -to IO_70_BANK4
+set_location_assignment PIN_71 -to IO_71_BANK4
+set_location_assignment PIN_72 -to IO_72_BANK4
+set_location_assignment PIN_76 -to IO_76_BANK5
+set_location_assignment PIN_77 -to IO_77_BANK5
+set_location_assignment PIN_83 -to IO_83_BANK5
+set_location_assignment PIN_85 -to IO_85_BANK5
+set_location_assignment PIN_86 -to IO_86_BANK5
+set_location_assignment PIN_98 -to IO_98_BANK6
+set_location_assignment PIN_99 -to IO_99_BANK6
+set_location_assignment PIN_100 -to IO_100_BANK6
+set_location_assignment PIN_101 -to IO_101_BANK6
+set_location_assignment PIN_103 -to IO_103_BANK6
+set_location_assignment PIN_104 -to IO_104_BANK6
+set_location_assignment PIN_105 -to IO_105_BANK6
+set_location_assignment PIN_106 -to IO_106_BANK6
+set_location_assignment PIN_110 -to IO_110_BANK7
+set_location_assignment PIN_111 -to IO_111_BANK7
+set_location_assignment PIN_112 -to IO_112_BANK7
+set_location_assignment PIN_113 -to IO_113_BANK7
+set_location_assignment PIN_115 -to IO_115_BANK7
+set_location_assignment PIN_119 -to IO_119_BANK7
+set_location_assignment PIN_120 -to IO_120_BANK7
+set_location_assignment PIN_121 -to IO_121_BANK7
+set_location_assignment PIN_124 -to IO_124_BANK7
+set_location_assignment PIN_125 -to IO_125_BANK7
+set_location_assignment PIN_126 -to IO_126_BANK7
+set_location_assignment PIN_127 -to IO_127_BANK7
+set_location_assignment PIN_128 -to IO_128_BANK8
+set_location_assignment PIN_129 -to IO_129_BANK8
+set_location_assignment PIN_132 -to IO_132_BANK8
+set_location_assignment PIN_133 -to IO_133_BANK8
+set_location_assignment PIN_135 -to IO_135_BANK8
+set_location_assignment PIN_136 -to IO_136_BANK8
+set_location_assignment PIN_137 -to IO_137_BANK8
+set_location_assignment PIN_138 -to IO_138_BANK8
+set_location_assignment PIN_141 -to IO_141_BANK8
+set_location_assignment PIN_142 -to IO_142_BANK8
+set_location_assignment PIN_143 -to IO_143_BANK8
+set_location_assignment PIN_144 -to IO_144_BANK8
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

@@ -4,3 +4,10 @@ Pin planning optimization per la FPGA. Nel primo tentativo di compilazione io sc
 
 
 IDEA 2
+Devo documentare le scelte che sono state fatte dalle schede che compro? Per esmepio nella FPGA ci sono un sacco di dettagli tecnici su come sono cablate le cose, ha senso che li spiego? Per dimostrare che saprei ripetere il design da solo?
+
+
+IDEA 3
+Per il progetto del mio CORDIC, ha senso fare una ottimizzazione anche con compilazione su FPGA? Oppure basta il Golden Model cha gia ho fatto?
+Cioe dopo aver generato lo sweep di possibili soluzioni, ha senso che le sintetizzo tutte per trovare la migliore?
+

@@ -1,0 +1,38 @@
+# Quartus: compilation databases and programming outputs.
+# Keep .qpf, .qsf, HDL sources, IP definitions and constraints.
+/FPGA/**/db/
+/FPGA/**/incremental_db/
+/FPGA/**/output_files/
+/FPGA/**/*.qws
+
+# Quartus-generated simulation files; keep testbenches and scripts.
+/FPGA/simulation/**/*.vho
+/FPGA/simulation/**/*.vo
+/FPGA/simulation/**/*.sft
+
+# CORDIC analysis: compiled executable and generated sweep results.
+/FPGA/cordic_analysis/executable/
+/FPGA/cordic_analysis/cordic_sweep.csv
+
+# LaTeX build files (bibliography sources and figures stay tracked).
+/Deliveries/**/*.aux
+/Deliveries/**/*.log
+/Deliveries/**/*.bbl
+/Deliveries/**/*.bcf
+/Deliveries/**/*.blg
+/Deliveries/**/*.lof
+/Deliveries/**/*.lot
+/Deliveries/**/*.out
+/Deliveries/**/*.toc
+/Deliveries/**/*.run.xml
+/Deliveries/**/*.synctex.gz
+/Deliveries/**/*.fls
+/Deliveries/**/*.fdb_latexmk
+
+# Compiled reports only; keep reference PDFs and appendix documents.
+/Deliveries/*Report/main.pdf
+/Deliveries/IntroReport/Andrea Viola s349537_Project proposal report.pdf
+
+# Editor backups.
+*.bak
+*~
