@@ -211,6 +211,13 @@ int main(void)
 		executable_path
 	);
 
+	FILE *output_file = fopen(output_path, "w");
+
+	if (output_file == NULL) {
+		printf("Error opening output file\n");
+		return 1;
+	}
+
 	if (output_file == NULL) {
 		printf("Error opening output file\n");
 		return 1;
