@@ -12,6 +12,7 @@
 
 # CORDIC analysis: compiled executable and generated sweep results.
 /FPGA/cordic_analysis/executable/
+/FPGA/cordic_analysis/outputs/
 /FPGA/cordic_analysis/cordic_sweep.csv
 
 # LaTeX build files (bibliography sources and figures stay tracked).
