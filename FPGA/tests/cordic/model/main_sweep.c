@@ -207,7 +207,7 @@ int main(void)
 	snprintf(
 		output_path,
 		sizeof(output_path),
-		"%s/../outputs/cordic_sweep.csv",
+		"%s/../cordic_sweep.csv",
 		executable_path
 	);
 
