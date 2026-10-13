@@ -9,10 +9,10 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-INPUT_FILE = SCRIPT_DIR 		/ "../outputs/cordic_sweep.csv"
-ANALYZED_FILE = SCRIPT_DIR		/ "../outputs/cordic_sweep_analyzed.csv"
-CANDIDATES_FILE = SCRIPT_DIR	/ "../outputs/cordic_pareto_candidates.csv"
-PLOT_FILE = SCRIPT_DIR			/ "../outputs/cordic_pareto.png"
+INPUT_FILE = SCRIPT_DIR 		/ "../outputs/sweep/cordic_sweep.csv"
+ANALYZED_FILE = SCRIPT_DIR		/ "../outputs/sweep/cordic_sweep_analyzed.csv"
+CANDIDATES_FILE = SCRIPT_DIR	/ "../outputs/sweep/cordic_pareto_candidates.csv"
+PLOT_FILE = SCRIPT_DIR			/ "../outputs/sweep/cordic_pareto.png"
 
 # Parameters currently considered as "costs".
 # Lower is considered better.

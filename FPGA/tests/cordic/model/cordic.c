@@ -68,7 +68,7 @@ bool cordic_goldenModel(int32_t y, int32_t x, const CordicConfig *config, double
 	// starting quadrant of the angle (Defined via the starting signs of cos and sin), decide
 	// if the final angle should be added or subtracted pi)	
 	int64_t pi_fixed = llround(CORDIC_PI * (1LL<< config->angle_frac_bits));	
-    int64_t two_pi_fixed = 2 * pi_fixed;
+    int64_t two_pi_fixed = llround((2.0 * CORDIC_PI) * (1LL << config->angle_frac_bits));
 	if (xi < 0) {
         xi = -xi;
         yi = -yi;
@@ -135,7 +135,7 @@ bool cordic_goldenModel(int32_t y, int32_t x, const CordicConfig *config, double
     if (zi >= pi_fixed)
         zi -= two_pi_fixed;
 
-    if (zi < -pi_fixed)
+    else if (zi < -pi_fixed)
         zi += two_pi_fixed;
 
 	// Transform the output Angle Value from Fixed Point to Floating Point

@@ -10,10 +10,8 @@
 /FPGA/simulation/**/*.vo
 /FPGA/simulation/**/*.sft
 
-# CORDIC analysis: compiled executable and generated sweep results.
-/FPGA/cordic_analysis/executable/
-/FPGA/cordic_analysis/outputs/
-/FPGA/cordic_analysis/cordic_sweep.csv
+# Unit tests: compiled executables and generated outputs.
+/FPGA/tests/*/outputs/
 
 # LaTeX build files (bibliography sources and figures stay tracked).
 /Deliveries/**/*.aux
@@ -34,6 +32,25 @@
 /Deliveries/*Report/main.pdf
 /Deliveries/IntroReport/Andrea Viola s349537_Project proposal report.pdf
 
-# Editor backups.
+# Local editor/workspace state; keep portable project/build configuration.
+.vscode/
+.settings/
+.metadata/
+.cache/
+
+# Python-generated caches and local environments.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Editor backups and operating-system metadata.
 *.bak
 *~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
