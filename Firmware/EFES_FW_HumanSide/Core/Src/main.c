@@ -26,7 +26,8 @@
 /* USER CODE BEGIN Includes */
 #include "st7789.h"
 #include "st7789_transport.h"
-#include <stdio.h>
+#include "UI_module.h"
+#include "App.h"
 
 /* USER CODE END Includes */
 
@@ -48,9 +49,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-/* Observe in the debugger: elapsed time of the latest full-screen fill. */
-volatile uint32_t display_last_fill_ms;
-static volatile ST7789_Result display_last_result;
 
 /* USER CODE END PV */
 
@@ -62,103 +60,149 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/* Strings passed to the async renderer must survive until completion. */
-static char display_time_text[48];
-static char display_buffer_text[48];
+/* Independent simulated data sources. UI refresh remains owned by TIM6. */
+#define DEMO_ANGLE_PERIOD_MS 10U
+#define DEMO_SPEED_PERIOD_MS 100U
+#define DEMO_STATUS_PERIOD_MS 250U
+#define DEMO_CYCLE_MS 40000U
 
-static ST7789_Result DisplayDemo_Start(uint8_t step)
+static const struct {
+  uint32_t time_ms;
+  int16_t angle_deci_deg;
+  uint16_t speed_kmh;
+} demo_route[] = {
+  /* Time     Steering   Speed: acceleration, bends, then parking. */
+  {    0,       0,        0},
+  { 5000,       0,       45},
+  { 9000,      60,       55},
+  {13000,     -60,       55},
+  {17000,       0,       35},
+  {21000,     300,       18},
+  {25000,    -450,        8},
+  {29000,    4500,        5},
+  {33000,   -4500,        5},
+  {37000,       0,        0},
+  {40000,       0,        0}
+};
+
+/* Dedicated road-wheel targets in tenths of a degree, one step every 5 s. */
+static const int16_t demo_road_targets[] = {0, 124, -160, 60, -30, 200, -200, 0};
+/* Response time in 10 ms steps: COMFORT 250 ms, ECO 450 ms, SPORT 100 ms. */
+static const int demo_motor_response_steps[] = {
+  [UI_DRIVE_NORMAL] = 25, [UI_DRIVE_ECO] = 45, [UI_DRIVE_SPORT] = 10
+};
+static int16_t demo_motor_angle;
+static UI_State demo_state;
+static uint32_t demo_started_at;
+static uint32_t demo_angle_at;
+static uint32_t demo_speed_at;
+static uint32_t demo_status_at;
+
+static int32_t Demo_Interpolate(int32_t from, int32_t to,
+                                uint32_t elapsed, uint32_t duration)
 {
-    switch (step) {
-    case 0: return ST7789_Fill_Color(RED);
-    case 1: return ST7789_Fill_Color(GREEN);
-    case 2: return ST7789_Fill_Color(BLUE);
-    case 3: return ST7789_Fill_Color(BLACK);
-    case 4: return ST7789_FillHorizontalGradient(MAGENTA, BLACK);
-    case 5: return ST7789_Fill_Color(BLACK);
-    case 6: return ST7789_DrawRectangle(0, 0, ST7789_WIDTH - 1, ST7789_HEIGHT - 1, WHITE);
-    case 7: return ST7789_WriteString(10, 10, "EFES - DMA test", Font_11x18, WHITE, BLACK);
-    case 8: return ST7789_WriteString(10, 40, "320x240 - Landscape", Font_7x10, WHITE, BLACK);
-    case 9: return ST7789_DrawFilledRectangle(10, 70, 100, 70, RED);
-    case 10: return ST7789_DrawFilledRectangle(110, 70, 100, 70, GREEN);
-    case 11: return ST7789_DrawFilledRectangle(210, 70, 100, 70, BLUE);
-    case 12: return ST7789_WriteString(10, 150, "RED", Font_7x10, WHITE, BLACK);
-    case 13: return ST7789_WriteString(110, 150, "GREEN", Font_7x10, WHITE, BLACK);
-    case 14: return ST7789_WriteString(210, 150, "BLUE", Font_7x10, WHITE, BLACK);
-    case 15: return ST7789_WriteString(10, 220, "BOTTOM LEFT", Font_7x10, WHITE, BLACK);
-    case 16: return ST7789_WriteString(225, 220, "BOTTOM RIGHT", Font_7x10, WHITE, BLACK);
-    case 17: return ST7789_DrawCircle(260, 185, 18, YELLOW);
-    case 18: return ST7789_DrawFilledCircle(220, 185, 12, GREEN);
-    case 19: return ST7789_DrawTriangle(160, 170, 190, 200, 150, 200, WHITE);
-    case 20: return ST7789_DrawLine(10, 165, 309, 165, WHITE);
-    case 21: return ST7789_DrawFilledTriangle(170, 205, 190, 205, 180, 215, BLUE);
-    case 22: return ST7789_Fill(290, 180, 309, 199, WHITE);
-    case 23: return ST7789_Fill(290, 180, 309, 199, BLACK);
-    default: return ST7789_INVALID_ARGUMENT;
-    }
+  return from + (to - from) * (int32_t)elapsed / (int32_t)duration;
 }
 
-static void DisplayDemo_Process(void)
+static void Demo_Init(void)
 {
-    enum { REQUEST, WAIT_DRAW, REQUEST_TIME, WAIT_TIME,
-           REQUEST_BUFFER, WAIT_BUFFER, HOLD };
-    static uint8_t step, phase;
-    static uint32_t started_at, completed_at;
-    uint32_t now = HAL_GetTick();
+  uint32_t now = HAL_GetTick();
+  demo_started_at = now;
+  demo_angle_at = now;
+  demo_speed_at = now;
+  demo_status_at = now;
+  demo_motor_angle = 0;
+  demo_state = (UI_State){
+    .drive_mode = UI_DRIVE_NORMAL,
+    .road_feedback_received_at_ms = now,
+    .road_feedback_valid = true,
+    .sensor_sample_received_at_ms = now,
+    .channel_b_angle_deci_deg = 1,
+    .sensor_deviation_limit_deci_deg = 10, /* Temporary simulated FPGA configuration. */
+    .channel_a_valid = true,
+    .channel_b_valid = true,
+    .steering_ratio_deci = 128,
+    .sensors_valid = true,
+    .can_online = true,
+    .actuator_ready = true,
+    .speed_simulated = true
+  };
+  UI_SetState(&demo_state);
+}
 
-    if (ST7789_GetState() == ST7789_STATE_ERROR) {
-        HAL_GPIO_WritePin(Board_LED_GPIO_Port, Board_LED_Pin, GPIO_PIN_SET);
-        return;
+static void Demo_Process(void)
+{
+  uint32_t now = HAL_GetTick();
+  bool angle_due = (uint32_t)(now - demo_angle_at) >= DEMO_ANGLE_PERIOD_MS;
+  bool speed_due = (uint32_t)(now - demo_speed_at) >= DEMO_SPEED_PERIOD_MS;
+  bool status_due = (uint32_t)(now - demo_status_at) >= DEMO_STATUS_PERIOD_MS;
+  if (!angle_due && !speed_due && !status_due) return;
+
+  uint32_t phase = (uint32_t)(now - demo_started_at) % DEMO_CYCLE_MS;
+  unsigned segment = 0;
+  while (phase >= demo_route[segment + 1].time_ms) segment++;
+  uint32_t elapsed = phase - demo_route[segment].time_ms;
+  uint32_t duration = demo_route[segment + 1].time_ms - demo_route[segment].time_ms;
+
+  if (angle_due) {
+    demo_angle_at = now;
+    demo_state.steering_angle_deci_deg = Demo_Interpolate(
+      demo_route[segment].angle_deci_deg, demo_route[segment + 1].angle_deci_deg,
+      elapsed, duration);
+    int offset = 1 + (phase / 250U) % 4U;
+    if (phase >= 26000U && phase < 28000U)
+      offset = 4 + (phase - 26000U) / 200U;
+    if (phase >= 28000U && phase < 32000U) offset = 14;
+    /* Simulated sensor silence: other modules keep publishing their own data. */
+    if (!(phase >= 20000U && phase < 23000U)) {
+      demo_state.channel_a_angle_deci_deg = demo_state.steering_angle_deci_deg;
+      demo_state.channel_b_angle_deci_deg = demo_state.channel_a_angle_deci_deg + offset;
+      demo_state.sensor_sample_received_at_ms = now;
     }
-    if (ST7789_GetState() != ST7789_STATE_IDLE) return;
-    switch (phase) {
-    case REQUEST:
-        started_at = now;
-        display_last_result = DisplayDemo_Start(step);
-        if (display_last_result == ST7789_OK) phase = WAIT_DRAW;
-        break;
-    case WAIT_DRAW:
-        if (step <= 3) {
-            static const char *const names[] = { "RED", "GREEN", "BLUE", "BLACK" };
-            /* End timing before scheduling either of the result strings. */
-            display_last_fill_ms = now - started_at;
-            snprintf(display_time_text, sizeof(display_time_text), "%s: %lu ms",
-                     names[step], (unsigned long)display_last_fill_ms);
-            snprintf(display_buffer_text, sizeof(display_buffer_text), "Buffer: %lu px",
-                     (unsigned long)ST7789_BUFFER_PIXELS);
-            phase = REQUEST_TIME;
-        } else {
-            completed_at = now;
-            phase = HOLD;
-        }
-        break;
-    case REQUEST_TIME:
-        display_last_result = ST7789_WriteString(10, 180, display_time_text,
-                                                 Font_11x18, WHITE, BLACK);
-        if (display_last_result == ST7789_OK) phase = WAIT_TIME;
-        break;
-    case WAIT_TIME:
-        phase = REQUEST_BUFFER;
-        break;
-    case REQUEST_BUFFER:
-        display_last_result = ST7789_WriteString(10, 200, display_buffer_text,
-                                                 Font_7x10, WHITE, BLACK);
-        if (display_last_result == ST7789_OK) phase = WAIT_BUFFER;
-        break;
-    case WAIT_BUFFER:
-        completed_at = now;
-        phase = HOLD;
-        break;
-    case HOLD: {
-        uint32_t hold_ms = step <= 3 ? 1000U :
-                           (step == 4 ? 2000U : (step >= 22 ? 500U : 0U));
-        if ((uint32_t)(now - completed_at) < hold_ms) break;
-        step++;
-        if (step == 24) step = 22;
-        phase = REQUEST;
-        break;
+    demo_state.road_requested_angle_deci_deg = demo_road_targets[phase / 5000U];
+    /* Mode changes only the simulated motor response, not the UI timings. */
+    int motor_error = demo_state.road_requested_angle_deci_deg - demo_motor_angle;
+    int response_steps = demo_motor_response_steps[demo_state.drive_mode];
+    demo_motor_angle += motor_error >= 0 ? (motor_error + response_steps - 1) / response_steps :
+                                          (motor_error - response_steps + 1) / response_steps;
+    /* Simulate CAN feedback silence from 18 to 20 s; the motor keeps moving. */
+    if (!(phase >= 18000U && phase < 20000U) && !(phase >= 38000U && phase < 39000U)) {
+      demo_state.road_actual_angle_deci_deg = demo_motor_angle;
+      demo_state.road_feedback_received_at_ms = now;
     }
-    default: break;
-    }
+  }
+  if (speed_due) {
+    demo_speed_at = now;
+    demo_state.vehicle_speed_kmh = Demo_Interpolate(
+      demo_route[segment].speed_kmh, demo_route[segment + 1].speed_kmh,
+      elapsed, duration);
+    /* Example speed-adaptive map: 12.0:1 at rest, 13.1:1 at 55 km/h. */
+    demo_state.steering_ratio_deci = 120U + demo_state.vehicle_speed_kmh / 5U;
+  }
+  if (status_due) {
+    demo_status_at = now;
+    /* Ten seconds per mode, using the data clock rather than the UI timer. */
+    demo_state.drive_mode = (UI_DriveMode)(((uint32_t)(now - demo_started_at) / 10000U) % 3U);
+    /* Brief diagnostic changes while stopped, then automatic recovery.
+     * Keep alarms zero: the separate alarm page is still empty.
+     */
+    /* Simulate an incoming hardware flag independently of the measured delta.
+     * From 27.4 s to 28 s the bar saturates but stays green until that flag arrives.
+     */
+    demo_state.sensor_plausibility_fault = phase >= 28000U && phase < 32000U;
+    demo_state.channel_a_valid = true;
+    demo_state.channel_b_valid = !(phase >= 37000U && phase < 38000U);
+    demo_state.sensors_valid = demo_state.channel_a_valid && demo_state.channel_b_valid &&
+                               !demo_state.sensor_plausibility_fault;
+    demo_state.can_online = !(phase >= 38000U && phase < 39000U);
+    demo_state.road_feedback_valid = phase < 39000U;
+    demo_state.actuator_ready = !(phase >= 39000U);
+  }
+
+  /* Publish the latest data once, without waiting for the display. If the
+   * superloop is late, sample the current route time instead of replaying it.
+   */
+  UI_SetState(&demo_state);
 }
 
 /* USER CODE END 0 */
@@ -195,10 +239,13 @@ int main(void)
   MX_DMA_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-  display_last_result = ST7789_Init();
-  if (display_last_result != ST7789_OK) {
+  if (ST7789_Init() != ST7789_OK) {
     Error_Handler();
   }
+  UI_Init();
+
+  Demo_Init();
+  App_Init();
 
   /* USER CODE END 2 */
 
@@ -209,9 +256,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    App_Process();
+    Demo_Process();
     ST7789_Process();
-    DisplayDemo_Process();
-    /* Other application work can run here while DMA sends prepared pixels. */
+    UI_Process();
+    if (ST7789_GetState() == ST7789_STATE_ERROR) {
+      HAL_GPIO_WritePin(Board_LED_GPIO_Port, Board_LED_Pin, GPIO_PIN_SET);
+    }
+    /* Other modules will run here. */
   }
   /* USER CODE END 3 */
 }
@@ -237,7 +289,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
-  RCC_OscInitStruct.PLL.PLLN = 40;
+  RCC_OscInitStruct.PLL.PLLN = 42;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
