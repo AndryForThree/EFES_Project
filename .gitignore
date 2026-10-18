@@ -47,6 +47,22 @@ __pycache__/
 .venv/
 venv/
 
+# Keep only font inputs actually used by fonts.json, plus licenses/readmes.
+# Downloaded families contain many unused weights and variable-font versions.
+# When adding a new source to fonts.json, add its exception here too.
+/Firmware/Scripts/FontGeneration/baseFonts/**
+!/Firmware/Scripts/FontGeneration/baseFonts/**/
+!/Firmware/Scripts/FontGeneration/baseFonts/**/README*
+!/Firmware/Scripts/FontGeneration/baseFonts/**/OFL.txt
+!/Firmware/Scripts/FontGeneration/baseFonts/**/LICENSE*
+!/Firmware/Scripts/FontGeneration/baseFonts/Barlow_Condensed/BarlowCondensed-Bold.ttf
+!/Firmware/Scripts/FontGeneration/baseFonts/Barlow_Semi_Condensed/BarlowSemiCondensed-Bold.ttf
+!/Firmware/Scripts/FontGeneration/baseFonts/Exo_2/static/Exo2-Bold.ttf
+!/Firmware/Scripts/FontGeneration/baseFonts/Inter/static/Inter_18pt-Medium.ttf
+!/Firmware/Scripts/FontGeneration/baseFonts/Inter/static/Inter_18pt-SemiBold.ttf
+!/Firmware/Scripts/FontGeneration/baseFonts/Rajdhani/Rajdhani-Bold.ttf
+!/Firmware/Scripts/FontGeneration/baseFonts/Rajdhani/Rajdhani-SemiBold.ttf
+
 # Editor backups and operating-system metadata.
 *.bak
 *~

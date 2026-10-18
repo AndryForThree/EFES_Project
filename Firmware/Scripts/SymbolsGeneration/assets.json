@@ -1,0 +1,54 @@
+{
+  "assets": [
+    {
+      "name": "STEERING_WHEEL",
+      "file": "source/Volante.png",
+      "size": 83
+    },
+    {
+      "name": "SENSOR",
+      "file": "source/Sesnsor_Symbol.png",
+      "size": 20
+    },
+    {
+      "name": "CAN",
+      "file": "source/CAN Symbol.png",
+      "size": 20
+    },
+    {
+      "name": "ECU",
+      "file": "source/ECU Symbol.png",
+      "size": 20
+    },
+    {
+      "name": "SPEED",
+      "file": "source/Speed_Symbol.png",
+      "size": 20
+    },
+    {
+      "name": "SENSOR_DELTA",
+      "file": "source/Sensor_Delta_Symbol.png",
+      "size": 20
+    },
+    {
+      "name": "STEERING_MAP",
+      "file": "source/Steering_Map_Symbol.png",
+      "size": 20
+    },
+    {
+      "name": "DRIVE_MODE",
+      "file": "source/Drive_mode_Symbol.png",
+      "size": 26
+    },
+    {
+      "name": "TICK",
+      "file": "source/Tick_Symbol.png",
+      "size": 16
+    },
+    {
+      "name": "CROSS",
+      "file": "source/Cross.png",
+      "size": 16
+    }
+  ]
+}

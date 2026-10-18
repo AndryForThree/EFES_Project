@@ -14,7 +14,7 @@ CMake generati si ricreano localmente: non sono versionati.
    La generazione ricrea `Drivers/`, gli altri file `Core/`, `cmake/`,
    `CMakePresets.json`, startup e linker.
 3. Conservare il `CMakeLists.txt` principale della repository: include i sorgenti
-   personalizzati ST7789. Nel file è esplicitamente indicato che non viene
+   personalizzati ST7789 e UI. Nel file è esplicitamente indicato che non viene
    rigenerato alle generazioni successive.
 4. Conservare `Core/Src/main.c` e le sue sezioni `USER CODE`.
    L'opzione CubeMX `KeepUserCode` è già attiva nel `.ioc`.
@@ -26,8 +26,9 @@ CMake generati si ricreano localmente: non sono versionati.
 
 - `.ioc`: pin, clock, periferiche, DMA e opzioni della generazione.
 - `CMakeLists.txt`: integrazione dei sorgenti custom.
-- `Core/Src/main.c`: demo, ciclo applicativo e instradamento delle callback HAL.
-- `Core/Src/ST7789/`: libreria personalizzata, font, configurazione e documentazione.
+- `Core/Src/main.c`: inizializzazione, superloop e instradamento delle callback HAL.
+- `customLibs/ST7789/`: libreria display, font, configurazione e documentazione.
+- `customLibs/UI/`: stato, eventi, pagine e timer TIM6 dedicato alla UI.
 - `.clangd`, `.gitignore` e questo documento.
 
 Le regole ignorano le altre directory e i sorgenti generati da CubeMX. Non
@@ -41,4 +42,5 @@ Le directory di build e i prodotti compilati restano esclusi. Ignorare o
 rimuovere un file dall'indice Git non lo cancella dal disco.
 
 Per il comportamento della libreria e delle API asincrone, vedere
-[`Core/Src/ST7789/README.md`](Core/Src/ST7789/README.md).
+[`customLibs/ST7789/README.md`](customLibs/ST7789/README.md).
+Per il modulo UI vedere [`customLibs/UI/README.md`](customLibs/UI/README.md).
