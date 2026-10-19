@@ -1,35 +1,57 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-FPGA_DIR=$(cd "$SCRIPT_DIR/../../.." && pwd)
-RUN_DIR=$(mktemp -d /tmp/efes-spi-XXXXXX)
-echo "SPI simulation logs: $RUN_DIR"
-cd "$RUN_DIR"
+# Usage: ./sim_spi_slave.bash [-param NAME=VALUE ...]
+# Parameters go to Questa as -gTB_NAME=VALUE.
 
-vlib work
-vcom -2008 -work work "$FPGA_DIR/src/spi_slave.vhd" "$FPGA_DIR/tb/TB_spi_slave.vhd" > compile.log 2>&1 || {
-    cat compile.log
-    exit 1
-}
+# Paths
+readonly SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+readonly FPGA_DIR=$(cd "$SCRIPT_DIR/../../.." && pwd)
+readonly TEST_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+readonly RUN_DIR="$TEST_DIR/outputs/sim"
+readonly SIM_DIR="$RUN_DIR/questa"
 
-for width in 8 16; do
-    for cpol in false true; do
-        for cpha in false true; do
-            for lsb_first in false true; do
-                name="width${width}_cpol${cpol}_cpha${cpha}_lsb${lsb_first}"
-                vsim -c -onfinish exit work.tb_spi_slave \
-                    -gDATA_WIDTH="$width" -gCPOL="$cpol" -gCPHA="$cpha" -gLSB_FIRST="$lsb_first" \
-                    -do 'set BreakOnAssertion 2; run -all; quit -code 1' > "$name.log" 2>&1 || {
-                    cat "$name.log"
-                    exit 1
-                }
-                if ! grep -Fq 'SPI PASS' "$name.log"; then
-                    cat "$name.log"
-                    exit 1
-                fi
-                echo "PASS $name"
-            done
-        done
-    done
+readonly VHDL_DUT="$FPGA_DIR/src/spi_slave.vhd"
+readonly VHDL_TB="$FPGA_DIR/tb/TB_spi_slave.vhd"
+readonly TCL_SCRIPT="$SCRIPT_DIR/sim_spi_slave.tcl"
+
+readonly LOG_DIR="$RUN_DIR/log"
+readonly COMPILE_LOG="$LOG_DIR/compile.log"
+readonly VHDL_LOG="$LOG_DIR/vhdl.log"
+
+
+# Read command line parameters
+generic_args=()
+while [[ $# -gt 0 ]]; do
+    generic_args+=("-gTB_$2")
+    shift 2
 done
+
+# Prepare the folders where to run the simulation tools.
+rm -rf "$RUN_DIR"
+mkdir -p "$LOG_DIR" "$SIM_DIR"
+cd "$RUN_DIR"
+trap 'rm -rf "$SIM_DIR"' EXIT
+
+
+echo "SPI Slave Simulation flow. Find outputs at: $RUN_DIR"
+
+echo ""
+echo "==============================================================="
+echo "Running VHDL..."
+
+cd "$SIM_DIR"
+export VHDL_DUT VHDL_TB COMPILE_LOG   # The Tcl reads paths and parameters from these environment variables.
+export GENERIC_ARGS="${generic_args[*]}"
+sim_status=0
+vsim -c -onfinish exit -do "do {$TCL_SCRIPT}" > "$VHDL_LOG" 2>&1 || sim_status=$?
+
+# Show the final report and check the simulator exit code.
+grep -E "SPI TB (config|report|RESULT):" "$VHDL_LOG" || true
+if [[ "$sim_status" -eq 0 ]] && grep -Fq "SPI TB RESULT: PASS" "$VHDL_LOG"; then
+    echo "SPI Slave simulation result PASS"
+else
+    echo "SPI Slave simulation result: FAIL"
+    echo "Look logs at: $VHDL_LOG"
+    exit 1
+fi

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box}body{margin:0;color:#243548;font:14px system-ui,sans-serif;background:white}
+.controls,.options,.metrics{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:12px 0}
+button,select{font:inherit;border:1px solid #d4dfe6;border-radius:8px;padding:9px 14px;background:white;color:inherit;cursor:pointer}
+button.primary{background:#138777;color:white;border-color:#138777}button:focus-visible,input:focus-visible{outline:3px solid #7bbaef;outline-offset:2px}
+label{display:flex;align-items:center;gap:7px}input{accent-color:#138777}#angle{width:100%;margin:12px 0 18px}
+#reading{float:right;font-variant-numeric:tabular-nums;font-weight:650}.metrics>div{flex:1;min-width:120px;background:#f2f5f8;border:1px solid #e4eaf0;border-radius:10px;padding:12px 16px}
+.metrics small{display:block;color:#697e90}.metrics strong{display:block;margin-top:5px;font-size:24px;font-variant-numeric:tabular-nums}
+#canvas{width:100%;height:500px;display:block;background:#fafcfd;border:1px solid #e4eaf0;border-radius:10px;touch-action:none}
+#notice{padding:10px 12px;border-radius:8px;background:#eef7f4;margin:10px 0;min-height:38px}#notice.warning{background:#fff1df;color:#815313}
+.caption{font-size:12px;color:#718096;line-height:1.6}.options{font-size:12px;gap:16px}.muted{color:#718096;margin-left:auto}
+#adopt{display:none} @media(max-width:600px){#canvas{height:420px}.metrics strong{font-size:20px}.controls{gap:7px}.muted{margin-left:0}}
+</style></head><body>
+<div class="controls">
+<button id="play" class="primary">▶ Avvia</button><button id="zero">↺ Posa zero</button>
+<label>Velocità <select id="speed" aria-label="Velocità in gradi al secondo"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> °/s</label>
+<button id="fit">Centra vista</button><span class="caption muted">Animazione locale · scala X:Y = 1:1</span>
+</div>
+<label for="angle">Angolo staffa sinistra θ SX · °</label><output id="reading">0.00°</output>
+<input id="angle" type="range" min="-45" max="45" value="0" step="0.01">
+<div class="metrics"><div><small>Ruota sinistra</small><strong id="left">—</strong></div><div><small>Ruota destra</small><strong id="right">—</strong></div><div><small>Differenza ruote</small><strong id="difference">—</strong></div><div><small>Rapporto cinematico</small><strong id="ratio">—</strong></div></div>
+<div id="notice" role="status" aria-live="polite">Caricamento geometria…</div><button id="adopt">Adotta la posa richiesta come nuovo montaggio</button>
+<div class="options">
+<label><input id="labels" type="checkbox" checked>Etichette</label><label><input id="construction" type="checkbox">Cerchi ausiliari</label>
+<label><input id="trajectories" type="checkbox" checked>Traiettorie</label><label><input id="neutral" type="checkbox" checked>Ruote a zero</label><label><input id="envelope" type="checkbox">Inviluppo ruote</label>
+</div>
+<canvas id="canvas" aria-label="Vista dall'alto del meccanismo di sterzo"></canvas>
+<p class="caption">Blu: staffe e bracci · Arancio: tirante · Verde: T · Tratteggio: posa zero. Trascina per spostare la vista, usa la rotella per lo zoom.<br>
+Pausa e rilascio dello slider acquisiscono la posa per le analisi. Grafici e verifiche degli ingombri si calcolano su richiesta nelle altre schede.</p>
+<script src="kinematics.js"></script><script src="animation.js"></script>
+</body></html>

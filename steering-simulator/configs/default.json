@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "units": {
+    "length": "mm",
+    "angle": "rad"
+  },
+  "parameters": {
+    "pivot_spacing": 180.0,
+    "left": {
+      "arm_length": 25.0,
+      "arm_angle": 1.5707963267948966,
+      "axle_x": -25.0,
+      "axle_y": 0.0,
+      "heading_offset": 0.0
+    },
+    "right": {
+      "arm_length": 25.0,
+      "arm_angle": 1.5707963267948966,
+      "axle_x": 25.0,
+      "axle_y": 0.0,
+      "heading_offset": 0.0
+    },
+    "tie_length": 180.0,
+    "physical": {
+      "arm_width": 10.0,
+      "arm_thickness": 2.0,
+      "rod_width": 10.0,
+      "rod_thickness": 2.0,
+      "bracket_width": 10.0,
+      "bracket_thickness": 2.0,
+      "hole_diameter": 4.2,
+      "pivot_diameter": 4.0,
+      "bolt_head_diameter": 7.0,
+      "washer_diameter": 9.0,
+      "washer_thickness": 1.0,
+      "spacer_height": 1.0,
+      "end_margin": 5.0,
+      "wheel_diameter": 60.0,
+      "wheel_width": 18.0,
+      "bracket_z": 2.0,
+      "arm_z": 4.0,
+      "rod_z": 8.0,
+      "wheel_axle_z": 8.0,
+      "use_heights": true
+    },
+    "targets": {
+      "left_angle": 0.4363323129985824,
+      "right_angle": 0.4363323129985824,
+      "max_mismatch": 0.03490658503988659,
+      "target_ratio": 1.0,
+      "ratio_tolerance": 0.15,
+      "min_toggle_angle": 0.17453292519943295,
+      "clearance": 1.0,
+      "warning_sine": 0.05
+    },
+    "display_range": 0.7853981633974483,
+    "actuation_fraction": 0.5,
+    "branch": -1,
+    "symmetric": true
+  }
+}
