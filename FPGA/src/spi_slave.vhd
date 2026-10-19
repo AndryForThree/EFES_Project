@@ -47,45 +47,53 @@ architecture rtl of spi_slave is
 	signal bit_count	: natural range 0 to DATA_WIDTH-1;
 
 	-- TX Control
-	signal tx_first_bit_phase	: std_logic;
-	signal tx_word_valid		: std_logic;
+	signal tx_first_bit		: std_logic;	-- Defines if the current SPI Cycle is the first!
+	signal tx_word_valid	: std_logic;	-- Defines if the current TX Word was valid from Buffering System 
 
 begin
 
+	-- Each word must contain at least 2 bits.
+	assert DATA_WIDTH >= 2
+		report "SPI: DATA_WIDTH must be at least 2"
+		severity failure;
+
 	-- RX Word Construction
-	process(all)
-		variable next_word : std_logic_vector(DATA_WIDTH-1 downto 0);
+	process(rx_shift_reg, spi_mosi_i)
+		variable next_word : std_logic_vector((DATA_WIDTH-1) downto 0);
 	begin
 		if LSB_FIRST then
-			next_word := std_logic_vector(shift_right(unsigned(rx_shift_reg), 1));
-			next_word(DATA_WIDTH-1) := spi_mosi_i;
+			-- LSB must be sent in as the first bit in MOSI, so shift the register to the right
+			next_word := std_logic_vector(shift_right(unsigned(rx_shift_reg), 1));	-- Shift right the Shift Register
+			next_word(DATA_WIDTH-1) := spi_mosi_i;									-- Insert MOSI at the MSB
 		else
-			next_word := std_logic_vector(shift_left(unsigned(rx_shift_reg), 1));
-			next_word(0) := spi_mosi_i;
+			-- MSB must be sent in as the first bit in MOSI, so shift the register to the left
+			next_word := std_logic_vector(shift_left(unsigned(rx_shift_reg), 1));	-- Shift left the Shift Register
+			next_word(0) := spi_mosi_i;												-- Insert MOSI at the LSB
 		end if;
 
+		-- Compute the next value of the RX_shift register
 		rx_next_word <= next_word;
 	end process;
 
 	-- RX Parallel Interface
-	rx_data_o <= rx_next_word;
-
-	rx_valid_o <= '1' when	(rst_n_i = '1') and
-							(spi_cs_n_i = '0') and
-							(bit_count = DATA_WIDTH-1)
-					else '0';
+	rx_data_o 	<= rx_next_word;
+	rx_valid_o 	<=	'1'	when	(spi_cs_n_i = '0')			and 	-- The SPI Slave is enabled
+								(rst_n_i = '1')				and 	-- The SPI Slave is enabled
+								(bit_count = DATA_WIDTH-1)	else 	-- N-1 bits have been sampled; the last bit is available on MOSI
+					'0';
 
 	-- RX Sampling
 	process(spi_sclk_i, spi_cs_n_i, rst_n_i)
 	begin
-		if (rst_n_i = '0') or (spi_cs_n_i = '1') then
-			rx_shift_reg <= (others => '0');
-			bit_count <= 0;
-			tx_word_valid <= '0';
+		if rst_n_i = '0' or spi_cs_n_i = '1' then
+			rx_shift_reg	<= (others => '0');
+			bit_count		<= 0;
+			tx_word_valid	<= '0';
 
-		elsif (SAMPLE_ON_RISING and rising_edge(spi_sclk_i)) or
-			  ((not SAMPLE_ON_RISING) and falling_edge(spi_sclk_i)) then
+		elsif (SAMPLE_ON_RISING and rising_edge(spi_sclk_i))		or
+			  (not SAMPLE_ON_RISING and falling_edge(spi_sclk_i))	then
 
+			-- Update the shift Register with the next word computed combinatorially
 			rx_shift_reg <= rx_next_word;
 
 			-- Capture TX availability at the first bit of each word
@@ -93,6 +101,7 @@ begin
 				tx_word_valid <= tx_valid_i;
 			end if;
 
+			-- Update the sampling counter 
 			if bit_count = DATA_WIDTH-1 then
 				bit_count <= 0;
 			else
@@ -105,10 +114,11 @@ begin
 	tx_request_o <= '1' when
 						(rst_n_i = '1') and
 						(spi_cs_n_i = '0') and
-						(
+						(	
+							-- Sample a Word from TX Data if there is one at the first Cycle
 							(CPHA and (bit_count = 0) and (tx_valid_i = '1')) or
 							((not CPHA) and (tx_word_valid = '1') and
-								((bit_count = 1) or (DATA_WIDTH = 1)))
+								(bit_count = 1))
 						)
 					else '0';
 
@@ -117,34 +127,47 @@ begin
 	begin
 		if (rst_n_i = '0') or (spi_cs_n_i = '1') then
 			tx_shift_reg <= (others => '0');
-			tx_first_bit_phase <= '1';
+			tx_first_bit <= '1';
 
+		-- Check the active edge for SPI Transmission (TX Update Edge). 
+		-- At the active edge, the Slave must update the MISO.
+		-- This edge is the opposite edge in which the Master is sampling the MISO,
+		-- in order to reduce timing problems between the two units
 		elsif (SAMPLE_ON_RISING and falling_edge(spi_sclk_i)) or
 			  ((not SAMPLE_ON_RISING) and rising_edge(spi_sclk_i)) then
 
-			if CPHA then
+			-- Track the first bit on the TX update edge
+			if bit_count = 0 then
+				tx_first_bit <= '1';
+			else
+				tx_first_bit <= '0';
+			end if;
 
-				-- Load a complete word on its first update edge
+			if CPHA then
 				if bit_count = 0 then
+					-- If this is the first TX Update Edge of the word, before any TX Sampling
+					-- Load a complete word on on the first TX Update edge
+					-- If there is no word available from the buffering system, just upload
+					-- a word of all 0s (MISO will transmit all 0s)!! 
 					if tx_valid_i = '1' then
 						tx_shift_reg <= tx_data_i;
 					else
 						tx_shift_reg <= (others => '0');
 					end if;
 				else
+					-- If this is NOT the first TX Update Edge of the word, just shift the
+					-- shift register to update the bit to be sent in MISO!
 					if LSB_FIRST then
 						tx_shift_reg <= std_logic_vector(shift_right(unsigned(tx_shift_reg), 1));
 					else
 						tx_shift_reg <= std_logic_vector(shift_left(unsigned(tx_shift_reg), 1));
 					end if;
 				end if;
-
 			else
-
-				-- Load the remaining bits after the first bit
-				if (bit_count = 1) and (DATA_WIDTH > 1) then
-					tx_first_bit_phase <= '0';
-
+				-- If CPHA = 0, the first TX Update Edge comes after the first TX Sampling Edge, and so
+				-- the first bit of the TX Data is already consumed! Put in the shift register only the 
+				-- already shifted version of the TX Data!!
+				if (bit_count = 1) then
 					if tx_word_valid = '1' then
 						if LSB_FIRST then
 							tx_shift_reg <= std_logic_vector(shift_right(unsigned(tx_data_i), 1));
@@ -155,12 +178,8 @@ begin
 						tx_shift_reg <= (others => '0');
 					end if;
 
-				-- Prepare the next word after the last bit
-				elsif bit_count = 0 then
-					tx_first_bit_phase <= '1';
-
-				-- Shift the remaining bits
-				else
+				-- If this is not the first TX Update Edge, simply Update the Shift Register!
+				else 
 					if LSB_FIRST then
 						tx_shift_reg <= std_logic_vector(shift_right(unsigned(tx_shift_reg), 1));
 					else
@@ -172,24 +191,42 @@ begin
 	end process;
 
 	-- MISO Output
-	process(all)
+	-- In general the MISO MISO output must be handled in the following way:
+	--	- If the slave is not active or selected	
+	--			--> MISO must be High Impedance
+	--	- If the salve is selected and active, but no TX data is ready to be sent
+	--			-->	MISO must trasmit all zeros 
+	--	- If the slave is selected and active, and TX data is ready to be sent:
+	--			--> MISO is fed from the TX Shift Register at each SPI Clock Cycle
+	-- In the case of CPHA = 0, at the first SPI Clock Edge generated by the master,
+	-- the signal in MISO is sampled, and so it is necessary that the data must be
+	-- ready in MISO even before any clock activity from Master!!
+	process(rst_n_i, spi_cs_n_i, tx_first_bit, tx_valid_i, tx_data_i, tx_shift_reg)
 	begin
+		-- BY default, the MISO (Serial Output of the Slave), is a shared bus between all
+		-- slaves, and so it is necessary that if the Slave is not selected, it must 
+		-- use a High Impedance output for it!!
 		spi_miso_o <= 'Z';
 
 		if (rst_n_i = '1') and (spi_cs_n_i = '0') then
-
-			if (not CPHA) and (tx_first_bit_phase = '1') then
+			if (not CPHA) and (tx_first_bit = '1') then
 				if tx_valid_i = '1' then
 					if LSB_FIRST then
-						spi_miso_o <= tx_data_i(0);
+						-- MISO is fed by the LSB of the TX Data In bus
+						spi_miso_o <= tx_data_i(0);			
 					else
+						-- MISO is fed by the MSB of the TX Data In bus
 						spi_miso_o <= tx_data_i(DATA_WIDTH-1);
 					end if;
 				else
+					-- MISO is 0 because the Slave is active and selected, but there
+					-- is no data ready to be send from Slave to Master
 					spi_miso_o <= '0';
 				end if;
 
 			else
+				-- If there are no special cases to be handled, the MISO is connected directly
+				-- to the head of the TX Shift Register
 				if LSB_FIRST then
 					spi_miso_o <= tx_shift_reg(0);
 				else
