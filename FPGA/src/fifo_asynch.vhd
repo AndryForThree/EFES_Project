@@ -16,9 +16,9 @@ use ieee.numeric_std.all;
 
 entity fifo_asynch is
 	generic (
-		DATA_WIDTH : positive := 16;	
-		ADDR_WIDTH : positive := 4;		-- FIFO depth = 2**ADDR_WIDTH
-		SYNCH_STAGES : positive := 2	-- Stages for all synchronizers
+		DATA_WIDTH		: positive	:= 16;	-- Number of Bits in each eantry of the FIFO
+		ADDR_WIDTH		: positive	:= 4;	-- Number of Bits of the FIFO Address (There are 2^ADDR_WIDTH FIFO entries) 
+		SYNCH_STAGES	: positive	:= 2	-- Number of Stages of all synchronizers in the design
 	);
 	port (
 		rst_n_i : in std_logic;		-- Asynch. Reset, active Low 
@@ -42,32 +42,43 @@ architecture rtl of fifo_asynch is
 
 	constant FIFO_DEPTH : positive := 2**ADDR_WIDTH;
 
-	-- The extra pointer bit tracks wrap-around.
+	-- Define the type for pointers that can access teh internal FIFO memory
 	subtype pointer_t is unsigned(ADDR_WIDTH downto 0);
+
+	-- Define the type for synchronized pointer (basically an array of single pointers)
 	type pointer_sync_t is array (0 to SYNCH_STAGES-1) of pointer_t;
-	type memory_t is array (0 to FIFO_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
-	signal memory : memory_t;
 
-	-- Write Pointer
-	signal wr_binary, wr_binary_next   : pointer_t;
-	signal wr_gray, wr_gray_next : pointer_t;
-
-	-- Read Pointer
-	signal rd_binary, rd_binary_next   : pointer_t;
-	signal rd_gray, rd_gray_next : pointer_t;
-
+	-- =========================================================================================
+	-- Write Domain Pointers
+	signal wr_binary		: pointer_t;
+	signal wr_binary_next	: pointer_t;
+	signal wr_gray			: pointer_t;
+	signal wr_gray_next		: pointer_t;
+	
 	-- Read pointer synchronized to the write clock.
 	signal rd_gray_wr_pipe : pointer_sync_t;
 	signal rd_gray_wr_sync : pointer_t;
 
+	-- =========================================================================================
+	-- Read Domain Pointers
+	signal rd_binary		: pointer_t;
+	signal rd_binary_next	: pointer_t;
+	signal rd_gray			: pointer_t;
+	signal rd_gray_next		: pointer_t;
+
 	-- Write pointer synchronized to the read clock.
-	signal wr_gray_rd_pipe : pointer_sync_t;
-	signal wr_gray_rd_sync : pointer_t;
+	signal wr_gray_rd_pipe	: pointer_sync_t;
+	signal wr_gray_rd_sync	: pointer_t;
+
+		-- Define the main FIFO Memory
+	type memory_t is array (0 to FIFO_DEPTH-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+	signal memory : memory_t;
 
 	-- Reset release is synchronized separately for each clock.
-	signal wr_reset_sync		: std_logic_vector(SYNCH_STAGES-1 downto 0);
-	signal rd_reset_sync		: std_logic_vector(SYNCH_STAGES-1 downto 0);
-	signal wr_rst_n, rd_rst_n	: std_logic;
+	signal wr_reset_sync	: std_logic_vector(SYNCH_STAGES-1 downto 0);
+	signal rd_reset_sync	: std_logic_vector(SYNCH_STAGES-1 downto 0);
+	signal wr_rst_n			: std_logic;
+	signal rd_rst_n			: std_logic;
 
 begin
 
@@ -119,7 +130,6 @@ begin
 	-- These are just the synchronized version of the original signal in each clock domain
 	wr_rst_n <= wr_reset_sync(SYNCH_STAGES-1);
 	rd_rst_n <= rd_reset_sync(SYNCH_STAGES-1);
-
 
 
 

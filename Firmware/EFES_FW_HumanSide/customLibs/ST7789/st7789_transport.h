@@ -23,21 +23,4 @@ void ST7789_TransportErrorISR(SPI_HandleTypeDef *spi);
 void ST7789_PixelsCompleteISR(void);
 void ST7789_PixelsErrorISR(void);
 
-/* Short critical sections protect publication of buffers and DMA launches.
- * Preserve PRIMASK: these helpers are also used from callbacks.
- */
-static inline uint32_t ST7789_Lock(void)
-{
-    uint32_t mask = __get_PRIMASK();
-    __disable_irq();
-    __DMB();
-    return mask;
-}
-
-static inline void ST7789_Unlock(uint32_t mask)
-{
-    __DMB();
-    __set_PRIMASK(mask);
-}
-
 #endif

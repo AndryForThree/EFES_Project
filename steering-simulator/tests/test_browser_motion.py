@@ -42,3 +42,47 @@ def test_browser_matches_python_and_stops_at_boundaries():
         for name in ('b_left', 'b_right', 'c_left', 'c_right', 'point', 'theta_left', 'theta_right'):
             np.testing.assert_allclose(actual[name], getattr(expected, name), atol=1e-9)
         assert actual['closure_error'] < p.length_tolerance
+
+
+@pytest.mark.skipif(not NODE, reason='Node is only needed to check the browser kernel')
+def test_limit_is_independent_of_frame_steps_and_history():
+    from steering.kinematics import toggle_angles
+    from steering.parameters import symmetric_steering
+    configurations = [symmetric_steering(Parameters(), 25, 180, math.radians(beta))
+                      for beta in (-30, 30)]
+    # An exceptional limit with coincident circles must not retain an old pose.
+    configurations.append(symmetric_steering(Parameters(), 180, 180, 0))
+    payload = [{'p': asdict(p), 'boundaries': toggle_angles(p, -p.display_range, p.display_range)}
+               for p in configurations]
+    script = '''const k=require(process.argv[1]);
+    const cases=JSON.parse(require('fs').readFileSync(0,'utf8'));
+    const results=cases.map(({p,boundaries})=>{
+      const limits=k.motionLimits(p,boundaries);
+      const sign=limits.upperGeometric?1:-1;
+      const target=sign*p.display_range;
+      const final=k.resolveMotion(p,target,limits);
+      for(const step of [.001,.037,.2]){
+        for(let a=0;Math.abs(a)<Math.abs(target);a+=sign*step) k.resolveMotion(p,a,limits);
+        const actual=k.resolveMotion(p,target,limits);
+        if(JSON.stringify(actual)!==JSON.stringify(final))throw Error('History-dependent limit');
+      }
+      const retreat=k.resolveMotion(p,0,limits);
+      return {final,retreat,limits};
+    });process.stdout.write(JSON.stringify(results));'''
+    # Use a wide display range to include the coincident endpoint at -90°.
+    payload[-1]['p']['display_range'] = math.pi
+    payload[-1]['boundaries'] = toggle_angles(configurations[-1], -math.pi, math.pi)
+    # Choose the coincident negative endpoint explicitly in this last case.
+    script = script.replace('const sign=limits.upperGeometric?1:-1;',
+                            "const sign=p.left.arm_length===180?-1:(limits.upperGeometric?1:-1);")
+    result = json.loads(subprocess.run([NODE, '-e', script, str(KERNEL)], input=json.dumps(payload),
+                                      text=True, check=True, capture_output=True).stdout)
+    for item in result:
+        assert item['final']['limited']
+        assert item['retreat']['angle'] == 0
+        assert item['retreat']['pose']['theta_right'] == pytest.approx(0, abs=1e-12)
+    assert result[-1]['final']['pose'] is None
+    assert result[-1]['final']['status'] == 'coincident'
+    for item in result[:-1]:
+        assert item['final']['pose']['status'] == 'tangent'
+        assert item['final']['pose']['theta_left'] == item['final']['angle']

@@ -20,23 +20,6 @@
       "file": "baseFonts/Barlow_Semi_Condensed/BarlowSemiCondensed-Bold.ttf",
       "size": 10
     },
-	{
-      "name": "BARLOW_SEMI_CONDENSED_BOLD_6",
-      "file": "baseFonts/Barlow_Semi_Condensed/BarlowSemiCondensed-Bold.ttf",
-      "size": 6
-    },
-	{
-      "name": "BARLOW_CONDENSED_BOLD_14",
-      "file": "baseFonts/Barlow_Condensed/BarlowCondensed-Bold.ttf",
-      "size": 14
-    },
-	{
-      "name": "EXO_2_BOLD_30",
-      "file": "baseFonts/Exo_2/static/Exo2-Bold.ttf",
-      "size": 38,
-      "first_char": 43,
-      "last_char": 57
-    },
     {
       "name": "RAJDHANI_BOLD_40",
       "file": "baseFonts/Rajdhani/Rajdhani-Bold.ttf",
@@ -68,11 +51,6 @@
       "file": "baseFonts/Inter/static/Inter_18pt-Medium.ttf",
       "size": 10,
       "last_char": 176
-    },
-    {
-      "name": "INTER_SEMIBOLD_11",
-      "file": "baseFonts/Inter/static/Inter_18pt-SemiBold.ttf",
-      "size": 11
     },
     {
       "name": "INTER_MEDIUM_12",

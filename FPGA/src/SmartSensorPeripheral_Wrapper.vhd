@@ -1,13 +1,20 @@
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity SmartSensorPeripheral_Wrapper is
     port (
-        CLK_50M_A : in  std_logic;
+        CLK_50M_A : in std_logic;
 
         BUTTONS   : in  std_logic_vector(3 downto 0);
-        LEDS      : out std_logic_vector(4 downto 0)
+        LEDS      : out std_logic_vector(4 downto 0);
+
+        -- Button signals forwarded to the microcontroller
+        IO_28_BANK2 : out std_logic;
+        IO_30_BANK2 : out std_logic;
+        IO_31_BANK2 : out std_logic;
+        IO_32_BANK2 : out std_logic
     );
 end entity SmartSensorPeripheral_Wrapper;
 
@@ -28,12 +35,17 @@ begin
             leds_o    => leds_internal
         );
 
-    -- Buttons -> LEDs
+    -- Buttons -> On-board LEDs
     LEDS(3 downto 0) <= leds_internal;
+
+    -- Buttons -> External GPIO (Microcontroller)
+    IO_28_BANK2 <= not(BUTTONS(0));
+    IO_30_BANK2 <= not(BUTTONS(1));
+    IO_31_BANK2 <= not(BUTTONS(2));
+    IO_32_BANK2 <= not(BUTTONS(3));
 
     -- Free LED used as clock test
     LEDS(4) <= blink;
-
 
     process (CLK_50M_A)
     begin

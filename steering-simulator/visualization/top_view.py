@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import numpy as np
 import plotly.graph_objects as go
-from steering.clearances import bodies
+from .shapes import bodies
 from steering.geometry import arm_vector, rectangle
 from steering.kinematics import Pose, Sample
 from steering.parameters import Parameters
@@ -79,7 +79,7 @@ def top_view(p: Parameters, pose: Pose | None, samples: list[Sample], *, labels:
             color, fill = {
                 "arm": (BLUE, "rgba(57,118,196,.24)"), "bracket": (BLUE, "rgba(57,118,196,.12)"),
                 "rod": (ORANGE, "rgba(223,134,40,.35)"), "wheel": (INK, "#33475c"),
-                "fastener": ("#71869b", "rgba(235,242,248,.7)"),
+                "joint": ("#71869b", "rgba(235,242,248,.7)"),
             }[body.family]
             polygon(fig, body.polygon, color, fill, body.name)
         for center, heading, name in ((pose.c_left, pose.heading_left, "C SX"),

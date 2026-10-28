@@ -12,36 +12,25 @@ def onshape_variables(p: Parameters) -> str:
         ("Interasse_sterzo", p.pivot_spacing, "mm"),
         ("L_braccio_SX", p.left.arm_length, "mm"), ("L_braccio_DX", p.right.arm_length, "mm"),
         ("L_SteeringRod", p.tie_length, "mm"),
-        ("L_taglio_braccio_SX", p.left.arm_length+2*p.physical.end_margin, "mm"),
-        ("L_taglio_braccio_DX", p.right.arm_length+2*p.physical.end_margin, "mm"),
-        ("L_taglio_tirante", p.tie_length+2*p.physical.end_margin, "mm"),
     ]
     for side, bracket in (("SX", p.left), ("DX", p.right)):
         values += [(f"Angolo_braccio_{side}", math.degrees(bracket.arm_angle), "deg"),
                    (f"Offset_ruota_X_{side}", bracket.axle_x, "mm"),
                    (f"Offset_ruota_Y_{side}", bracket.axle_y, "mm"),
                    (f"Orientamento_ruota_{side}", math.degrees(bracket.heading_offset), "deg")]
-    f = p.physical
-    for name, value in (
-        ("Spessore_braccio", f.arm_thickness),
-        ("Larghezza_braccio", f.arm_width), ("Spessore_tirante", f.rod_thickness),
-        ("Larghezza_tirante", f.rod_width), ("Diametro_foro", f.hole_diameter),
-        ("Diametro_perno", f.pivot_diameter), ("Margine_foro", f.end_margin),
-        ("Diametro_ruota", f.wheel_diameter), ("Larghezza_ruota", f.wheel_width),
-        ("Quota_braccio", f.arm_z), ("Quota_tirante", f.rod_z),
-        ("Quota_staffa", f.bracket_z), ("Quota_asse_ruota", f.wheel_axle_z),
-        ("Larghezza_staffa", f.bracket_width), ("Spessore_staffa", f.bracket_thickness),
-        ("Diametro_rondella", f.washer_diameter), ("Spessore_rondella", f.washer_thickness),
-        ("Altezza_distanziale", f.spacer_height), ("Diametro_testa_vite", f.bolt_head_diameter),
-    ):
-        values.append((name, value, "mm"))
+    values += [("Diametro_ruota", p.physical.wheel_diameter, "mm"),
+               ("Larghezza_ruota", p.physical.wheel_width, "mm")]
+    values += [("Motore_X", p.motor.x, "mm"), ("Motore_Y", p.motor.y, "mm"),
+               ("L_leva_motore", p.motor.crank_radius, "mm"),
+               ("L_astina_motore", p.motor.connecting_length, "mm"),
+               ("Attacco_tirante_lambda", p.actuation_fraction, "")]
     lines = ["PARAMETRI PER ONSHAPE — trasferimento manuale", "",
              "Creare variabili con questi nomi; nelle quote usare #Nome_variabile.",
              "X verso destra, Y verso il retro; angoli bracci misurati da +X.",
              "L_braccio e L_SteeringRod sono distanze fra centri dei fori.",
-             "L_taglio include due margini foro-estremità; non è l'interasse.", ""]
+             "Spessori, ferramenta e dimensioni grafiche non fanno parte dell’export.", ""]
     lines += [f"{name} = {value:.9g} {unit}    →    #{name}" for name, value, unit in values]
-    lines += ["", f"Ramo di montaggio: {p.branch:+d}",
+    lines += ["", f"Ramo di montaggio: {p.branch:+d}", f"Montaggio leva motore: {'A' if p.motor.assembly == 1 else 'B'}",
               "I perni di sterzo sono a (−#Interasse_sterzo/2, 0) e (+#Interasse_sterzo/2, 0).",
               "Quote iniziali, non validate per carichi, resistenza o tolleranze di produzione."]
     return "\n".join(lines)

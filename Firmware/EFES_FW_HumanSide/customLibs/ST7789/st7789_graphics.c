@@ -1,5 +1,9 @@
 #include "st7789_graphics.h"
 #include "st7789_transport.h"
+/* Short critical sections protect publication of buffers and DMA launches.
+ * Preserve PRIMASK: these helpers are also used from callbacks.
+ */
+#include "main.h"
 #include <math.h>
 #include <stdbool.h>
 
@@ -712,6 +716,19 @@ static void StartReadyBuffer(void)
         ST7789_GraphicsError();
 }
 
+bool ST7789_NeedsProcess(void)
+{
+	uint32_t mask = lock();
+	bool pending = false;
+	if (drawing_state == ST7789_STATE_BUSY) {
+		pending = !window_active ||
+			(active_buffer < 0 && buffers[send_index].state == READY) ||
+			(remaining_pixels != 0 && buffers[prepare_index].state == FREE);
+	}
+	unlock(mask);
+	return pending;
+}
+
 void ST7789_Process(void)
 {
     if (drawing_state != ST7789_STATE_BUSY) return;
@@ -746,22 +763,22 @@ void ST7789_Process(void)
         }
     }
 
-    uint32_t mask = ST7789_Lock();
+    uint32_t mask = lock();
     StartReadyBuffer();
     if (drawing_state != ST7789_STATE_BUSY || !window_active || remaining_pixels == 0 ||
         buffers[prepare_index].state != FREE) {
-        ST7789_Unlock(mask);
+        unlock(mask);
         return;
     }
     PixelBuffer *buffer = &buffers[prepare_index];
     uint16_t pixels = remaining_pixels > ST7789_BUFFER_PIXELS ?
                       ST7789_BUFFER_PIXELS : (uint16_t)remaining_pixels;
     buffer->state = FILLING;
-    ST7789_Unlock(mask);
+    unlock(mask);
 
     PreparePixels(buffer->data, pixels);
 
-    mask = ST7789_Lock();
+    mask = lock();
     if (drawing_state == ST7789_STATE_BUSY) {
         buffer->pixels = pixels;
         source_offset += pixels;
@@ -770,12 +787,12 @@ void ST7789_Process(void)
         prepare_index ^= 1U;
         StartReadyBuffer();
     }
-    ST7789_Unlock(mask);
+    unlock(mask);
 }
 
 void ST7789_PixelsCompleteISR(void)
 {
-    uint32_t mask = ST7789_Lock();
+    uint32_t mask = lock();
     if (drawing_state == ST7789_STATE_BUSY && active_buffer >= 0) {
         PixelBuffer *buffer = &buffers[(uint8_t)active_buffer];
         completed_pixels += buffer->pixels;
@@ -789,14 +806,14 @@ void ST7789_PixelsCompleteISR(void)
             StartReadyBuffer();
         }
     }
-    ST7789_Unlock(mask);
+    unlock(mask);
 }
 
 void ST7789_PixelsErrorISR(void)
 {
-    uint32_t mask = ST7789_Lock();
+    uint32_t mask = lock();
     if (drawing_state == ST7789_STATE_BUSY) ST7789_GraphicsError();
-    ST7789_Unlock(mask);
+    unlock(mask);
 }
 
 ST7789_Result ST7789_Fill(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)

@@ -1,7 +1,7 @@
 """Immutable geometry and versioned, validated configuration persistence."""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 import json
 import math
 from typing import Any
@@ -18,38 +18,21 @@ class Bracket:
 
 @dataclass(frozen=True)
 class Physical:
-    arm_width: float = 10.0
-    arm_thickness: float = 2.0
-    rod_width: float = 10.0
-    rod_thickness: float = 2.0
-    bracket_width: float = 10.0  # projected horizontal axle support
-    bracket_thickness: float = 2.0
-    hole_diameter: float = 4.2
-    pivot_diameter: float = 4.0
-    bolt_head_diameter: float = 7.0
-    washer_diameter: float = 9.0
-    washer_thickness: float = 1.0
-    spacer_height: float = 1.0
-    end_margin: float = 5.0
     wheel_diameter: float = 60.0
     wheel_width: float = 18.0
-    bracket_z: float = 2.0  # lower surface
-    arm_z: float = 4.0
-    rod_z: float = 8.0
-    wheel_axle_z: float = 8.0
-    use_heights: bool = True
+    link_width: float = 10.0
+
+
+TRANSMISSION_WARNING_SINE = 0.05  # Internal diagnostic threshold; never a motion limit.
 
 
 @dataclass(frozen=True)
-class Targets:
-    left_angle: float = math.radians(25)
-    right_angle: float = math.radians(25)
-    max_mismatch: float = math.radians(2)
-    target_ratio: float = 1.0
-    ratio_tolerance: float = 0.15
-    min_toggle_angle: float = math.radians(10)
-    clearance: float = 1.0
-    warning_sine: float = 0.05  # normalized |d dot B'| / (t * arm length)
+class Motor:
+    x: float = -60.0
+    y: float = 25.0
+    crank_radius: float = 15.0
+    connecting_length: float = 60.0
+    assembly: int = 1
 
 
 @dataclass(frozen=True)
@@ -59,11 +42,11 @@ class Parameters:
     right: Bracket = field(default_factory=lambda: Bracket(axle_x=25.0))
     tie_length: float = 180.0
     physical: Physical = field(default_factory=Physical)
-    targets: Targets = field(default_factory=Targets)
     display_range: float = math.radians(45)
     actuation_fraction: float = 0.5
     branch: int = -1
     symmetric: bool = True
+    motor: Motor = field(default_factory=Motor)
 
     @property
     def scale(self) -> float:
@@ -84,23 +67,21 @@ class Parameters:
             ):
                 raise ValueError("Ogni parametro deve essere un numero finito.")
         finite(asdict(self))
-        for group in (self, self.left, self.right, self.physical, self.targets):
+        for group in (self, self.left, self.right, self.physical, self.motor):
             for name, value in asdict(group).items():
-                if type(value) is bool and name not in ("symmetric", "use_heights"):
+                if type(value) is bool and name not in ("symmetric",):
                     raise ValueError(f"{name}: un booleano non è una dimensione.")
         for name, value in (("Interasse", self.pivot_spacing), ("Tirante", self.tie_length),
                             ("Braccio SX", self.left.arm_length), ("Braccio DX", self.right.arm_length)):
             if value <= self.length_tolerance:
                 raise ValueError(f"{name}: lunghezza nulla, negativa o numericamente degenere.")
         for name, value in asdict(self.physical).items():
-            if name.endswith("_z") or name == "use_heights":
-                continue
             if value <= 0:
                 raise ValueError(f"{name} deve essere positivo.")
         if type(self.branch) is not int or self.branch not in (-1, 1):
             raise ValueError("Ramo ammesso: -1 oppure +1.")
-        if type(self.symmetric) is not bool or type(self.physical.use_heights) is not bool:
-            raise ValueError("Modalità simmetrica e quote Z devono essere booleani.")
+        if type(self.symmetric) is not bool:
+            raise ValueError("La modalità simmetrica deve essere un booleano.")
         if self.symmetric and not all(math.isclose(a, b, abs_tol=1e-9) for a, b in (
             (self.right.arm_length, self.left.arm_length),
             (math.remainder(self.right.arm_angle + self.left.arm_angle - math.pi, 2*math.pi), 0),
@@ -110,21 +91,51 @@ class Parameters:
             raise ValueError("La configurazione simmetrica contiene staffe non speculari.")
         if not 0 <= self.actuation_fraction <= 1:
             raise ValueError("λ deve appartenere a [0, 1].")
-        if not 0 < self.display_range <= math.pi:
-            raise ValueError("Intervallo visualizzato: maggiore di 0 e fino a 180°.")
-        if not 0 < self.targets.warning_sine < 1:
-            raise ValueError("Soglia normalizzata di allarme: tra 0 e 1.")
-        for name in ("left_angle", "right_angle"):
-            if not 0 < getattr(self.targets, name) < math.pi:
-                raise ValueError("Gli angoli obiettivo devono essere tra 0 e 180° esclusi.")
-        for name in ("max_mismatch", "ratio_tolerance", "min_toggle_angle", "clearance"):
-            if getattr(self.targets, name) < 0:
-                raise ValueError(f"{name} non può essere negativo.")
+        if not 0 < self.display_range <= math.pi/2:
+            raise ValueError("Intervallo visualizzato: maggiore di 0 e fino a 90°.")
+        if self.motor.crank_radius <= 0 or self.motor.connecting_length <= 0:
+            raise ValueError("Le lunghezze della leva motore e dell'astina devono essere positive.")
+        if type(self.motor.assembly) is not int or self.motor.assembly not in (-1, 1):
+            raise ValueError("Montaggio della leva motore: +1 oppure −1.")
+
+
+def symmetric_steering(template: Parameters, arm_length: float, tie_length: float,
+                       inclination: float) -> Parameters:
+    """Straight wheels at neutral; positive inclination points arms outward.
+
+    B_L.x = -d/2 - L sin(beta), B_R.x = d/2 + L sin(beta),
+    so t = d + 2 L sin(beta). Angles are radians, lengths mm.
+    """
+    if not all(math.isfinite(v) for v in (arm_length, tie_length, inclination)):
+        raise ValueError("Le dimensioni e l'inclinazione devono essere finite.")
+    if not -math.pi/2 < inclination < math.pi/2:
+        raise ValueError("L'inclinazione deve essere compresa fra −90° e +90° esclusi.")
+    spacing = tie_length - 2*arm_length*math.sin(inclination)
+    if spacing <= max(arm_length, tie_length, 1e-12)*1e-10:
+        raise ValueError("Il tirante è troppo corto per questa inclinazione e lunghezza del braccio: interasse perni non positivo.")
+    left = replace(template.left, arm_length=arm_length,
+                   arm_angle=math.pi/2+inclination, heading_offset=0.0)
+    right = replace(left, arm_angle=math.pi/2-inclination, axle_x=-left.axle_x)
+    result = replace(template, pivot_spacing=spacing, left=left, right=right,
+                     tie_length=tie_length, symmetric=True, branch=-1)
+    result.validate()
+    return result
+
+
+def validate_symmetric_setup(p: Parameters) -> None:
+    """Reject unsupported imports instead of silently changing their dimensions."""
+    p.validate()
+    expected = symmetric_steering(p, p.left.arm_length, p.tie_length,
+                                  p.left.arm_angle-math.pi/2)
+    if (not p.symmetric or p.branch != -1
+            or abs(p.pivot_spacing-expected.pivot_spacing) > p.length_tolerance
+            or p.left.heading_offset != 0 or p.right.heading_offset != 0):
+        raise ValueError("La configurazione deve avere staffe simmetriche, ruote dritte a zero e interasse coerente con tirante e inclinazione.")
 
 
 def to_json(parameters: Parameters) -> str:
     parameters.validate()
-    return json.dumps({"schema_version": 2, "units": {"length": "mm", "angle": "rad"},
+    return json.dumps({"schema_version": 6, "units": {"length": "mm", "angle": "rad"},
                        "parameters": asdict(parameters)}, indent=2, allow_nan=False)
 
 
@@ -133,15 +144,15 @@ def from_json(contents: str | bytes) -> Parameters:
         if len(contents) > 100_000:
             raise ValueError("Configurazione troppo grande (massimo 100 kB).")
         raw = json.loads(contents)
-        if set(raw) != {"schema_version", "units", "parameters"} or raw["schema_version"] != 2:
-            raise ValueError("Formato non supportato: serve schema_version 2, senza basetta. I vecchi file non vengono convertiti automaticamente.")
+        if set(raw) != {"schema_version", "units", "parameters"} or raw["schema_version"] not in (5, 6):
+            raise ValueError("Formato non supportato: serve schema_version 5 o 6, con geometria del motore.")
         if raw["units"] != {"length": "mm", "angle": "rad"}:
             raise ValueError("Unità richieste: mm e rad.")
         data = dict(raw["parameters"])
         data["left"] = Bracket(**data["left"])
         data["right"] = Bracket(**data["right"])
         data["physical"] = Physical(**data["physical"])
-        data["targets"] = Targets(**data["targets"])
+        data["motor"] = Motor(**data["motor"])
         p = Parameters(**data)
         p.validate()
         return p

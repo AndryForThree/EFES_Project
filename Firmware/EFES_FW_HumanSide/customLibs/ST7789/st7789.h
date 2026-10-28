@@ -1,6 +1,7 @@
 #ifndef __ST7789_H
 #define __ST7789_H
 
+#include <stdbool.h>
 #include "Fonts/fonts_generated.h"
 #include "Assets/assets_generated.h"
 #include "st7789_config.h"
@@ -28,6 +29,10 @@ HAL_StatusTypeDef ST7789_GetError(void);
  */
 ST7789_Result ST7789_ClearError(void);
 void ST7789_Process(void);
+/* True if Process can advance now; false while waiting for a DMA interrupt.
+ * Use with the other pending-work checks before putting the CPU to sleep.
+ */
+bool ST7789_NeedsProcess(void);
 
 /**
  *Color of pen

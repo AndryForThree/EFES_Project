@@ -110,6 +110,48 @@ def toggle_angles(p: Parameters, lower: float, upper: float) -> list[float]:
     return sorted(roots)
 
 
+def steering_input(p: Parameters, steering: float) -> float:
+    """Left angle for a specified mean wheel angle, on the symmetric neutral path.
+
+    theta_L=m+delta, theta_R=m-delta, u=2L*sin(beta+delta).
+    Closure gives u²+2*d*cos(m)*u+d²-t²=0; choose its neutral root.
+    """
+    d, t, length = p.pivot_spacing, p.tie_length, p.left.arm_length
+    discriminant = t*t-d*d*math.sin(steering)**2
+    if discriminant < -p.scale*p.length_tolerance:
+        raise ValueError("Angolo medio non raggiungibile.")
+    u = -d*math.cos(steering)+math.sqrt(max(0.0, discriminant))
+    sine = u/(2*length)
+    if abs(sine) > 1+1e-9:
+        raise ValueError("Angolo medio non raggiungibile.")
+    delta = math.asin(max(-1.0, min(1.0, sine)))-(p.left.arm_angle-math.pi/2)
+    return steering+delta
+
+
+def steering_limit(p: Parameters, *, respect_display: bool = True) -> tuple[float, bool]:
+    """Symmetric mean-angle interval, ending at the first toggle on either side.
+
+    Mirrored poses exchange the wheels. Use the first input/output toggle to
+    avoid entering a different assembly sector on either steering direction.
+    """
+    roots = toggle_angles(p, -math.pi, math.pi)
+    endpoints = []
+    for side in (-1, 1):
+        candidates = [r for r in roots if r*side > 1e-12]
+        if not candidates:
+            continue
+        root = min(candidates, key=abs)
+        pose = select_pose(solve(p, root), p.branch)
+        if pose:
+            endpoints.append(abs((pose.heading_left+pose.heading_right)/2))
+        elif solve(p, root).status == "coincident":
+            # Symmetric parallelogram: the unique path limit is ±90°.
+            endpoints.append(abs(root))
+    geometric = min(endpoints, default=math.pi)
+    cap = p.display_range if respect_display else math.pi/2
+    return min(cap, geometric), geometric <= cap+1e-12
+
+
 @dataclass
 class BranchTracker:
     parameters: Parameters
