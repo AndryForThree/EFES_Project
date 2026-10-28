@@ -45,21 +45,19 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    Core/Src/App.c
+	customLibs/Communication/Communication.c
+	customLibs/App/App.c
+	customLibs/BUTTON/button.c
     customLibs/ST7789/st7789.c
     customLibs/ST7789/st7789_graphics.c
     customLibs/ST7789/st7789_transport.c
     customLibs/ST7789/Fonts/fonts_generated.c
     customLibs/ST7789/Assets/assets_generated.c
     customLibs/UI/UI_module.c
-    customLibs/UI/UI_home.c
-    customLibs/UI/UI_sensor.c
-    customLibs/UI/UI_header.c
-    customLibs/UI/UI_history.c
-    customLibs/UI/UI_trace.c
-    customLibs/UI/UI_steering.c
-    customLibs/UI/UI_mode.c
-    customLibs/UI/UI_timer.c
+    customLibs/UI/UI_page_home/UI_home.c
+    customLibs/UI/UI_page_sensor/UI_sensor.c
+    customLibs/UI/UI_page_steering/UI_steering.c
+	customLibs/UI/UI_page_settings/UI_settings.c
 )
 
 # Keep Debug optimization here: CubeMX regenerates the toolchain file.
@@ -73,6 +71,12 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     customLibs/ST7789
     customLibs/UI
+	customLibs/UI/UI_page_home
+	customLibs/UI/UI_page_sensor
+	customLibs/UI/UI_page_steering
+	customLibs/UI/UI_page_settings
+	customLibs/App
+	customLibs/BUTTON
 )
 
 # Add project symbols (macros)

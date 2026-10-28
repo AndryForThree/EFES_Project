@@ -4,7 +4,7 @@ import math
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from steering.kinematics import Sample, solve, toggle_angles
-from steering.parameters import Parameters
+from steering.parameters import Parameters, TRANSMISSION_WARNING_SINE
 from steering.singularities import diagnose
 from .top_view import BLUE, ORANGE, TEAL
 
@@ -48,7 +48,7 @@ def response_plots(p: Parameters, samples: list[Sample], current: float) -> go.F
     line(crx, cry, 3, 1, "C DX", ORANGE)
     line(x, in_sine, 3, 2, "Trasmissione ingresso", BLUE)
     line(x, out_sine, 3, 2, "Trasmissione uscita", ORANGE)
-    fig.add_hline(y=p.targets.warning_sine, line_dash="dash", line_color="#ce5966", row=3, col=2)
+    fig.add_hline(y=TRANSMISSION_WARNING_SINE, line_dash="dash", line_color="#ce5966", row=3, col=2)
     boundaries = toggle_angles(p, samples[0].angle, samples[-1].angle)
     cuts = [samples[0].angle, *boundaries, samples[-1].angle]
     for row, col, unit in ((1, 1, "θ DX · °"), (1, 2, "Δ heading · °"), (2, 1, "rad / rad"),

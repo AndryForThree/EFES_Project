@@ -5,6 +5,6 @@
 
 /* Private renderer: same state snapshot until complete, driver IDLE on entry. */
 void UI_Sensor_Reset(void);
-bool UI_Sensor_Process(const UI_State *state);
+bool UI_Sensor_Process(const App_View *state);
 
 #endif

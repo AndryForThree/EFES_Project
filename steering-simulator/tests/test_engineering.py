@@ -1,10 +1,7 @@
 from dataclasses import replace
 import json
 import math
-import numpy as np
 import pytest
-from steering.clearances import check_clearances, manufacturing_issues, polygon_distance
-from steering.geometry import rectangle
 from steering.export import onshape_variables, sweep_csv
 from steering.kinematics import select_pose, solve, sweep
 from steering.optimization import evaluate, explore
@@ -36,43 +33,22 @@ def test_invalid_units_rejected():
         from_json(json.dumps(raw))
 
 
-def test_polygon_clearance():
-    a = rectangle(np.zeros(2), 2, 2)
-    assert polygon_distance(a, rectangle(np.array([3, 0]), 2, 2)) == pytest.approx(1)
-    assert polygon_distance(a, rectangle(np.array([.5, 0]), 2, 2)) == 0
-
-
-def test_height_separation_between_moving_components():
+def test_capacity_is_an_output_independent_of_slider_and_wheel_sizes():
     p = Parameters()
-    p = replace(p, physical=replace(p.physical, wheel_width=80))
-    pose = select_pose(solve(p, 0), -1)
-    hits = check_clearances(p, pose)
-    assert any(c.status == 'risk' and {c.first, c.second} == {'Braccio SX', 'Ruota SX'} for c in hits)
-    raised = replace(p, physical=replace(p.physical, wheel_axle_z=100))
-    assert all(c.status == 'separated' for c in check_clearances(raised, pose) if 'Ruota' in c.first+c.second)
-    projected = replace(p, physical=replace(p.physical, use_heights=False))
-    assert all(c.status == 'projected' for c in check_clearances(projected, pose))
+    result = evaluate(p)
+    assert result.geometrically_valid
+    assert result.steering_limit == pytest.approx(math.pi/2)
+    assert result.at_deadpoint
+    changed = replace(p, display_range=math.radians(10), physical=replace(p.physical, wheel_width=300))
+    assert evaluate(changed) == result
 
 
-def test_interfering_design_not_falsely_approved():
+def test_exploration_ranks_by_range_and_preserves_original():
     p = Parameters()
-    p = replace(p, physical=replace(p.physical, wheel_width=80))
-    assert not manufacturing_issues(p)
-    result = evaluate(p, count=9)
-    assert result.geometrically_valid and result.well_conditioned
-    assert result.targets_met
-    assert not result.clearance_ok
-    assert not result.suitable
-    assert result.reasons
-
-
-def test_exploration_uses_clearance_and_preserves_original():
-    p = Parameters()
-    p = replace(p, physical=replace(p.physical, wheel_width=80))
     original = to_json(p)
-    results = explore(p, [25, 40], [math.pi/2], [180], count=5)
+    results = explore(p, [25], [0.0, math.radians(30)], [180])
     assert len(results) == 2
-    assert all(not c.evaluation.suitable for c in results)
+    assert results[0].evaluation.steering_limit >= results[1].evaluation.steering_limit
     assert to_json(p) == original
 
 
@@ -85,3 +61,7 @@ def test_exports():
     data = sweep_csv(p, sweep(p, -.1, .1, 3))
     assert len(data.splitlines()) == 4
     assert 'mm_per_rad' in data
+    for removed in ('Spessore', 'Diametro_foro', 'Diametro_perno', 'Rondella', 'Quota_', 'L_taglio'):
+        assert removed not in text
+    assert 'targets' not in json.loads(to_json(p))['parameters']
+    assert set(json.loads(to_json(p))['parameters']['physical']) == {'wheel_width', 'wheel_diameter', 'link_width'}

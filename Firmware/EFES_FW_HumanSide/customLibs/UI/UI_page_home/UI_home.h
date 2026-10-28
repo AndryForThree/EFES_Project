@@ -7,6 +7,6 @@
  * same state snapshot until it returns true. Reset after clearing the page.
  */
 void UI_Home_Reset(void);
-bool UI_Home_Process(const UI_State *state);
+bool UI_Home_Process(const App_View *state);
 
 #endif

@@ -16,6 +16,7 @@
 !/Core/Src/
 /Core/Src/*
 !/Core/Src/main.c
+!/Core/Src/stm32g4xx_it.c
 !/Core/Src/App.c
 
 # CubeMX/CMake project outputs; the root CMakeLists.txt is customized and kept.
