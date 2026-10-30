@@ -25,6 +25,13 @@ extern SPI_HandleTypeDef ST7789_SPI_PORT;
  * RAM and more CPU time per call, but require fewer DMA launches.
  */
 #define ST7789_BUFFER_PIXELS 320U
+
+/* Owned copy of the active text, including its terminating null byte. */
+#define ST7789_TEXT_BUFFER_SIZE	256U
+
+#if ST7789_TEXT_BUFFER_SIZE < 2
+#error ST7789_TEXT_BUFFER_SIZE must be at least 2
+#endif
 /* A complete window of at most this many pixels uses blocking SPI in Process.
  * The whole drawing job remains asynchronous. No blocking pixel sends in ISR.
  */

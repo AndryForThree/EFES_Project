@@ -101,8 +101,11 @@ typedef struct {
  * not UTF-8. Unsupported characters return INVALID_ARGUMENT.
  * MeasureText measures explicit lines, without screen wrapping.
  * WriteString wraps at the right screen edge; newline starts at x=0.
- * Text, font data and image data must remain valid and unchanged until IDLE.
- * WriteChar copies its character; WriteString retains the caller's pointer.
+ * WriteChar, WriteString, WriteTextField and WriteNumberField copy their input
+ * before returning OK. The caller can immediately reuse or release the text.
+ * Maximum length: ST7789_TEXT_BUFFER_SIZE - 1 bytes; longer text returns
+ * INVALID_ARGUMENT without starting a draw. No truncation.
+ * Font data and image data must remain valid and unchanged until IDLE.
  * DrawImage preserves the original preformatted SPI byte representation.
  */
 ST7789_Result ST7789_WriteChar(uint16_t x, uint16_t y, char ch, FontId font, uint16_t color, uint16_t bgcolor);

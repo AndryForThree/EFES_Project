@@ -28,8 +28,6 @@ typedef struct {
 } RoadFeedback_State;
 
 typedef struct {
-	// Zero means no alarm
-	uint32_t		alarms;
 	int16_t			steering_angle_deci_deg; /* Tenths of a degree; positive = right. */
 	
 	// Both in the same road-wheel reference; the App provides the target and

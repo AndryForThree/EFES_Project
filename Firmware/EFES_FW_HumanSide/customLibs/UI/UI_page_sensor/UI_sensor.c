@@ -29,6 +29,16 @@
 #define GRAPH_Y					162U
 #define GRAPH_HEIGHT_PX			46U
 
+#define GRAPH_WIDTH_PX			264					
+#define GRAPH_HISTORY_MS		10000				// Total time window rapresented by the graph	
+#define GRAPH_REFRESH_MS		100					// Refresh period of the graph
+#define GRAPH_DEVIATION_SCALE	2					// 
+#define GRAPH_SAMPLES			GRAPH_WIDTH_PX		// 
+#define GRAPH_SAMPLE_US			((GRAPH_HISTORY_MS * 1000UL) / (GRAPH_SAMPLES - 1U))
+
+static ST7789_GraphSample history_samples[GRAPH_SAMPLES];
+static UI_Trace history_trace;
+
 static ST7789_Graph graph = {
 	.x = GRAPH_X, .y = GRAPH_Y, .width = GRAPH_WIDTH_PX, .height = GRAPH_HEIGHT_PX,
 	.minimum = 0,
@@ -69,17 +79,25 @@ static const struct {
 	{137, 221, "DEVIATION", SENSOR_FONT_LEGEND},
 };
 
-static struct {
+typedef struct {
+	App_View render_view;
 	App_View drawn_state;
+	bool rendering;
 	uint8_t step, item;
 	bool first_frame;
+	App_Page page;
+	UI_Header header;
+	UI_Developer developer;
+	uint32_t render_started_at_ms;
 	uint16_t drawn_color, drawn_fill;
 	uint8_t drawn_history;
 	uint32_t graph_updated_at, graph_version;
 	uint16_t drawn_graph_limit;
 	char axis_text[6][16];
-	char number[16]; /* Retained by the driver until the drawing is complete. */
-} sensor;
+	char number[16]; /* Scratch buffer used to format numeric fields. */
+} UI_SensorContext;
+
+static UI_SensorContext sensor;
 
 static int BarFill(const App_View *state)
 {
@@ -100,8 +118,19 @@ static ST7789_Result WriteAngle(uint16_t x, int angle)
 									SENSOR_FONT_ANGLE, SENSOR_TEXT, UI_CARD_BACKGROUND);
 }
 
-void UI_Sensor_Reset(void)
+void UI_Sensor_Init(App_Page page)
 {
+	sensor = (UI_SensorContext){0};
+	sensor.page = page;
+	sensor.first_frame = true;
+	UI_Trace_Init(&history_trace, history_samples, GRAPH_SAMPLES, GRAPH_HISTORY_MS);
+}
+
+static void PrepareRender(void)
+{
+	UI_Header_Init(&sensor.header, sensor.page);
+	UI_Developer_Init(&sensor.developer);
+	sensor.rendering = false;
 	sensor.step = SENSOR_PANELS;
 	sensor.item = 0;
 	sensor.first_frame = true;
@@ -110,8 +139,35 @@ void UI_Sensor_Reset(void)
 	UI_FormatGraphTime(sensor.axis_text[5], 0);
 }
 
-bool UI_Sensor_Process(const App_View *state)
+bool UI_Sensor_Process(const App_View *current, bool draw)
 {
+	uint16_t current_deviation = UI_SensorDeviation(&current->sensor);
+	bool usable = current->sensor.channel_a_valid && current->sensor.channel_b_valid &&
+		!current->sensor.plausibility_fault && !current->sensor.stale;
+	UI_Trace_Process(&history_trace, (ST7789_GraphSample){
+		current_deviation > INT16_MAX ? INT16_MAX : (int16_t)current_deviation, 0
+	}, usable, HAL_GetTick());
+	if (current->page != sensor.page) {
+		sensor.first_frame = true;
+		sensor.rendering = false;
+		return false;
+	}
+	if (!draw) {
+		sensor.rendering = false;
+		return false;
+	}
+	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+
+	if (!sensor.rendering) {
+		if (sensor.first_frame) PrepareRender();
+		sensor.render_view = *current;
+		sensor.render_started_at_ms = HAL_GetTick();
+		sensor.rendering = true;
+	}
+	const App_View *state = &sensor.render_view;
+
+	if (!UI_Header_Process(&sensor.header, "SENSOR DIAGNOSTICS")) return false;
+
 	ST7789_Result result = ST7789_OK;
 	const App_View *old = &sensor.drawn_state;
 	bool first = sensor.first_frame;
@@ -227,10 +283,10 @@ bool UI_Sensor_Process(const App_View *state)
 			break;
 		case SENSOR_GRAPH: {
 			uint32_t now = HAL_GetTick();
-			uint32_t version = UI_SensorHistory_Version();
+			uint32_t version = history_trace.version;
 			if (scale_changed || (version != sensor.graph_version &&
 				(uint32_t)(now - sensor.graph_updated_at) >= GRAPH_REFRESH_MS)) {
-				uint16_t count = UI_SensorHistory_Copy(graph_snapshot);
+				uint16_t count = UI_Trace_Copy(&history_trace, graph_snapshot);
 				for (uint16_t i = 0; i < count; i++) {
 					uint32_t value = (uint16_t)graph_snapshot[i].a;
 					graph_snapshot[i].a = value > (uint32_t)graph.maximum ? graph.maximum : (int16_t)value;
@@ -243,7 +299,9 @@ bool UI_Sensor_Process(const App_View *state)
 			}
 			break;
 		}
-		case SENSOR_FINISH:
+		case SENSOR_FINISH: {
+			uint32_t elapsed_ms = HAL_GetTick() - sensor.render_started_at_ms;
+			if (!UI_Developer_Process(&sensor.developer, state->developer_mode != 0, elapsed_ms)) return false;
 			sensor.drawn_state = *state;
 			sensor.drawn_color = color;
 			sensor.drawn_fill = fill;
@@ -251,7 +309,9 @@ bool UI_Sensor_Process(const App_View *state)
 			sensor.drawn_graph_limit = state->sensor.deviation_limit_deci_deg;
 			sensor.first_frame = false;
 			sensor.step = SENSOR_CHANNEL_A;
+			sensor.rendering = false;
 			return true;
+		}
 	}
 
 	if (result == ST7789_OK) sensor.step++;

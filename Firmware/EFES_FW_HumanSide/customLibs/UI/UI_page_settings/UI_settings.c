@@ -7,8 +7,14 @@
 #define SETTINGS_ROW_HEIGHT		34U
 
 typedef struct {
+	App_View render_view;
 	App_View drawn_view;
+	bool rendering;
 	bool first_frame;
+	App_Page page;
+	UI_Header header;
+	UI_Developer developer;
+	uint32_t render_started_at_ms;
 	uint8_t step;
 	uint8_t row;
 	uint8_t row_step;
@@ -95,17 +101,58 @@ static bool ProcessList(const App_View *view)
 	return false;
 }
 
-void UI_Settings_Reset(void)
+void UI_Settings_Init(App_Page page)
 {
+	settings = (UI_SettingsContext){0};
+	settings.page = page;
+	settings.first_frame = true;
+}
+
+static void PrepareRender(void)
+{
+	UI_Header_Init(&settings.header, settings.page);
+	UI_Developer_Init(&settings.developer);
+	settings.rendering = false;
 	settings.first_frame = true;
 	settings.step = 0;
 	settings.row = 0;
 	settings.row_step = 0;
 }
 
-bool UI_Settings_Process(const App_View *view)
+static bool FinishRender(const App_View *view)
 {
+	uint32_t elapsed_ms = HAL_GetTick() - settings.render_started_at_ms;
+	if (!UI_Developer_Process(&settings.developer, view->developer_mode != 0, elapsed_ms)) return false;
+
+	settings.drawn_view = *view;
+	settings.first_frame = false;
+	settings.step = 0;
+	settings.rendering = false;
+	return true;
+}
+
+bool UI_Settings_Process(const App_View *current, bool draw)
+{
+	if (current->page != settings.page) {
+		settings.first_frame = true;
+		settings.rendering = false;
+		return false;
+	}
+	if (!draw) {
+		settings.rendering = false;
+		return false;
+	}
 	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+
+	if (!settings.rendering) {
+		if (settings.first_frame) PrepareRender();
+		settings.render_view = *current;
+		settings.render_started_at_ms = HAL_GetTick();
+		settings.rendering = true;
+	}
+	const App_View *view = &settings.render_view;
+
+	if (!UI_Header_Process(&settings.header, "SETTINGS")) return false;
 
 	const App_Menu *menu = view->menu;
 	const App_MenuItem *item = &menu->items[view->selected_item];
@@ -115,7 +162,7 @@ bool UI_Settings_Process(const App_View *view)
 
 	switch (settings.step) {
 		case 0:
-			if (!ViewChanged(view)) return true;
+			if (!ViewChanged(view)) return FinishRender(view);
 			FormatMenuPath(menu);
 			settings.row = 0;
 			settings.row_step = 0;
@@ -237,10 +284,7 @@ bool UI_Settings_Process(const App_View *view)
 			break;
 		}
 		default:
-			settings.drawn_view = *view;
-			settings.first_frame = false;
-			settings.step = 0;
-			return true;
+			return FinishRender(view);
 	}
 
 	if (result == ST7789_OK) settings.step++;

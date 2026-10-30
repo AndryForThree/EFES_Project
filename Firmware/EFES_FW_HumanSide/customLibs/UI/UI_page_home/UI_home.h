@@ -3,10 +3,12 @@
 
 #include "UI_private.h"
 
-/* Private page renderer. Call Process only while ST7789 is IDLE, using the
- * same state snapshot until it returns true. Reset after clearing the page.
+/* Init assigns the page identity once. Process runs every loop: history uses
+ * current data, while drawing uses a private stable snapshot. Leaving the page
+ * prepares a full redraw for the next entry without clearing its history.
+ * draw grants display access; true means the complete render has finished.
  */
-void UI_Home_Reset(void);
-bool UI_Home_Process(const App_View *state);
+void UI_Home_Init(App_Page page);
+bool UI_Home_Process(const App_View *current, bool draw);
 
 #endif

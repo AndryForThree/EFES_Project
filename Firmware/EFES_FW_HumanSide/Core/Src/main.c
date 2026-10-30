@@ -203,7 +203,6 @@ static void Demo_Process(void)
 	if (status_due) {
 		demo_status_at = now;
 		/* Brief diagnostic changes while stopped, then automatic recovery.
-			* Keep alarms zero: the separate alarm page is still empty.
 			*/
 		/* Simulate an incoming hardware flag independently of the measured delta.
 			* From 27.4 s to 28 s the bar saturates but stays green until that flag arrives.
