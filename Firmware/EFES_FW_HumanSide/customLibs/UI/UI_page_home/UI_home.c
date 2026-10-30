@@ -82,14 +82,23 @@ static const struct {
 	{220, 155, ASSET_STEERING_MAP, UI_CARD_BACKGROUND},
 };
 
-static struct {
+typedef struct {
+	App_View render_view;
 	App_View drawn_state;
+	bool rendering;
 	uint8_t step;
 	uint8_t item;
 	bool first_frame;
-	/* WriteString retains its pointer: these buffers survive DMA transfers. */
+	App_Page page;
+	UI_Header header;
+	UI_Developer developer;
+	uint32_t render_started_at_ms;
+	UI_Mode mode_bar;
+	/* Scratch buffer used to format numeric fields. */
 	char number[16];
-} home;
+} UI_HomeContext;
+
+static UI_HomeContext home;
 
 /* Pixel-width fields clear old text and center using the actual glyph metrics. */
 static ST7789_Result WriteField(uint16_t x, uint16_t y, uint16_t width,
@@ -143,15 +152,47 @@ static bool SensorValid(const Sensor_State *state)
 		state->channel_b_valid && !state->plausibility_fault;
 }
 
-void UI_Home_Reset(void)
+void UI_Home_Init(App_Page page)
 {
+	home = (UI_HomeContext){0};
+	home.page = page;
+	home.first_frame = true;
+}
+
+static void PrepareRender(void)
+{
+	UI_Header_Init(&home.header, home.page);
+	UI_Developer_Init(&home.developer);
+	UI_Mode_Init(&home.mode_bar);
+	home.rendering = false;
 	home.step = HOME_PANELS;
 	home.item = 0;
 	home.first_frame = true;
 }
 
-bool UI_Home_Process(const App_View *state)
+bool UI_Home_Process(const App_View *current, bool draw)
 {
+	if (current->page != home.page) {
+		home.first_frame = true;
+		home.rendering = false;
+		return false;
+	}
+	if (!draw) {
+		home.rendering = false;
+		return false;
+	}
+	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+
+	if (!home.rendering) {
+		if (home.first_frame) PrepareRender();
+		home.render_view = *current;
+		home.render_started_at_ms = HAL_GetTick();
+		home.rendering = true;
+	}
+	const App_View *state = &home.render_view;
+
+	if (!UI_Header_Process(&home.header, "HOME")) return false;
+
 	ST7789_Result result = ST7789_OK;
 	const App_View *old = &home.drawn_state;
 	int angle = state->operating.steering_angle_deci_deg;
@@ -159,7 +200,6 @@ bool UI_Home_Process(const App_View *state)
 	bool sensors_valid = SensorValid(&state->sensor);
 	bool old_sensors_valid = SensorValid(&old->sensor);
 	bool first = home.first_frame;
-	bool mode_changed = first || state->drive_mode != old->drive_mode;
 
 	switch (home.step) {
 		case HOME_RULE:
@@ -206,7 +246,7 @@ bool UI_Home_Process(const App_View *state)
 												BAR_HEIGHT + 4, TEXT_COLOR);
 			break;
 		case HOME_FOOTER:
-			if (mode_changed && !UI_Mode_Process(state->drive_mode)) return false;
+			if (!UI_Mode_Process(&home.mode_bar, state->drive_mode)) return false;
 			break;
 		case HOME_STATUS:
 			if (first || sensors_valid != old_sensors_valid)
@@ -297,11 +337,15 @@ bool UI_Home_Process(const App_View *state)
 													UI_FONT_NUMBER, TEXT_COLOR, UI_CARD_BACKGROUND);
 			}
 			break;
-		case HOME_FINISH:
+		case HOME_FINISH: {
+			uint32_t elapsed_ms = HAL_GetTick() - home.render_started_at_ms;
+			if (!UI_Developer_Process(&home.developer, state->developer_mode != 0, elapsed_ms)) return false;
 			home.drawn_state = *state;
 			home.first_frame = false;
 			home.step = HOME_STATUS;
+			home.rendering = false;
 			return true;
+		}
 	}
 
 	if (result == ST7789_OK) home.step++;

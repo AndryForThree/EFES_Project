@@ -54,6 +54,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     customLibs/ST7789/Fonts/fonts_generated.c
     customLibs/ST7789/Assets/assets_generated.c
     customLibs/UI/UI_module.c
+	customLibs/UI/UI_common.c
     customLibs/UI/UI_page_home/UI_home.c
     customLibs/UI/UI_page_sensor/UI_sensor.c
     customLibs/UI/UI_page_steering/UI_steering.c

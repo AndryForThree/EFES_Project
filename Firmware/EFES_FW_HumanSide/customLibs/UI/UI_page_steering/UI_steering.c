@@ -19,12 +19,28 @@
 #define STEERING_GRAPH_Y		111U
 #define STEERING_GRAPH_HEIGHT_PX	58U
 
+#define STEERING_GRAPH_WIDTH_PX		264
+#define STEERING_GRAPH_HISTORY_MS	10000
+#define STEERING_GRAPH_REFRESH_MS	100
+#define STEERING_GRAPH_MIN_ANGLE	(-450) /* Road wheel angle, tenths of a degree. */
+#define STEERING_GRAPH_MAX_ANGLE	450
+#define STEERING_GRAPH_SAMPLES		STEERING_GRAPH_WIDTH_PX
+
+enum { 
+	FEEDBACK_LIVE, 
+	FEEDBACK_STALE, 
+	FEEDBACK_FAULT 
+};
+
 enum {
 	RESPONSE_PANELS, RESPONSE_LABELS, RESPONSE_AXES, RESPONSE_LEGEND,
 	RESPONSE_REQUESTED, RESPONSE_ACTUAL, RESPONSE_ACTUAL_UNIT,
 	RESPONSE_STATUS_DOT, RESPONSE_STATUS_TEXT,
 	RESPONSE_GRAPH, RESPONSE_MODE, RESPONSE_FINISH
 };
+
+static ST7789_GraphSample history_samples[STEERING_GRAPH_SAMPLES];
+static UI_Trace history_trace;
 
 static const ST7789_Graph graph = {
 	.x = STEERING_GRAPH_X, .y = STEERING_GRAPH_Y,
@@ -55,17 +71,38 @@ static const struct {
 };
 
 static ST7789_GraphSample snapshot[STEERING_GRAPH_SAMPLES];
-static struct {
+typedef struct {
+	App_View render_view;
 	App_View drawn_state;
+	bool rendering;
 	uint8_t step, item, status, drawn_status;
 	bool first_frame;
+	App_Page page;
+	UI_Header header;
+	UI_Developer developer;
+	uint32_t render_started_at_ms;
+	UI_Mode mode_bar;
 	uint32_t graph_updated_at, graph_version;
 	char number[16];
 	char axis_text[6][16];
-} response;
+} UI_SteeringContext;
 
-void UI_Steering_Reset(void)
+static UI_SteeringContext response;
+
+void UI_Steering_Init(App_Page page)
 {
+	response = (UI_SteeringContext){0};
+	response.page = page;
+	response.first_frame = true;
+	UI_Trace_Init(&history_trace, history_samples, STEERING_GRAPH_SAMPLES, STEERING_GRAPH_HISTORY_MS);
+}
+
+static void PrepareRender(void)
+{
+	UI_Header_Init(&response.header, response.page);
+	UI_Developer_Init(&response.developer);
+	UI_Mode_Init(&response.mode_bar);
+	response.rendering = false;
 	response.step = RESPONSE_PANELS;
 	response.item = 0;
 	response.first_frame = true;
@@ -92,8 +129,32 @@ static ST7789_Result WriteAngle(uint16_t x, int angle, uint16_t color)
 									STEERING_FONT_VALUE, color, UI_CARD_BACKGROUND);
 }
 
-bool UI_Steering_Process(const App_View *state)
+bool UI_Steering_Process(const App_View *current, bool draw)
 {
+	UI_Trace_Process(&history_trace, (ST7789_GraphSample){
+		current->operating.road_requested_angle_deci_deg, current->road.actual_angle_deci_deg
+	}, current->operating.can_online && current->road.valid && !current->road.stale, HAL_GetTick());
+	if (current->page != response.page) {
+		response.first_frame = true;
+		response.rendering = false;
+		return false;
+	}
+	if (!draw) {
+		response.rendering = false;
+		return false;
+	}
+	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+
+	if (!response.rendering) {
+		if (response.first_frame) PrepareRender();
+		response.render_view = *current;
+		response.render_started_at_ms = HAL_GetTick();
+		response.rendering = true;
+	}
+	const App_View *state = &response.render_view;
+
+	if (!UI_Header_Process(&response.header, "STEERING RESPONSE")) return false;
+
 	ST7789_Result result = ST7789_OK;
 	const App_View *old = &response.drawn_state;
 	bool first = response.first_frame;
@@ -187,27 +248,30 @@ bool UI_Steering_Process(const App_View *state)
 			break;
 		case RESPONSE_GRAPH: {
 			uint32_t now = HAL_GetTick();
-			if (first || (UI_SteeringHistory_Version() != response.graph_version &&
+			if (first || (history_trace.version != response.graph_version &&
 				(uint32_t)(now - response.graph_updated_at) >= STEERING_GRAPH_REFRESH_MS)) {
-				uint16_t count = UI_SteeringHistory_Copy(snapshot);
+				uint16_t count = UI_Trace_Copy(&history_trace, snapshot);
 				result = ST7789_DrawGraph(&graph, snapshot, count);
 				if (result == ST7789_OK) {
-					response.graph_version = UI_SteeringHistory_Version();
+					response.graph_version = history_trace.version;
 					response.graph_updated_at = now;
 				}
 			}
 			break;
 		}
 		case RESPONSE_MODE:
-			if ((first || state->drive_mode != old->drive_mode) &&
-				!UI_Mode_Process(state->drive_mode)) return false;
+			if (!UI_Mode_Process(&response.mode_bar, state->drive_mode)) return false;
 			break;
-		case RESPONSE_FINISH:
+		case RESPONSE_FINISH: {
+			uint32_t elapsed_ms = HAL_GetTick() - response.render_started_at_ms;
+			if (!UI_Developer_Process(&response.developer, state->developer_mode != 0, elapsed_ms)) return false;
 			response.drawn_state = *state;
 			response.drawn_status = response.status;
 			response.first_frame = false;
 			response.step = RESPONSE_REQUESTED;
+			response.rendering = false;
 			return true;
+		}
 	}
 
 	if (result == ST7789_OK) response.step++;

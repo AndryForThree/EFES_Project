@@ -36,7 +36,7 @@ typedef struct {
     uint16_t graph_count;
     uint8_t asset_tinted;
     const char *text;
-    char character[2];
+	char text_buffer[ST7789_TEXT_BUFFER_SIZE];
     const FontInfo *font;
     uint16_t text_palette[16];
     int32_t text_x, text_y, text_offset;
@@ -116,6 +116,17 @@ static void NewJob(JobKind kind, uint16_t color)
     job.stage = 0;
     window_active = 0;
     drawing_state = ST7789_STATE_BUSY;
+}
+
+/* Called only while IDLE, before accepting a text job. */
+static bool CopyText(const char *text)
+{
+	if (text == NULL) return false;
+	for (uint32_t i = 0; i < sizeof(job.text_buffer); i++) {
+		job.text_buffer[i] = text[i];
+		if (text[i] == '\0') return true;
+	}
+	return false;
 }
 
 /* Only 16 foreground/background blends per text request, not per pixel. */
@@ -1099,8 +1110,9 @@ ST7789_Result ST7789_WriteString(uint16_t x, uint16_t y, const char *text,
         TextLine glyph_line = AppendGlyph((TextLine){0}, TextGlyph(&Fonts[font], (unsigned char)*p));
         if (glyph_line.right - glyph_line.left > ST7789_WIDTH) return ST7789_INVALID_ARGUMENT;
     }
+	if (!CopyText(text)) return ST7789_INVALID_ARGUMENT;
     NewJob(TEXT, color);
-    job.text = text;
+	job.text = job.text_buffer;
     job.font = &Fonts[font];
     job.field_width = 0;
     job.background = background;
@@ -1123,8 +1135,9 @@ ST7789_Result ST7789_WriteTextField(uint16_t x, uint16_t y, uint16_t width,
         return ST7789_INVALID_ARGUMENT;
     for (const char *p = text; *p != '\0'; p++)
         if (*p == '\n') return ST7789_INVALID_ARGUMENT;
+	if (!CopyText(text)) return ST7789_INVALID_ARGUMENT;
     NewJob(TEXT, color);
-    job.text = text;
+	job.text = job.text_buffer;
     job.font = &Fonts[font];
     job.field_width = width;
     job.text_align = align;
@@ -1164,8 +1177,9 @@ ST7789_Result ST7789_WriteNumberField(uint16_t x, uint16_t y, uint16_t width,
     }
     if (number_width > width) return ST7789_INVALID_ARGUMENT;
 
+	if (!CopyText(number)) return ST7789_INVALID_ARGUMENT;
     NewJob(TEXT, color);
-    job.text = number;
+	job.text = job.text_buffer;
     job.font = info;
     job.field_width = width;
     job.number_cell = cell;
@@ -1183,11 +1197,5 @@ ST7789_Result ST7789_WriteChar(uint16_t x, uint16_t y, char ch,
     if (ready != ST7789_OK) return ready;
     if (ch == '\0') return ST7789_INVALID_ARGUMENT;
     char text[2] = {ch, '\0'};
-    ST7789_Result result = ST7789_WriteString(x, y, text, font, color, background);
-    if (result == ST7789_OK) {
-        job.character[0] = ch;
-        job.character[1] = '\0';
-        job.text = job.character;
-    }
-    return result;
+	return ST7789_WriteString(x, y, text, font, color, background);
 }
