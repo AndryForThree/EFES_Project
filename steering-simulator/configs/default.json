@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 8,
   "units": {
     "length": "mm",
     "angle": "rad"
@@ -7,14 +7,14 @@
   "parameters": {
     "pivot_spacing": 180.0,
     "left": {
-      "arm_length": 25.0,
+      "arm_length": 30.0,
       "arm_angle": 1.5707963267948966,
       "axle_x": -25.0,
       "axle_y": 0.0,
       "heading_offset": 0.0
     },
     "right": {
-      "arm_length": 25.0,
+      "arm_length": 30.0,
       "arm_angle": 1.5707963267948966,
       "axle_x": 25.0,
       "axle_y": 0.0,
@@ -24,18 +24,20 @@
     "physical": {
       "wheel_diameter": 60.0,
       "wheel_width": 18.0,
-      "link_width": 10.0
+      "link_width": 10.0,
+      "q_joint_diameter": 10.0
     },
     "display_range": 0.7853981633974483,
     "actuation_fraction": 0.5,
     "branch": -1,
     "symmetric": true,
     "motor": {
-      "x": -60.0,
+      "x": 30.0,
       "y": 25.0,
       "crank_radius": 15.0,
       "connecting_length": 60.0,
       "assembly": 1
     }
-  }
+  },
+  "coordinate_origin": "A_SX"
 }

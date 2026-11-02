@@ -4,6 +4,7 @@
 def display_dimensions(p):
     width = p.physical.link_width
     return {
+        "q_joint_radius": p.physical.q_joint_diameter/2,
         "arm_width": width,
         "rod_width": width,
         "bracket_width": width,

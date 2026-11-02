@@ -6,6 +6,7 @@ from plotly.subplots import make_subplots
 from steering.kinematics import Sample, solve, toggle_angles
 from steering.parameters import Parameters, TRANSMISSION_WARNING_SINE
 from steering.singularities import diagnose
+from steering.reference import chassis_point
 from .top_view import BLUE, ORANGE, TEAL
 
 
@@ -31,8 +32,8 @@ def response_plots(p: Parameters, samples: list[Sample], current: float) -> go.F
             continue
         d = diagnose(p, pose)
         for series, value in zip(data[1:], [math.degrees(pose.theta_right), math.degrees(d.mismatch), d.ratio,
-                                          *pose.point, d.input_sine, d.output_sine,
-                                          *pose.c_left, *pose.c_right]):
+                                          *chassis_point(p,pose.point), d.input_sine, d.output_sine,
+                                          *chassis_point(p,pose.c_left), *chassis_point(p,pose.c_right)]):
             series.append(value)
     def line(xs, ys, row, col, name, color, dash="solid"):
         fig.add_trace(go.Scatter(x=xs, y=ys, name=name, mode="lines", connectgaps=False,

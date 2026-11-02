@@ -21,6 +21,7 @@ class Physical:
     wheel_diameter: float = 60.0
     wheel_width: float = 18.0
     link_width: float = 10.0
+    q_joint_diameter: float = 10.0  # shared B/Q diameter; retain JSON key for existing configurations
 
 
 TRANSMISSION_WARNING_SINE = 0.05  # Internal diagnostic threshold; never a motion limit.
@@ -122,6 +123,30 @@ def symmetric_steering(template: Parameters, arm_length: float, tie_length: floa
     return result
 
 
+def steering_from_lengths(template: Parameters, pivot_spacing: float, arm_length: float,
+                          tie_length: float) -> Parameters:
+    """Specify the three physical hole spacings; derive rearward neutral arms.
+
+    Manual dimensions may represent measured/legacy parts. The modular search
+    separately requires 10 mm increments; no dimension is silently snapped.
+    """
+    if not all(math.isfinite(v) and v > 0 for v in (pivot_spacing, arm_length, tie_length)):
+        raise ValueError("Interasse perni, bracci e tirante devono essere finiti e positivi.")
+    sine = (tie_length-pivot_spacing)/(2*arm_length)
+    if abs(sine) >= 1-1e-12:
+        raise ValueError("Geometria impossibile o allineata a zero: serve |tirante − interasse perni| < 2 × braccio.")
+    candidate = symmetric_steering(template, arm_length, tie_length, math.asin(sine))
+    return replace(candidate, pivot_spacing=pivot_spacing)
+
+
+def on_modular_grid(value: float) -> bool:
+    return math.isfinite(value) and value > 0 and math.isclose(value/10, round(value/10), abs_tol=1e-9, rel_tol=0)
+
+
+def modular_defaults() -> Parameters:
+    return steering_from_lengths(Parameters(), 180., 30., 180.)
+
+
 def validate_symmetric_setup(p: Parameters) -> None:
     """Reject unsupported imports instead of silently changing their dimensions."""
     p.validate()
@@ -135,8 +160,10 @@ def validate_symmetric_setup(p: Parameters) -> None:
 
 def to_json(parameters: Parameters) -> str:
     parameters.validate()
-    return json.dumps({"schema_version": 6, "units": {"length": "mm", "angle": "rad"},
-                       "parameters": asdict(parameters)}, indent=2, allow_nan=False)
+    data=asdict(parameters)
+    data["motor"]["x"]+=parameters.pivot_spacing/2
+    return json.dumps({"schema_version": 8, "coordinate_origin": "A_SX", "units": {"length": "mm", "angle": "rad"},
+                       "parameters": data}, indent=2, allow_nan=False)
 
 
 def from_json(contents: str | bytes) -> Parameters:
@@ -144,15 +171,26 @@ def from_json(contents: str | bytes) -> Parameters:
         if len(contents) > 100_000:
             raise ValueError("Configurazione troppo grande (massimo 100 kB).")
         raw = json.loads(contents)
-        if set(raw) != {"schema_version", "units", "parameters"} or raw["schema_version"] not in (5, 6):
-            raise ValueError("Formato non supportato: serve schema_version 5 o 6, con geometria del motore.")
+        version=raw.get("schema_version")
+        keys={"schema_version","units","parameters"}
+        if version==8:
+            keys.add("coordinate_origin")
+        if set(raw)!=keys or version not in (5,6,7,8):
+            raise ValueError("Formato non supportato: serve schema_version 5, 6, 7 o 8.")
+        if version==8 and raw["coordinate_origin"]!="A_SX":
+            raise ValueError("Origine richiesta per lo schema 8: A_SX.")
         if raw["units"] != {"length": "mm", "angle": "rad"}:
             raise ValueError("Unità richieste: mm e rad.")
         data = dict(raw["parameters"])
         data["left"] = Bracket(**data["left"])
         data["right"] = Bracket(**data["right"])
         data["physical"] = Physical(**data["physical"])
-        data["motor"] = Motor(**data["motor"])
+        motor=dict(data["motor"])
+        if type(motor.get("x")) is bool:
+            raise ValueError("La coordinata X del motore deve essere numerica, non booleana.")
+        if version==8:
+            motor["x"]-=data["pivot_spacing"]/2
+        data["motor"] = Motor(**motor)
         p = Parameters(**data)
         p.validate()
         return p

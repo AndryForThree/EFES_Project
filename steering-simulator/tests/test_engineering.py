@@ -64,4 +64,4 @@ def test_exports():
     for removed in ('Spessore', 'Diametro_foro', 'Diametro_perno', 'Rondella', 'Quota_', 'L_taglio'):
         assert removed not in text
     assert 'targets' not in json.loads(to_json(p))['parameters']
-    assert set(json.loads(to_json(p))['parameters']['physical']) == {'wheel_width', 'wheel_diameter', 'link_width'}
+    assert set(json.loads(to_json(p))['parameters']['physical']) == {'wheel_width', 'wheel_diameter', 'link_width', 'q_joint_diameter'}

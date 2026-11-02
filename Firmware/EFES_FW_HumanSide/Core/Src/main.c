@@ -280,9 +280,6 @@ int main(void)
 	ST7789_Process();
 	
 	UI_Process();
-    if (ST7789_GetState() == ST7789_STATE_ERROR) {
-      HAL_GPIO_WritePin(Board_LED_GPIO_Port, Board_LED_Pin, GPIO_PIN_SET);
-    }
 
 	// Do not sleep while software can advance the rendering or consume events.
 	// Keep interrupts masked between checking the flags and WFI: an interrupt

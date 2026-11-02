@@ -7,14 +7,20 @@ from steering.motor_search import MotorCandidate
 COLORS = ('#3976c4', '#df8628', '#138777')
 
 
-def pareto_plot(candidates: list[MotorCandidate], selected_id: int, color_metric: str,
-                include_dominated: bool = True) -> go.Figure:
+def pareto_plot(candidates: list[MotorCandidate], selected_id: int, color_metric: str | None,
+                include_dominated: bool = True, reference=None) -> go.Figure:
     color_values = {
         'motor_excursion': (lambda c: math.degrees(c.metrics.motor_excursion), 'Corsa albero richiesta · °'),
         'steering_margin': (lambda c: math.degrees(c.metrics.steering_margin), 'Margine di sterzata · °'),
     }
-    value, label = color_values[color_metric]
+    value, label = color_values[color_metric] if color_metric is not None else (None,None)
     fig = go.Figure()
+    if reference is not None:
+        original=sorted((c for c in reference if c.pareto),key=lambda c:c.metrics.max_sensitivity)
+        fig.add_trace(go.Scatter(x=[c.metrics.max_sensitivity for c in original],
+                                y=[100*c.metrics.variation for c in original],mode='lines+markers',
+                                line=dict(color='#b8c2cc',width=1),marker=dict(color='#b8c2cc',size=6),
+                                name='Pareto originale',hoverinfo='skip'))
     fronts = sorted((c for c in candidates if c.pareto), key=lambda c: c.metrics.max_sensitivity)
     fig.add_trace(go.Scatter(x=[c.metrics.max_sensitivity for c in fronts],
                             y=[100*c.metrics.variation for c in fronts], mode='lines',
@@ -26,12 +32,16 @@ def pareto_plot(candidates: list[MotorCandidate], selected_id: int, color_metric
         fig.add_trace(go.Scatter(
             x=[c.metrics.max_sensitivity for c in points], y=[100*c.metrics.variation for c in points],
             customdata=[[c.id, c.parameters.motor.crank_radius, c.parameters.motor.connecting_length,
-                         c.parameters.motor.x, c.parameters.motor.y] for c in points],
+                         c.parameters.motor.x+c.parameters.pivot_spacing/2, c.parameters.motor.y,
+                         c.parameters.actuation_fraction*c.parameters.tie_length] for c in points],
             mode='markers', name=name,
             marker=dict(size=12 if is_front else 8, symbol='diamond' if is_front else 'circle',
-                        opacity=1 if is_front else .4, color=[value(c) for c in points], coloraxis='coloraxis'),
+                        opacity=1 if is_front else .4,
+                        **(dict(color=[value(c) for c in points],coloraxis='coloraxis') if value else
+                           dict(color='#3976c4' if is_front else '#b8c2cc'))),
             hovertemplate='C%{customdata[0]} · leva %{customdata[1]} / astina %{customdata[2]} mm'
                           '<br>M (%{customdata[3]:.1f}, %{customdata[4]:.1f}) mm'
+                          '<br>Foro T a %{customdata[5]:g} mm da B SX'
                           '<br>S massima: %{x:.4f} °/°<br>Variazione: %{y:.1f}%<extra></extra>'))
     selected = next((c for c in candidates if c.id == selected_id), None)
     if selected:
@@ -42,9 +52,9 @@ def pareto_plot(candidates: list[MotorCandidate], selected_id: int, color_metric
     fig.update_layout(template='plotly_white', height=460, margin=dict(l=20,r=20,t=15,b=25),
                       xaxis_title='Sensibilità massima |dm/dφ| · °/° → più bassa è meglio',
                       yaxis_title='Variazione relativa della sensibilità · % → più bassa è meglio',
-                      coloraxis=dict(colorscale='Viridis', colorbar=dict(title=label)),
                       legend=dict(orientation='h', y=1.08), clickmode='event+select', dragmode='select',
                       selectionrevision='pareto')
+    if value is not None:fig.update_layout(coloraxis=dict(colorscale='Viridis',colorbar=dict(title=label)))
     return fig
 
 

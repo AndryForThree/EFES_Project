@@ -11,11 +11,11 @@ from typing import Callable
 import numpy as np
 from .kinematics import select_pose, solve, steering_input, steering_limit
 from .motor import MotorRange, build_range, mean_point_velocity
-from .parameters import Motor, Parameters, validate_symmetric_setup
-from .interferences import prepare_obstacles, motor_interference
+from .parameters import Motor, Parameters, validate_symmetric_setup, on_modular_grid
+from .interferences import prepare_obstacles, motor_interference, crank_rear_clearance
 
 
-MAX_DETAILED_SEARCH = 10000
+MAX_FEASIBLE_CANDIDATES = 50000
 MAX_PREFILTER_COMBINATIONS = 2000000
 
 
@@ -25,8 +25,9 @@ class SearchSpace:
     crank_lengths: tuple[float, ...] = (10., 20., 30.)
     rod_lengths: tuple[float, ...] = (40., 50., 60., 70., 80., 90., 100.)
     x_positions: tuple[float, ...] = (-100., -80., -60., -40., -20.)
-    y_positions: tuple[float, ...] = (35., 55., 75.)
+    y_positions: tuple[float, ...] = (40., 60., 80.)
     min_behind: float = 10.
+    attachment_distances: tuple[float, ...] = ()  # mm from B SX along the rod; empty = nearest central holes
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class MotorCandidate:
     interval: MotorRange
     metrics: Metrics
     pareto: bool = False
+    rear_clearance: float | None = None  # signed mm behind current rod, minimum across sampled travel
 
 
 @dataclass(frozen=True)
@@ -57,8 +59,13 @@ class SearchResult:
     rejected: dict[str, int]
     sample_count: int = 241
     collision_checked: bool = False
+    q_clearance_checked: bool = False
+    mounting_grid_checked: bool = False
     detailed_tested: int = 0
     prefilter_rejected: dict[str, int] = field(default_factory=dict)
+    attachment_grid_checked: bool = False
+    rear_clearance_checked: bool = False
+    b_clearance_checked: bool = False
 
 
 @dataclass(frozen=True)
@@ -77,6 +84,59 @@ def grid_values(lower: float, upper: float, step: float) -> tuple[float, ...]:
     if count > 1000:
         raise ValueError("Troppi punti nella zona: aumenta il passo di ricerca.")
     return tuple(lower+i*step for i in range(count))
+
+
+def chassis_grid_values(lower: float, upper: float, step: float = 10., origin: float = 0.):
+    """Nodes on a fixed 10 mm chassis grid, cropped to bounds without shifting it.
+
+    A coarser search step skips nodes from the first valid node inside the box.
+    X origin is -d/2 (A SX) in the centered drawing; Y origin is zero.
+    """
+    if not all(math.isfinite(v) for v in (lower,upper,step,origin)) or upper < lower:
+        raise ValueError('Zona non valida: limiti finiti e minimo ≤ massimo.')
+    if not on_modular_grid(step):
+        raise ValueError('Il passo di ricerca deve essere un multiplo positivo di 10 mm.')
+    first=origin+10*math.ceil((lower-origin)/10-1e-10)
+    if first > upper+1e-9:
+        raise ValueError('La zona non contiene nodi della griglia telaio da 10 mm.')
+    return grid_values(first,max(first,upper),step)
+
+
+def _grid_node(value,origin=0.):
+    n=(value-origin)/10
+    return math.isfinite(n) and math.isclose(n,round(n),rel_tol=0.,abs_tol=1e-9)
+
+
+def on_chassis_grid(p: Parameters,x: float,y: float):
+    return on_modular_grid(p.pivot_spacing) and _grid_node(x,-p.pivot_spacing/2) and _grid_node(y)
+
+
+def central_attachment_holes(p: Parameters) -> tuple[float, ...]:
+    """Nearest holes to the midpoint, on the rod's own 10 mm pitch."""
+    midpoint=p.tie_length/2
+    return tuple(dict.fromkeys(10.*i for i in (math.floor(midpoint/10),math.ceil(midpoint/10))
+                               if 0 <= 10.*i <= p.tie_length))
+
+
+def attachment_distances(p: Parameters, space: SearchSpace) -> tuple[float, ...]:
+    holes=space.attachment_distances or central_attachment_holes(p)
+    if (not holes or len(set(holes))!=len(holes) or
+        any(not math.isfinite(v) or v < 0 or v > p.tie_length or not _grid_node(v) for v in holes)):
+        raise ValueError('Gli attacchi T devono essere fori distinti a passo 10 mm, tra 0 e la lunghezza del tirante, misurati da B SX.')
+    return tuple(holes)
+
+
+def _attachment_paths(p: Parameters, space: SearchSpace):
+    holes=attachment_distances(p,space)
+    if len(holes)==1:
+        return (sample_steering(replace(p,actuation_fraction=holes[0]/p.tie_length),space.target),)
+    # T and its velocity are affine in the material position along B SX–B DX.
+    left=sample_steering(replace(p,actuation_fraction=0.),space.target)
+    right=sample_steering(replace(p,actuation_fraction=1.),space.target)
+    return tuple(SteeringSamples(left.means,
+                 left.points+(distance/p.tie_length)*(right.points-left.points),
+                 left.velocities+(distance/p.tie_length)*(right.velocities-left.velocities),
+                 left.left_angles,left.right_angles) for distance in holes)
 
 
 def sample_steering(p: Parameters, target: float, count: int = 241) -> SteeringSamples:
@@ -104,8 +164,6 @@ class Reachability:
     rejected_neutral: int
     rejected_travel: int
     rejected_margin: int
-    # Original (crank, rod, x, y) indices; only retain choices if usable by search.
-    choices: tuple[tuple[int, int, int, int], ...]
 
     @property
     def rejected(self):
@@ -117,58 +175,68 @@ class Reachability:
 
 
 def prefilter(p: Parameters, space: SearchSpace) -> Reachability:
-    """Cheap assembly-independent triangle inequalities, before the detailed cap.
-
-    Distances along the common sampled path are computed once per motor position,
-    then tested against all length pairs using NumPy. Both A/B share this test.
-    Only up to MAX_DETAILED_SEARCH/2 surviving pairs need to be retained.
-    """
+    """Count reachable assemblies without retaining their Cartesian-product indices."""
     validate_symmetric_setup(p)
-    base = replace(p, actuation_fraction=.5)
+    base = p
     limit, _ = steering_limit(base, respect_display=False)
     if not math.isfinite(space.target) or not 0 < space.target < min(limit, math.pi/2)-1e-8:
         raise ValueError(f"Richiedi una sterzata positiva inferiore al limite dello sterzo ({math.degrees(limit):.2f}°).")
     axes = (space.crank_lengths, space.rod_lengths, space.x_positions, space.y_positions)
     if any(not values or any(not math.isfinite(v) for v in values) for values in axes):
         raise ValueError("Inserisci almeno un valore finito per ogni dimensione e posizione.")
+    if not on_modular_grid(base.pivot_spacing):
+        raise ValueError('L’interasse dei perni A deve essere multiplo di 10 mm per usare la griglia telaio.')
+    if any(not _grid_node(x,-base.pivot_spacing/2) for x in space.x_positions) or any(not _grid_node(y) for y in space.y_positions):
+        raise ValueError('Le posizioni motore devono appartenere alla griglia telaio 10 × 10 mm, riferita ad A SX.')
     if min(space.crank_lengths+space.rod_lengths) <= 0:
         raise ValueError("Le lunghezze disponibili devono essere positive.")
     if not math.isfinite(space.min_behind) or space.min_behind < 0:
         raise ValueError("Il margine dietro al tirante deve essere finito e non negativo.")
-    total = math.prod(len(values) for values in axes)*2
+    holes = attachment_distances(base,space)
+    total = math.prod(len(values) for values in axes)*len(holes)*2
     if total > MAX_PREFILTER_COMBINATIONS:
         raise ValueError(f"{total} combinazioni teoriche: massimo {MAX_PREFILTER_COMBINATIONS} per il prefiltro rapido. Riduci la griglia o le liste di lunghezze.")
-    samples = sample_steering(base, space.target)
-    neutral = samples.points[len(samples.means)//2]
+    remaining = rejected_neutral = rejected_travel = rejected_margin = 0
+    for _,_,_,indices,neutral,travel,margin in _reachability_batches(base,space,_attachment_paths(base,space)):
+        remaining += len(indices)*2
+        rejected_neutral += neutral
+        rejected_travel += travel
+        rejected_margin += margin
+    return Reachability(total, remaining, rejected_neutral, rejected_travel, rejected_margin)
+
+
+def _reachability_batches(base, space, paths):
+    """One motor position at a time; temporary masks are discarded on advance."""
     radii = np.repeat(space.crank_lengths, len(space.rod_lengths))
     rods = np.tile(space.rod_lengths, len(space.crank_lengths))
     difference, reach = np.abs(radii-rods), radii+rods
     tolerance = np.maximum(np.maximum(base.scale, radii), rods)*1e-10
-    remaining = rejected_neutral = rejected_travel = rejected_margin = 0
-    choices = []
-    for xi, x in enumerate(space.x_positions):
-        for yi, y in enumerate(space.y_positions):
-            if y < neutral[1]+space.min_behind-base.length_tolerance:
-                rejected_margin += len(radii)*2
-                continue
-            center = np.array([x, y])
-            d0 = float(np.linalg.norm(neutral-center))
-            neutral_ok = (d0 > tolerance) & (d0-difference > tolerance) & (reach-d0 > tolerance)
-            rejected_neutral += int(np.count_nonzero(~neutral_ok))*2
-            if not np.any(neutral_ok):
-                continue
-            distances = np.linalg.norm(samples.points-center, axis=1)
-            dmin, dmax = float(distances.min()), float(distances.max())
-            travel_ok = neutral_ok & (dmin > tolerance) & (dmin-difference > tolerance) & (reach-dmax > tolerance)
-            count = int(np.count_nonzero(travel_ok))*2
-            rejected_travel += int(np.count_nonzero(neutral_ok & ~travel_ok))*2
-            remaining += count
-            slots = MAX_DETAILED_SEARCH//2-len(choices)
-            if slots > 0:
-                choices.extend((int(i)//len(space.rod_lengths), int(i)%len(space.rod_lengths), xi, yi)
-                               for i in np.flatnonzero(travel_ok)[:slots])
-    return Reachability(total, remaining, rejected_neutral, rejected_travel, rejected_margin,
-                        tuple(choices) if remaining <= MAX_DETAILED_SEARCH else ())
+    for hi, samples in enumerate(paths):
+        neutral = samples.points[len(samples.means)//2]
+        for xi, x in enumerate(space.x_positions):
+            for yi, y in enumerate(space.y_positions):
+                if y < neutral[1]+space.min_behind-base.length_tolerance:
+                    yield hi,xi,yi,(),0,0,len(radii)*2
+                    continue
+                center = np.array([x, y])
+                d0 = float(np.linalg.norm(neutral-center))
+                neutral_ok = (d0 > tolerance) & (d0-difference > tolerance) & (reach-d0 > tolerance)
+                rejected_neutral = int(np.count_nonzero(~neutral_ok))*2
+                if not np.any(neutral_ok):
+                    yield hi,xi,yi,(),rejected_neutral,0,0
+                    continue
+                distances = np.linalg.norm(samples.points-center, axis=1)
+                dmin, dmax = float(distances.min()), float(distances.max())
+                travel_ok = neutral_ok & (dmin > tolerance) & (dmin-difference > tolerance) & (reach-dmax > tolerance)
+                rejected_travel = int(np.count_nonzero(neutral_ok & ~travel_ok))*2
+                yield hi,xi,yi,np.flatnonzero(travel_ok),rejected_neutral,rejected_travel,0
+
+
+def _reachable_choices(base, space, paths):
+    for hi,xi,yi,indices,_,_,_ in _reachability_batches(base,space,paths):
+        for index in indices:
+            ri,si=divmod(int(index),len(space.rod_lengths))
+            yield hi,ri,si,xi,yi
 
 
 def _response(p: Parameters, samples: SteeringSamples):
@@ -227,21 +295,21 @@ def pareto_mask(objectives: np.ndarray) -> list[bool]:
 def search(p: Parameters, space: SearchSpace,
            progress: Callable[[int, int, str], None] | None = None) -> SearchResult:
     screening = prefilter(p, space)
-    if screening.remaining > MAX_DETAILED_SEARCH:
-        raise ValueError(f"Dopo il prefiltro restano {screening.remaining} montaggi su {screening.total} teorici: "
-                         f"massimo {MAX_DETAILED_SEARCH} da analizzare. Riduci la zona o aumenta il passo.")
-    base = replace(p, actuation_fraction=.5)
-    samples = sample_steering(base, space.target)
-    obstacles = prepare_obstacles(base, samples.left_angles, samples.right_angles)
+    base = p
+    holes = attachment_distances(base,space)
+    paths = _attachment_paths(base,space)
+    obstacles = prepare_obstacles(base, paths[0].left_angles, paths[0].right_angles)
     accepted, rejected = [], Counter(screening.rejected)
     done = 0
-    for ri, si, xi, yi in screening.choices:
+    progress_step=max(10,math.ceil(screening.remaining/200))
+    for hi, ri, si, xi, yi in _reachable_choices(base,space,paths):
+        samples=paths[hi]
         radius, rod = space.crank_lengths[ri], space.rod_lengths[si]
         x, y = space.x_positions[xi], space.y_positions[yi]
         for assembly_index, assembly in enumerate((1, -1)):
             # Keep IDs stable relative to the unfiltered Cartesian product.
-            index = (((ri*len(space.rod_lengths)+si)*len(space.x_positions)+xi)*len(space.y_positions)+yi)*2+assembly_index+1
-            candidate = replace(base, motor=Motor(x, y, radius, rod, assembly))
+            index = ((((hi*len(space.crank_lengths)+ri)*len(space.rod_lengths)+si)*len(space.x_positions)+xi)*len(space.y_positions)+yi)*2+assembly_index+1
+            candidate = replace(base, actuation_fraction=holes[hi]/base.tie_length, motor=Motor(x, y, radius, rod, assembly))
             values, reason = _response(candidate, samples)
             if values is not None:
                 collision = motor_interference(candidate, samples.points, values[2], obstacles)
@@ -260,18 +328,25 @@ def search(p: Parameters, space: SearchSpace,
                     maximum, minimum, average = float(magnitude.max()), float(magnitude.min()), float(magnitude.mean())
                     metrics = Metrics(maximum, minimum, average, (maximum-minimum)/average,
                                       abs(float(phi[-1]-phi[0])), min(-space.target-interval.mean_lower, interval.mean_upper-space.target))
-                    accepted.append(MotorCandidate(index, candidate, interval, metrics))
+                    if len(accepted) >= MAX_FEASIBLE_CANDIDATES:
+                        raise ValueError(f"Superato il limite di {MAX_FEASIBLE_CANDIDATES} soluzioni ammissibili: "
+                                         f"trovata la {len(accepted)+1}ª dopo {done+1} analisi. "
+                                         "Ricerca interrotta per contenere la memoria; restringi la zona o le liste dei componenti. "
+                                         "I risultati parziali non vengono pubblicati.")
+                    accepted.append(MotorCandidate(index, candidate, interval, metrics,
+                                                   rear_clearance=crank_rear_clearance(candidate,values[2],obstacles)))
             done += 1
-            if progress is not None and (done % 10 == 0 or done == screening.remaining):
+            if progress is not None and (done % progress_step == 0 or done == screening.remaining):
                 progress(done, screening.remaining, f"{done}/{screening.remaining} analisi · {len(accepted)} ammissibili")
     if progress is not None and not screening.remaining:
         progress(1, 1, 'Tutte le combinazioni sono state escluse dal prefiltro rapido.')
     objectives = np.array([(c.metrics.max_sensitivity, c.metrics.variation) for c in accepted])
     mask = pareto_mask(objectives)
-    accepted = [replace(c, pareto=front) for c, front in zip(accepted, mask)]
+    for i,front in enumerate(mask):
+        accepted[i]=replace(accepted[i],pareto=front)
     accepted.sort(key=lambda c: (not c.pareto, c.metrics.max_sensitivity, c.metrics.variation, c.id))
-    return SearchResult(base, space, screening.total, tuple(accepted), dict(rejected), collision_checked=True,
-                        detailed_tested=done, prefilter_rejected=screening.rejected)
+    return SearchResult(base, space, screening.total, tuple(accepted), dict(rejected), collision_checked=True, q_clearance_checked=True, mounting_grid_checked=True,
+                        detailed_tested=done, prefilter_rejected=screening.rejected, attachment_grid_checked=True, rear_clearance_checked=True, b_clearance_checked=True)
 
 
 def candidate_curve(candidate: MotorCandidate, target: float, count: int = 241) -> list[dict]:

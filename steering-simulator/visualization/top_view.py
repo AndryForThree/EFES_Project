@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 import numpy as np
 import plotly.graph_objects as go
 from .shapes import bodies
 from steering.geometry import arm_vector, rectangle
 from steering.kinematics import Pose, Sample
 from steering.parameters import Parameters
+from steering.reference import chassis_pose
 
 BLUE = "#3976c4"
 ORANGE = "#df8628"
@@ -26,9 +28,11 @@ def polygon(fig: go.Figure, points: np.ndarray, color: str, fill: str,
 def top_view(p: Parameters, pose: Pose | None, samples: list[Sample], *, labels: bool = True,
              construction: bool = False, trajectories: bool = True, neutral: bool = True,
              envelope: bool = False) -> go.Figure:
+    pose=chassis_pose(p,pose)
+    samples=[replace(sample,pose=chassis_pose(p,sample.pose)) for sample in samples]
     fig = go.Figure()
     f = p.physical
-    al, ar = np.array([-p.pivot_spacing/2, 0.]), np.array([p.pivot_spacing/2, 0.])
+    al, ar = np.array([0., 0.]), np.array([p.pivot_spacing, 0.])
     if envelope:
         for side in ("left", "right"):
             x, y = [], []
@@ -82,6 +86,10 @@ def top_view(p: Parameters, pose: Pose | None, samples: list[Sample], *, labels:
                 "joint": ("#71869b", "rgba(235,242,248,.7)"),
             }[body.family]
             polygon(fig, body.polygon, color, fill, body.name)
+        radius=f.q_joint_diameter/2
+        for point in (pose.b_left,pose.b_right):
+            fig.add_shape(type='circle',x0=point[0]-radius,x1=point[0]+radius,
+                          y0=point[1]-radius,y1=point[1]+radius,line=dict(color=ORANGE,dash='dash',width=1.5))
         for center, heading, name in ((pose.c_left, pose.heading_left, "C SX"),
                                       (pose.c_right, pose.heading_right, "C DX")):
             forward = np.array([math.sin(heading), -math.cos(heading)])
@@ -106,7 +114,7 @@ def top_view(p: Parameters, pose: Pose | None, samples: list[Sample], *, labels:
                 fig.add_annotation(x=a[0], y=-f.wheel_diameter/2-15, text=f"{math.degrees(angle):+.1f}°",
                                    showarrow=False, font=dict(size=15, color=BLUE))
     fig.add_trace(go.Scatter(x=[al[0], ar[0]], y=[0, 0], mode="markers+text" if labels else "markers",
-                            text=["A SX", "A DX"], textposition="top center", textfont=dict(size=11, color="#153f70"),
+                            text=["A SX · O (0,0)", "A DX"], textposition="top center", textfont=dict(size=11, color="#153f70"),
                             marker=dict(size=10, color="#153f70", symbol="circle-cross"), showlegend=False,
                             hovertemplate="Perno fisso: (%{x:.2f}, %{y:.2f}) mm<extra></extra>"))
     if labels:
@@ -116,20 +124,19 @@ def top_view(p: Parameters, pose: Pose | None, samples: list[Sample], *, labels:
         fig.add_trace(go.Scatter(x=[al[0], ar[0]], y=[dim_y]*2, mode="lines+markers",
                                 line=dict(color="#8798a8", width=1), marker=dict(symbol="line-ns", size=8),
                                 showlegend=False, hoverinfo="skip"))
-        fig.add_annotation(x=0, y=dim_y+8, text=f"Interasse perni · {p.pivot_spacing:g} mm",
+        fig.add_annotation(x=p.pivot_spacing/2, y=dim_y+8, text=f"Interasse perni · {p.pivot_spacing:g} mm",
                            showarrow=False, font=dict(color="#667a8d", size=11))
     # Conservative fixed viewport, independent of the current steering angle.
     reach = max(math.hypot(p.left.axle_x, p.left.axle_y), math.hypot(p.right.axle_x, p.right.axle_y),
-                p.left.arm_length, p.right.arm_length) + math.hypot(f.wheel_width, f.wheel_diameter)/2 + 22
-    half_width = p.pivot_spacing/2+reach
+                p.left.arm_length+f.q_joint_diameter/2, p.right.arm_length+f.q_joint_diameter/2) + math.hypot(f.wheel_width, f.wheel_diameter)/2 + 22
     front = reach+15
     rear = reach+15
     fig.update_layout(height=560, margin=dict(l=20, r=15, t=10, b=25),
                       paper_bgcolor="#fafcfd", plot_bgcolor="#fafcfd", font=dict(family="sans-serif", color=INK),
-                      xaxis=dict(title="X · mm → destra", range=[-half_width, half_width],
-                                 gridcolor="#e8edf1", zerolinecolor="#c9d4dd", dtick=25, constrain="domain"),
+                      xaxis=dict(title="X da A SX · mm → destra", range=[-reach, p.pivot_spacing+reach],
+                                 gridcolor="#e8edf1", zerolinecolor="#c9d4dd", dtick=10, constrain="domain"),
                       yaxis=dict(title="Y · mm → retro", range=[rear, -front],
-                                 scaleanchor="x", scaleratio=1, gridcolor="#e8edf1", zerolinecolor="#c9d4dd", dtick=25),
+                                 scaleanchor="x", scaleratio=1, gridcolor="#e8edf1", zerolinecolor="#c9d4dd", dtick=10),
                       uirevision=str((p.pivot_spacing, reach)), dragmode="pan")
     fig.add_annotation(x=.5, y=.98, xref="paper", yref="paper", text="↑ FRONTE VEICOLO · −Y",
                        showarrow=False, font=dict(size=10, color="#8394a4"))

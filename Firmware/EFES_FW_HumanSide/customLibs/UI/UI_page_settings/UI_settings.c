@@ -3,9 +3,6 @@
 #include "st7789.h"
 #include <stdio.h>
 
-#define SETTINGS_VISIBLE_ITEMS	4U
-#define SETTINGS_ROW_HEIGHT		34U
-
 typedef struct {
 	App_View render_view;
 	App_View drawn_view;
@@ -13,7 +10,8 @@ typedef struct {
 	bool first_frame;
 	App_Page page;
 	UI_Header header;
-	UI_Developer developer;
+	UI_DeveloperMode developer_mode;
+	bool developer_started;
 	uint32_t render_started_at_ms;
 	uint8_t step;
 	uint8_t row;
@@ -110,8 +108,7 @@ void UI_Settings_Init(App_Page page)
 
 static void PrepareRender(void)
 {
-	UI_Header_Init(&settings.header, settings.page);
-	UI_Developer_Init(&settings.developer);
+	UI_Header_startRendering(&settings.header, settings.page, "SETTINGS");
 	settings.rendering = false;
 	settings.first_frame = true;
 	settings.step = 0;
@@ -121,8 +118,15 @@ static void PrepareRender(void)
 
 static bool FinishRender(const App_View *view)
 {
-	uint32_t elapsed_ms = HAL_GetTick() - settings.render_started_at_ms;
-	if (!UI_Developer_Process(&settings.developer, view->developer_mode != 0, elapsed_ms)) return false;
+	if (view->developer_mode) {
+		if (!settings.developer_started) {
+			uint32_t elapsed_ms = HAL_GetTick() - settings.render_started_at_ms;
+			UI_DeveloperMode_startRendering(&settings.developer_mode, elapsed_ms,
+				settings.first_frame || !settings.drawn_view.developer_mode);
+			settings.developer_started = true;
+		}
+		if (!UI_DeveloperMode_render(&settings.developer_mode)) return false;
+	}
 
 	settings.drawn_view = *view;
 	settings.first_frame = false;
@@ -148,11 +152,15 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 		if (settings.first_frame) PrepareRender();
 		settings.render_view = *current;
 		settings.render_started_at_ms = HAL_GetTick();
+		settings.developer_started = false;
+		if (!settings.first_frame && settings.drawn_view.developer_mode && !current->developer_mode) {
+			UI_Header_startRendering(&settings.header, settings.page, "SETTINGS");
+		}
 		settings.rendering = true;
 	}
 	const App_View *view = &settings.render_view;
 
-	if (!UI_Header_Process(&settings.header, "SETTINGS")) return false;
+	if (!UI_Header_render(&settings.header)) return false;
 
 	const App_Menu *menu = view->menu;
 	const App_MenuItem *item = &menu->items[view->selected_item];

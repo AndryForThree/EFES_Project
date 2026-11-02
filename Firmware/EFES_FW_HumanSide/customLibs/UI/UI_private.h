@@ -1,7 +1,7 @@
 #ifndef UI_PRIVATE_H
 #define UI_PRIVATE_H
 
-#include "UI_common.h"
+#include "UI_items.h"
 
 // =======================================================================
 // Theme
@@ -18,9 +18,9 @@
 #define UI_TITLE_COLOR			0x3DFFU
 #define UI_OK_COLOR				0x07D0U
 #define UI_WARNING_COLOR		0xFE60U
-#define UI_MODE_COMFORT_COLOR	0x3934U
-#define UI_MODE_ECO_COLOR		0x032CU
-#define UI_MODE_SPORT_COLOR		0xB984U
+#define UI_DRIVING_MODE_COMFORT_COLOR		0x3934U
+#define UI_DRIVING_MODE_ECO_COLOR			0x032CU
+#define UI_DRIVING_MODE_SPORT_COLOR			0xB984U
 #define UI_TRACK_COLOR			0x2A4AU
 
 #define UI_ERROR_COLOR			0xF800U

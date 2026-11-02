@@ -2,58 +2,31 @@
 #include "st7789.h"
 #include <stdio.h>
 
-#define SENSOR_TEXT					UI_TEXT_COLOR
-#define SENSOR_TITLE				UI_TITLE_COLOR
-#define SENSOR_BORDER				UI_BORDER_COLOR
-#define SENSOR_NORMAL				UI_OK_COLOR
-#define SENSOR_FAULT				UI_ERROR_COLOR
-#define SENSOR_STALE				UI_WARNING_COLOR
-#define SENSOR_TRACK				UI_TRACK_COLOR
-#define GRAPH_COLOR					UI_TEAL_COLOR
+static UI_Graph history_graph;
 
-#define SENSOR_FONT_TITLE		FONT_BARLOW_SEMI_CONDENSED_BOLD_14
-#define SENSOR_FONT_ANGLE		FONT_RAJDHANI_BOLD_40
-#define SENSOR_FONT_VALUE		FONT_RAJDHANI_BOLD_42
-#define SENSOR_FONT_NA			FONT_RAJDHANI_BOLD_28
-#define SENSOR_FONT_HISTORY		FONT_BARLOW_SEMI_CONDENSED_BOLD_12
-#define SENSOR_FONT_UPDATE		FONT_BARLOW_SEMI_CONDENSED_BOLD_10
-#define SENSOR_FONT_AXIS		FONT_INTER_MEDIUM_10
-#define SENSOR_FONT_LEGEND		FONT_BARLOW_SEMI_CONDENSED_BOLD_10
-#define SENSOR_FONT_UNIT		FONT_INTER_MEDIUM_10
-
-#define DEVIATION_BAR_X			12
-#define DEVIATION_BAR_Y			114
-#define DEVIATION_BAR_WIDTH		156
-#define DEVIATION_BAR_HEIGHT	8
-#define GRAPH_X					41U
-#define GRAPH_Y					162U
-#define GRAPH_HEIGHT_PX			46U
-
-#define GRAPH_WIDTH_PX			264					
-#define GRAPH_HISTORY_MS		10000				// Total time window rapresented by the graph	
-#define GRAPH_REFRESH_MS		100					// Refresh period of the graph
-#define GRAPH_DEVIATION_SCALE	2					// 
-#define GRAPH_SAMPLES			GRAPH_WIDTH_PX		// 
-#define GRAPH_SAMPLE_US			((GRAPH_HISTORY_MS * 1000UL) / (GRAPH_SAMPLES - 1U))
-
-static ST7789_GraphSample history_samples[GRAPH_SAMPLES];
-static UI_Trace history_trace;
-
-static ST7789_Graph graph = {
-	.x = GRAPH_X, .y = GRAPH_Y, .width = GRAPH_WIDTH_PX, .height = GRAPH_HEIGHT_PX,
-	.minimum = 0,
-	.color_a = GRAPH_COLOR,
-	.grid = SENSOR_BORDER, .background = UI_CARD_BACKGROUND,
-	.series_count = 1
+static const UI_GraphSeriesConfig graph_series[] = {
+	{ .color = SENSOR_GRAPH_COLOR, .legend = SENSOR_GRAPH_LEGEND }
 };
-/* The history ring continues changing; this copy belongs to the active draw. */
-static ST7789_GraphSample graph_snapshot[GRAPH_SAMPLES];
+
+static const UI_GraphConfig graph_config = {
+	.x = SENSOR_GRAPH_X, .y = SENSOR_GRAPH_Y, .width = SENSOR_GRAPH_WIDTH_PX, .height = SENSOR_GRAPH_HEIGHT_PX,
+	.color_grid = SENSOR_BORDER, .color_background = SENSOR_GRAPH_BACKGROUND_COLOR,
+	.series = graph_series,
+	.series_count = sizeof(graph_series) / sizeof(graph_series[0]),
+	.capacity = SENSOR_GRAPH_CAPACITY,
+	.history_ms = SENSOR_GRAPH_HISTORY_MS,
+	.text_color = SENSOR_TITLE,
+	.max_digits = SENSOR_GRAPH_MAX_DIGITS,
+	.max_decimal_places = SENSOR_GRAPH_MAX_DECIMAL_PLACES,
+	.symmetric_scale = SENSOR_GRAPH_SYMMETRIC_SCALE,
+	.minimum_scale = SENSOR_GRAPH_MINIMUM_SCALE
+};
 
 enum {
-	SENSOR_PANELS, SENSOR_LABELS, SENSOR_GRAPH_LEGEND,
+	SENSOR_PANELS, SENSOR_LABELS,
 	SENSOR_CHANNEL_A, SENSOR_CHANNEL_B,
 	SENSOR_DEVIATION_VALUE, SENSOR_DEVIATION_NA, SENSOR_DEVIATION_UNIT, SENSOR_DEVIATION_BAR,
-	SENSOR_HISTORY_DOT, SENSOR_HISTORY_TEXT, SENSOR_GRAPH_AXES, SENSOR_GRAPH,
+	SENSOR_HISTORY_DOT, SENSOR_HISTORY_TEXT, SENSOR_GRAPH,
 	SENSOR_FINISH
 };
 
@@ -76,7 +49,6 @@ static const struct {
 	{12, 93, "CHANNEL DEVIATION", SENSOR_FONT_TITLE},
 	{12, 140, "DEVIATION HISTORY", SENSOR_FONT_TITLE},
 	{148, 142, "LAST UPDATE:", SENSOR_FONT_UPDATE},
-	{137, 221, "DEVIATION", SENSOR_FONT_LEGEND},
 };
 
 typedef struct {
@@ -87,13 +59,11 @@ typedef struct {
 	bool first_frame;
 	App_Page page;
 	UI_Header header;
-	UI_Developer developer;
+	UI_DeveloperMode developer_mode;
+	bool developer_started;
 	uint32_t render_started_at_ms;
 	uint16_t drawn_color, drawn_fill;
 	uint8_t drawn_history;
-	uint32_t graph_updated_at, graph_version;
-	uint16_t drawn_graph_limit;
-	char axis_text[6][16];
 	char number[16]; /* Scratch buffer used to format numeric fields. */
 } UI_SensorContext;
 
@@ -103,10 +73,10 @@ static int BarFill(const App_View *state)
 {
 	/* Fault is a hardware verdict. Numeric saturation alone never changes color. */
 	if (!state->sensor.channel_a_valid || !state->sensor.channel_b_valid ||
-		state->sensor.plausibility_fault) return DEVIATION_BAR_WIDTH;
-	uint32_t fill = (uint32_t)UI_SensorDeviation(&state->sensor) * DEVIATION_BAR_WIDTH /
+		state->sensor.plausibility_fault) return SENSOR_DEVIATION_BAR_WIDTH;
+	uint32_t fill = (uint32_t)UI_SensorDeviation(&state->sensor) * SENSOR_DEVIATION_BAR_WIDTH /
 					state->sensor.deviation_limit_deci_deg;
-	return fill > DEVIATION_BAR_WIDTH ? DEVIATION_BAR_WIDTH : (int)fill;
+	return fill > SENSOR_DEVIATION_BAR_WIDTH ? SENSOR_DEVIATION_BAR_WIDTH : (int)fill;
 }
 
 static ST7789_Result WriteAngle(uint16_t x, int angle)
@@ -123,29 +93,25 @@ void UI_Sensor_Init(App_Page page)
 	sensor = (UI_SensorContext){0};
 	sensor.page = page;
 	sensor.first_frame = true;
-	UI_Trace_Init(&history_trace, history_samples, GRAPH_SAMPLES, GRAPH_HISTORY_MS);
+	UI_Graph_init(&history_graph, &graph_config);
 }
 
 static void PrepareRender(void)
 {
-	UI_Header_Init(&sensor.header, sensor.page);
-	UI_Developer_Init(&sensor.developer);
+	UI_Header_startRendering(&sensor.header, sensor.page, "SENSOR DIAGNOSTICS");
 	sensor.rendering = false;
 	sensor.step = SENSOR_PANELS;
 	sensor.item = 0;
 	sensor.first_frame = true;
-	UI_FormatGraphTime(sensor.axis_text[3], GRAPH_HISTORY_MS);
-	UI_FormatGraphTime(sensor.axis_text[4], GRAPH_HISTORY_MS / 2U);
-	UI_FormatGraphTime(sensor.axis_text[5], 0);
 }
 
 bool UI_Sensor_Process(const App_View *current, bool draw)
 {
 	uint16_t current_deviation = UI_SensorDeviation(&current->sensor);
-	bool usable = current->sensor.channel_a_valid && current->sensor.channel_b_valid &&
-		!current->sensor.plausibility_fault && !current->sensor.stale;
-	UI_Trace_Process(&history_trace, (ST7789_GraphSample){
-		current_deviation > INT16_MAX ? INT16_MAX : (int16_t)current_deviation, 0
+	bool usable = current->sensor.valid && current->sensor.channel_a_valid &&
+		current->sensor.channel_b_valid && !current->sensor.plausibility_fault;
+	UI_Graph_process(&history_graph, (UI_GraphSample){
+		.values = { current_deviation > INT16_MAX ? INT16_MAX : (int16_t)current_deviation }
 	}, usable, HAL_GetTick());
 	if (current->page != sensor.page) {
 		sensor.first_frame = true;
@@ -162,22 +128,22 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 		if (sensor.first_frame) PrepareRender();
 		sensor.render_view = *current;
 		sensor.render_started_at_ms = HAL_GetTick();
+		sensor.developer_started = false;
+		if (!sensor.first_frame && sensor.drawn_state.developer_mode && !current->developer_mode) {
+			UI_Header_startRendering(&sensor.header, sensor.page, "SENSOR DIAGNOSTICS");
+		}
+		UI_Graph_startRendering(&history_graph, sensor.first_frame);
 		sensor.rendering = true;
 	}
 	const App_View *state = &sensor.render_view;
 
-	if (!UI_Header_Process(&sensor.header, "SENSOR DIAGNOSTICS")) return false;
+	if (!UI_Header_render(&sensor.header)) return false;
 
 	ST7789_Result result = ST7789_OK;
 	const App_View *old = &sensor.drawn_state;
 	bool first = sensor.first_frame;
 	uint16_t deviation = UI_SensorDeviation(&state->sensor);
 	/* Freshness is supplied by the source through the stable App_View snapshot. */
-	if (sensor.step == SENSOR_CHANNEL_A) {
-		uint32_t maximum = (uint32_t)state->sensor.deviation_limit_deci_deg * GRAPH_DEVIATION_SCALE;
-		graph.maximum = maximum > INT16_MAX ? INT16_MAX : (int16_t)maximum;
-	}
-	bool scale_changed = first || state->sensor.deviation_limit_deci_deg != sensor.drawn_graph_limit;
 	bool invalid = !state->sensor.channel_a_valid || !state->sensor.channel_b_valid;
 	bool old_invalid = !old->sensor.channel_a_valid || !old->sensor.channel_b_valid;
 	uint16_t color = invalid || state->sensor.plausibility_fault ? SENSOR_FAULT :
@@ -208,35 +174,6 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 				sensor.step++;
 			}
 			return false;
-		case SENSOR_GRAPH_AXES:
-			if (!scale_changed) {
-				sensor.step++;
-				return false;
-			}
-			if (sensor.item < 3) {
-				unsigned value = graph.maximum * (2U - sensor.item) / 2U;
-				snprintf(sensor.axis_text[sensor.item], 16, "%u.%u\xB0", value / 10U, value % 10U);
-				uint16_t y = GRAPH_Y + sensor.item * (GRAPH_HEIGHT_PX - 1U) / 2U - 6;
-				result = ST7789_WriteTextField(7, y, 32, sensor.axis_text[sensor.item],
-							SENSOR_FONT_AXIS, ST7789_TEXT_RIGHT, SENSOR_TITLE, UI_CARD_BACKGROUND);
-			} else {
-				unsigned tick = sensor.item - 3;
-				uint16_t x = tick == 0 ? GRAPH_X :
-								(tick == 1 ? GRAPH_X + (GRAPH_WIDTH_PX - 1U) / 2U - 20 :
-											GRAPH_X + GRAPH_WIDTH_PX - 40);
-				ST7789_TextAlign align = tick == 0 ? ST7789_TEXT_LEFT :
-											(tick == 1 ? ST7789_TEXT_CENTER : ST7789_TEXT_RIGHT);
-				result = ST7789_WriteTextField(x, 209, 40, sensor.axis_text[sensor.item],
-							SENSOR_FONT_AXIS, align, SENSOR_TITLE, UI_CARD_BACKGROUND);
-			}
-			if (result == ST7789_OK && ++sensor.item == 6) {
-				sensor.item = 0;
-				sensor.step++;
-			}
-			return false;
-		case SENSOR_GRAPH_LEGEND:
-			result = ST7789_DrawFilledRectangle(119, 227, 13, 2, GRAPH_COLOR);
-			break;
 		case SENSOR_CHANNEL_A:
 			if (first || state->sensor.channel_a_angle_deci_deg != old->sensor.channel_a_angle_deci_deg)
 				result = WriteAngle(8, state->sensor.channel_a_angle_deci_deg);
@@ -267,8 +204,8 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 			break;
 		case SENSOR_DEVIATION_BAR:
 			if (first || fill != sensor.drawn_fill || color != sensor.drawn_color)
-				result = ST7789_DrawProgressBar(DEVIATION_BAR_X, DEVIATION_BAR_Y,
-							DEVIATION_BAR_WIDTH, DEVIATION_BAR_HEIGHT, fill,
+				result = ST7789_DrawProgressBar(SENSOR_DEVIATION_BAR_X, SENSOR_DEVIATION_BAR_Y,
+							SENSOR_DEVIATION_BAR_WIDTH, SENSOR_DEVIATION_BAR_HEIGHT, fill,
 							color, SENSOR_TRACK, UI_CARD_BACKGROUND);
 			break;
 		case SENSOR_HISTORY_DOT:
@@ -281,32 +218,23 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 							history_fault ? "FAULT" : (state->sensor.stale ? "STALE" : "LIVE"),
 							SENSOR_FONT_HISTORY, ST7789_TEXT_RIGHT, history_color, UI_CARD_BACKGROUND);
 			break;
-		case SENSOR_GRAPH: {
-			uint32_t now = HAL_GetTick();
-			uint32_t version = history_trace.version;
-			if (scale_changed || (version != sensor.graph_version &&
-				(uint32_t)(now - sensor.graph_updated_at) >= GRAPH_REFRESH_MS)) {
-				uint16_t count = UI_Trace_Copy(&history_trace, graph_snapshot);
-				for (uint16_t i = 0; i < count; i++) {
-					uint32_t value = (uint16_t)graph_snapshot[i].a;
-					graph_snapshot[i].a = value > (uint32_t)graph.maximum ? graph.maximum : (int16_t)value;
-				}
-				result = ST7789_DrawGraph(&graph, graph_snapshot, count);
-				if (result == ST7789_OK) {
-					sensor.graph_updated_at = now;
-					sensor.graph_version = version;
-				}
-			}
+		case SENSOR_GRAPH:
+			if (!UI_Graph_render(&history_graph)) return false;
 			break;
-		}
 		case SENSOR_FINISH: {
-			uint32_t elapsed_ms = HAL_GetTick() - sensor.render_started_at_ms;
-			if (!UI_Developer_Process(&sensor.developer, state->developer_mode != 0, elapsed_ms)) return false;
+			if (state->developer_mode) {
+				if (!sensor.developer_started) {
+					uint32_t elapsed_ms = HAL_GetTick() - sensor.render_started_at_ms;
+					UI_DeveloperMode_startRendering(&sensor.developer_mode, elapsed_ms,
+						sensor.first_frame || !sensor.drawn_state.developer_mode);
+					sensor.developer_started = true;
+				}
+				if (!UI_DeveloperMode_render(&sensor.developer_mode)) return false;
+			}
 			sensor.drawn_state = *state;
 			sensor.drawn_color = color;
 			sensor.drawn_fill = fill;
 			sensor.drawn_history = history;
-			sensor.drawn_graph_limit = state->sensor.deviation_limit_deci_deg;
 			sensor.first_frame = false;
 			sensor.step = SENSOR_CHANNEL_A;
 			sensor.rendering = false;

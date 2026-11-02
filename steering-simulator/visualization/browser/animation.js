@@ -4,6 +4,7 @@ const K = SteeringKinematics, $ = id => document.getElementById(id), canvas = $(
 const rad = Math.PI/180, deg = 180/Math.PI;
 let p, visuals, signature, pose = null, requested = 0, playing = false, direction = 1;
 let steeringLimit = 0, geometricLimit = false, appliedAngle = 0;
+let steeringOnly = false;
 let motorRange, actuator = null, commandAngle = 0;
 let lastTime = 0, frame = 0, warning = '', samples = [], zoom = 1, pan = [0, 0], drag = null;
 let width = 1, height = 500, scale = 1, origin = [0, 0], baseScale = 1, baseOrigin = [0, 0];
@@ -16,7 +17,7 @@ const colors = {blue:'#3976c4', orange:'#df8628', green:'#138777', ink:'#243548'
 function send(type, extra = {}) { window.parent.postMessage({isStreamlitMessage:true, type, ...extra}, '*'); }
 function snapshot() {
   send('streamlit:setComponentValue', {dataType:'json', value:{signature, angle:pose ? pose.theta_left : null,
-    steering_angle:appliedAngle, motor_angle:actuator ? actuator.phi-motorRange.neutral_phi : null, applied_angle:commandAngle, requested_angle:requested, sequence:Date.now()}});
+    mode:motorMode()?'motor':'steering',speed:Number($('speed').value),steering_angle:appliedAngle, motor_angle:actuator ? actuator.phi-motorRange.neutral_phi : null, applied_angle:commandAngle, requested_angle:requested, sequence:Date.now()}});
 }
 function resizeHeight() {
   const height = document.body.scrollHeight+8;
@@ -48,11 +49,11 @@ function move(angle) {
   }
   const result=K.resolveSteering(p,angle,steeringLimit,geometricLimit);
   pose=result.pose;appliedAngle=pose?(pose.heading_left+pose.heading_right)/2:result.angle;commandAngle=appliedAngle;
-  actuator=motorRange.valid&&appliedAngle>=motorRange.mean_lower-1e-12&&appliedAngle<=motorRange.mean_upper+1e-12
+  actuator=!steeringOnly&&motorRange.valid&&appliedAngle>=motorRange.mean_lower-1e-12&&appliedAngle<=motorRange.mean_upper+1e-12
     ?K.motorAtSteering(p,appliedAngle,motorRange.neutral_phi):null;
   if(!pose){warning='Limite geometrico: nessuna posa univoca da disegnare.';return false;}
   if(result.limited)warning='Limite geometrico raggiunto: visualizzata la posa limite calcolata.';
-  else if(!actuator)warning=motorRange.valid?'Sterzata fuori dalla corsa del collegamento motore: astina non rappresentata.':motorRange.reason;
+  else if(!actuator&&!steeringOnly)warning=motorRange.valid?'Sterzata fuori dalla corsa del collegamento motore: astina non rappresentata.':motorRange.reason;
   else if(pose.nearInput||pose.nearOutput)warning='Allarme: prossimità a un punto morto dello sterzo.';
   return !result.limited;
 }
@@ -110,10 +111,11 @@ function recomputeSamples() {
 }
 function fit() {
   const f=p.physical;
-  const reach=Math.max(Math.hypot(p.left.axle_x,p.left.axle_y),Math.hypot(p.right.axle_x,p.right.axle_y),p.left.arm_length,p.right.arm_length)+Math.hypot(f.wheel_width,f.wheel_diameter)/2+22;
-  const left=Math.min(-p.pivot_spacing/2-reach,p.motor.x-p.motor.crank_radius-25);
-  const right=Math.max(p.pivot_spacing/2+reach,p.motor.x+p.motor.crank_radius+25);
-  const half=(right-left)/2, front=Math.max(reach+15,-p.motor.y+p.motor.crank_radius+25),rear=Math.max(reach+15,p.motor.y+p.motor.crank_radius+25);
+  const reach=Math.max(p.left.arm_length+f.q_joint_diameter/2,p.right.arm_length+f.q_joint_diameter/2,Math.hypot(p.left.axle_x,p.left.axle_y),Math.hypot(p.right.axle_x,p.right.axle_y),p.left.arm_length,p.right.arm_length)+Math.hypot(f.wheel_width,f.wheel_diameter)/2+22;
+  const motorReach=Math.max(p.motor.crank_radius+25,(visuals.motor_axis_radius||0)+10);
+  const left=steeringOnly?-p.pivot_spacing/2-reach:Math.min(-p.pivot_spacing/2-reach,p.motor.x-motorReach);
+  const right=steeringOnly?p.pivot_spacing/2+reach:Math.max(p.pivot_spacing/2+reach,p.motor.x+motorReach);
+  const half=(right-left)/2, front=steeringOnly?reach+15:Math.max(reach+15,-p.motor.y+motorReach),rear=steeringOnly?reach+15:Math.max(reach+15,p.motor.y+motorReach);
   baseScale=Math.min((width-45)/(2*half),(height-45)/(front+rear));
   baseOrigin=[width/2-(left+right)*baseScale/2,height/2+(front-rear)*baseScale/2];
 }
@@ -123,9 +125,17 @@ function draw() {
   ctx.clearRect(0,0,width,height);
   // Background and optional trajectories use cached poses, never the Python sweep.
   const xmin=-origin[0]/scale,xmax=(width-origin[0])/scale,ymin=-origin[1]/scale,ymax=(height-origin[1])/scale;
-  const grid=25*Math.max(1,Math.ceil(1/zoom));
-  for(let x=Math.ceil(xmin/grid)*grid;x<xmax;x+=grid) path([[x,ymin],[x,ymax]],x===0?'#c8d5df':'#e8edf1',null,[],1);
-  for(let y=Math.ceil(ymin/grid)*grid;y<ymax;y+=grid) path([[xmin,y],[xmax,y]],y===0?'#c8d5df':'#e8edf1',null,[],1);
+  const grid=10*Math.max(1,Math.ceil(1/zoom)),offset=p.pivot_spacing/2;
+  ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillStyle='#718096';
+  for(let gx=Math.ceil((xmin+offset)/grid)*grid;gx<xmax+offset;gx+=grid){
+    const x=gx-offset;
+    path([[x,ymin],[x,ymax]],gx===0?'#96aabd':'#e8edf1',null,[],gx===0?1.5:1);
+    if(Math.round(gx/grid)%2===0){const q=transform([x,0]);ctx.fillText(String(Math.round(gx)),q[0],Math.max(28,Math.min(height-25,q[1]+14)));}
+  }
+  for(let y=Math.ceil(ymin/grid)*grid;y<ymax;y+=grid){
+    path([[xmin,y],[xmax,y]],y===0?'#96aabd':'#e8edf1',null,[],y===0?1.5:1);
+    if(y!==0 && Math.round(y/grid)%2===0){const q=transform([-offset,y]);ctx.fillText(String(Math.round(y)),Math.max(14,Math.min(width-20,q[0]-14)),q[1]+3);}
+  }
   if($('envelope').checked) samples.forEach((s,i)=>{if(s && i%3===0) for(const side of ['left','right']) path(rectangle(s['c_'+side],f.wheel_width,f.wheel_diameter,s['heading_'+side]),'rgba(57,118,196,.13)','rgba(57,118,196,.015)',[],.8);});
   if($('trajectories').checked) for(const attr of ['c_left','c_right','point']) {
     let segment=[];const color=attr==='point'?colors.green:colors.blue;
@@ -150,30 +160,35 @@ function draw() {
       path([c,tip],'white',null,[],2);
       path([K.add(tip,K.rotate([-2.5,5],heading)),tip,K.add(tip,K.rotate([2.5,5],heading))],'white',null,[],1.5);
       circle(c,1.4,'white','white');
+      circle(b,visuals.q_joint_radius,colors.orange,'rgba(223,134,40,.06)',[4,3]);
       for(const joint of [a,b]) {circle(joint,visuals.joint_radius,'#71869b','#ebf2f8');circle(joint,visuals.pin_radius,colors.orange,'white');}
       if($('labels').checked) {text('B '+name,b,colors.orange,[0,19]);text('C '+name,c,colors.ink,[0,f.wheel_diameter*scale/2+15]);text(degreesLabel(heading,1),a,colors.blue,[0,-f.wheel_diameter*scale/2-22],15);}
     }
     circle(pose.point,2.5,colors.green,colors.green);
     if($('labels').checked) text('T',pose.point,colors.green,[0,-10]);
   }
-  for(const [a,label] of [[al,'A SX'],[ar,'A DX']]) {circle(a,2.3,'#153f70','#153f70');if($('labels').checked)text(label,a,'#153f70',[0,-12]);}
+  for(const [a,label] of [[al,'A SX · O (0,0)'],[ar,'A DX']]) {circle(a,2.3,'#153f70','#153f70');if($('labels').checked)text(label,a,'#153f70',[0,-12]);}
   if($('labels').checked) {
     const y=Math.max(p.left.arm_length,p.right.arm_length,Math.hypot(p.left.axle_x,p.left.axle_y),Math.hypot(p.right.axle_x,p.right.axle_y))+Math.hypot(f.wheel_width,f.wheel_diameter)/2+15;
     path([[al[0],y],[ar[0],y]],'#8798a8',null,[],1);
     text('Interasse perni · '+p.pivot_spacing+' mm',[0,y],'#667a8d',[0,17]);
   }
-  const motorCenter=[p.motor.x,p.motor.y];
-  circle(motorCenter,3.5,colors.green,'white');
-  if($('construction').checked)circle(motorCenter,p.motor.crank_radius,'#9ecfc4',null,[3,3]);
-  if(actuator){
-    strip(motorCenter,actuator.pin,visuals.arm_width,visuals.end_margin,colors.green,'rgba(19,135,119,.25)');
-    strip(actuator.pin,pose.point,visuals.rod_width,visuals.end_margin,colors.green,'rgba(19,135,119,.12)');
-    circle(motorCenter,2,colors.green,'white');circle(actuator.pin,2.2,colors.green,'white');
-    if($('labels').checked)text('Q',actuator.pin,colors.green,[0,-12]);
+  if(!steeringOnly){
+    const motorCenter=[p.motor.x,p.motor.y];
+    if(visuals.motor_axis_radius>0)circle(motorCenter,visuals.motor_axis_radius,colors.green,'rgba(19,135,119,.08)',[5,3]);
+    circle(motorCenter,3.5,colors.green,'white');
+    if($('construction').checked)circle(motorCenter,p.motor.crank_radius,'#9ecfc4',null,[3,3]);
+    if(actuator){
+      strip(motorCenter,actuator.pin,visuals.arm_width,visuals.end_margin,colors.green,'rgba(19,135,119,.25)');
+      strip(actuator.pin,pose.point,visuals.rod_width,visuals.end_margin,colors.green,'rgba(19,135,119,.12)');
+      circle(actuator.pin,visuals.q_joint_radius,colors.green,'rgba(19,135,119,.08)',[4,3]);
+      circle(motorCenter,2,colors.green,'white');circle(actuator.pin,2.2,colors.green,'white');
+      if($('labels').checked)text('Q',actuator.pin,colors.green,[0,-12]);
+    }
+    if($('labels').checked)text('M · motore',motorCenter,colors.green,[0,20]);
   }
-  if($('labels').checked)text('M · motore',motorCenter,colors.green,[0,20]);
   ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillStyle='#718096';ctx.fillText('↑ FRONTE VEICOLO · −Y',width/2,18);
-  ctx.textAlign='left';ctx.fillText('X → destra · Y ↓ retro · mm',12,height-12);
+  ctx.textAlign='left';ctx.fillText('Origine A SX (0,0) · X → destra · Y ↓ retro · mm',12,height-12);
   $('angle').value=commandAngle*deg;
   $('reading').textContent=degreesLabel(commandAngle);
   $('mean').textContent=pose?degreesLabel(appliedAngle):'—';
@@ -183,7 +198,7 @@ function draw() {
   $('ratio').textContent=actuator && actuator.sensitivity!==null ? actuator.sensitivity.toFixed(4) : '—';
   const stoppedMismatch=Math.abs(commandAngle-requested)>1e-10;
   const message=warning+(stoppedMismatch?' Richiesta '+(requested*deg).toFixed(2)+'°; limite mostrato '+(commandAngle*deg).toFixed(2)+'°.':'');
-  const status=message || `Vincolo chiuso · ramo ${p.branch>0?'+':''}${p.branch} · T (${pose.point[0].toFixed(2)}, ${pose.point[1].toFixed(2)}) mm`;
+  const status=message || `Vincolo chiuso · ramo ${p.branch>0?'+':''}${p.branch} · T (${(pose.point[0]+p.pivot_spacing/2).toFixed(2)}, ${pose.point[1].toFixed(2)}) mm`;
   if($('notice').textContent!==status)$('notice').textContent=status;
   $('notice').classList.toggle('warning',!!warning);
 }
@@ -209,13 +224,26 @@ new ResizeObserver(()=>{
 window.addEventListener('message',event=>{
   if(event.source!==window.parent || event.data.type!=='streamlit:render')return;
   const args=event.data.args;
-  if(signature===args.signature)return; // preserve animation through unrelated server reruns
+  if(signature===args.signature){
+    if(visuals.motor_axis_radius!==args.display_dimensions.motor_axis_radius){visuals=args.display_dimensions;fit();schedule();}
+    return; // preserve the current pose and animation while changing the footprint
+  }
   signature=args.signature;p=args.parameters;visuals=args.display_dimensions;
   steeringLimit=args.steering_limit;geometricLimit=args.geometric_limit;motorRange=args.motor_range;
-  $('control').options[0].disabled=!motorRange.valid;
-  if(!motorRange.valid)$('control').value='steering';
+  steeringOnly=Boolean(args.steering_only);
+  $('control').parentElement.style.display=steeringOnly?'none':'';
+  $('ratio').parentElement.style.display=steeringOnly?'none':'';
+  $('drawing-legend').textContent=steeringOnly
+    ?'Blu: staffe e bracci · Arancio: tirante · Tratteggio: posa zero. '
+    :'Blu: staffe e bracci · Arancio: tirante · Verde: motore, levetta e astina · Tratteggio: posa zero. ';
+  $('control').options[0].disabled=steeringOnly||!motorRange.valid;
+  const saved=args.initial_state||{};
+  if(saved.mode==='motor' && motorRange.valid && !steeringOnly)$('control').value='motor';
+  if(saved.mode==='steering'||steeringOnly||!motorRange.valid)$('control').value='steering';
+  if([1,2,5,10,20].includes(saved.speed))$('speed').value=String(saved.speed);
   setPlaying(false);pose=null;requested=0;direction=1;zoom=1;pan=[0,0];
   updateControl();
-  move(0);fit();schedule();resizeHeight();
+  const restored=motorMode()?saved.motor_angle:saved.steering_angle;
+  move(Number.isFinite(restored)?restored:0);fit();schedule();resizeHeight();
 });
 send('streamlit:componentReady',{apiVersion:1});resizeHeight();

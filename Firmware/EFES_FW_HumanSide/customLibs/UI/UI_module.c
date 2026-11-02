@@ -38,10 +38,10 @@ void UI_Init(void) {
 	ui.phase		= RENDER_CLEAR;		// Start by clearing the Display
 
 	// Initialize every page and its presentation data
-	UI_Home_Init(APP_PAGE_HOME);
-	UI_Sensor_Init(APP_PAGE_SENSOR);
-	UI_Steering_Init(APP_PAGE_STEERING);
-	UI_Settings_Init(APP_PAGE_SETTINGS);
+	UI_Home_Init		(APP_PAGE_HOME);
+	UI_Sensor_Init		(APP_PAGE_SENSOR);
+	UI_Steering_Init	(APP_PAGE_STEERING);
+	UI_Settings_Init	(APP_PAGE_SETTINGS);
 
 	ui.refresh_period_ms = APP_REFRESH_DEFAULT_MS;
 	
@@ -93,11 +93,8 @@ void UI_Process(void) {
 
 			case RENDER_CLEAR:
 				ui.page = view.page;						// Update the current page (still not rendered, but I'm already working to render it by clearing the page)
-				
+				ui.phase = RENDER_PAGE;						// Start rendering the page!
 				ST7789_Fill_Color(UI_BACKGROUND);	// Fill the Page with the Background color (so it is a clean slate for the next page Rendering)
-				
-				ui.phase = RENDER_PAGE;				// Start rendering the page!
-				
 				break;
 
 			case RENDER_PAGE:
