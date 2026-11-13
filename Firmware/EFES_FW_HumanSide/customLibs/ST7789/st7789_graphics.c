@@ -68,7 +68,9 @@ static int32_t Abs(int32_t x) { return x < 0 ? -x : x; }
 ST7789_State ST7789_GetState(void) { return drawing_state; }
 void ST7789_GraphicsReady(void)
 {
-	if (!initialized || drawing_state != ST7789_STATE_IDLE) Error_Handler();
+	if (!initialized || drawing_state != ST7789_STATE_IDLE) {
+		Error_Handler();
+	}
 }
 
 void ST7789_GraphicsReset(void)
@@ -101,10 +103,14 @@ static void NewJob(JobKind kind, uint16_t color)
 /* Called only while IDLE, before accepting a text job. */
 static bool CopyText(const char *text)
 {
-	if (text == NULL) return false;
+	if (text == NULL) {
+		return false;
+	}
 	for (uint32_t i = 0; i < sizeof(job.text_buffer); i++) {
 		job.text_buffer[i] = text[i];
-		if (text[i] == '\0') return true;
+		if (text[i] == '\0') {
+			return true;
+		}
 	}
 	return false;
 }
@@ -150,7 +156,9 @@ static uint8_t SolidWindow(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
 {
 	x0 = Max(x0, 0); y0 = Max(y0, 0);
 	x1 = Min(x1, ST7789_WIDTH - 1); y1 = Min(y1, ST7789_HEIGHT - 1);
-	if (x0 > x1 || y0 > y1) return 0;
+	if (x0 > x1 || y0 > y1) {
+		return 0;
+	}
 	window.x0 = (uint16_t)x0; window.y0 = (uint16_t)y0;
 	window.x1 = (uint16_t)x1; window.y1 = (uint16_t)y1;
 	window.source = SOLID;
@@ -160,7 +168,9 @@ static uint8_t SolidWindow(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
 static uint8_t NextLineWindow(void)
 {
 	LineCursor *line = &job.line;
-	if (line->x > line->end) return 0;
+	if (line->x > line->end) {
+		return 0;
+	}
 	int32_t start = line->x, minor = line->y;
 	/* Merge the entire horizontal/vertical run from Bresenham. */
 	do {
@@ -189,7 +199,9 @@ static int32_t CeilDivide(int32_t numerator, int32_t denominator)
 static int NextFilledTriangleWindow(void)
 {
 	int32_t last_y = Max(job.y[0], Max(job.y[1], job.y[2]));
-	if (job.row > last_y) return 0;
+	if (job.row > last_y) {
+		return 0;
+	}
 	int32_t y = job.row++;
 	int32_t low_n = 0, low_d = 1, high_n = 0, high_d = 1;
 	uint8_t found = 0;
@@ -201,19 +213,27 @@ static int NextFilledTriangleWindow(void)
 			int32_t t = xa; xa = xb; xb = t;
 			t = ya; ya = yb; yb = t;
 		}
-		if (y < ya || y > yb) continue;
+		if (y < ya || y > yb) {
+			continue;
+		}
 		/* Horizontal edges contribute both endpoints on their own row. */
 		uint8_t samples = ya == yb ? 2 : 1;
 		for (uint8_t sample = 0; sample < samples; sample++) {
 			int32_t d = ya == yb ? 1 : yb - ya;
 			int32_t n = ya == yb ? (sample == 0 ? xa : xb) :
 						xa * d + (y - ya) * (xb - xa);
-			if (!found || n * low_d < low_n * d) { low_n = n; low_d = d; }
-			if (!found || n * high_d > high_n * d) { high_n = n; high_d = d; }
+			if (!found || n * low_d < low_n * d) {
+				low_n = n; low_d = d;
+			}
+			if (!found || n * high_d > high_n * d) {
+				high_n = n; high_d = d;
+			}
 			found = 1;
 		}
 	}
-	if (!found) return -1;
+	if (!found) {
+		return -1;
+	}
 	return SolidWindow(CeilDivide(low_n, low_d), y,
 						FloorDivide(high_n, high_d), y) ? 1 : -1;
 }
@@ -229,7 +249,9 @@ static const FontGlyph *TextGlyph(const FontInfo *font, unsigned char ch)
 
 static int32_t NumberAdvance(const FontInfo *font, unsigned char ch, uint16_t cell)
 {
-	if (ch != '.') return cell;
+	if (ch != '.') {
+		return cell;
+	}
 	const FontGlyph *glyph = TextGlyph(font, ch);
 	return Max(glyph->advance, glyph->width);
 }
@@ -248,15 +270,17 @@ static TextLine AppendGlyph(TextLine line, const FontGlyph *glyph)
 static TextLine MeasureLine(const FontInfo *font, const char *start, const char *end)
 {
 	TextLine line = {0};
-	for (const char *p = start; p != end; p++)
+	for (const char *p = start; p != end; p++) {
 		line = AppendGlyph(line, TextGlyph(font, (unsigned char)*p));
+	}
 	return line;
 }
 
 ST7789_Result ST7789_MeasureText(const char *text, FontId font, ST7789_TextSize *size)
 {
-	if (text == NULL || size == NULL || (unsigned)font >= FONT_COUNT)
+	if (text == NULL || size == NULL || (unsigned)font >= FONT_COUNT) {
 		Error_Handler();
+	}
 	const FontInfo *info = &Fonts[font];
 	TextLine line = {0};
 	size->width = 0;
@@ -268,8 +292,9 @@ ST7789_Result ST7789_MeasureText(const char *text, FontId font, ST7789_TextSize 
 			size->height += info->height;
 			line = (TextLine){0};
 		} else {
-			if (ch < info->first_char || ch > info->last_char)
+			if (ch < info->first_char || ch > info->last_char) {
 				Error_Handler();
+			}
 			line = AppendGlyph(line, TextGlyph(info, ch));
 		}
 	}
@@ -285,23 +310,34 @@ static int NextTextWindow(void)
 	int32_t width;
 
 	if (job.field_width != 0) {
-		if (job.stage++) return 0;
-		while (*end != '\0') end++;
+		if (job.stage++) {
+			return 0;
+		}
+		while (*end != '\0') {
+			end++;
+		}
 		width = job.field_width;
 		if (job.number_cell != 0) {
 			int32_t number_width = 0;
-			for (const char *p = start; p != end; p++)
+			for (const char *p = start; p != end; p++) {
 				number_width += NumberAdvance(job.font, (unsigned char)*p, job.number_cell);
+			}
 			job.text_offset = width - number_width;
 		} else {
 			line = MeasureLine(job.font, start, end);
 			int32_t spare = width - (line.right - line.left);
 			job.text_offset = -line.left;
-			if (job.text_align == ST7789_TEXT_CENTER) job.text_offset += spare / 2;
-			if (job.text_align == ST7789_TEXT_RIGHT) job.text_offset += spare;
+			if (job.text_align == ST7789_TEXT_CENTER) {
+				job.text_offset += spare / 2;
+			}
+			if (job.text_align == ST7789_TEXT_RIGHT) {
+				job.text_offset += spare;
+			}
 		}
 	} else {
-		if (*start == '\0' || job.text_y + job.font->height > ST7789_HEIGHT) return 0;
+		if (*start == '\0' || job.text_y + job.font->height > ST7789_HEIGHT) {
+			return 0;
+		}
 		if (*start == '\n') {
 			job.text++;
 			job.text_x = 0;
@@ -310,7 +346,9 @@ static int NextTextWindow(void)
 		}
 		while (*end != '\0' && *end != '\n') {
 			TextLine next = AppendGlyph(line, TextGlyph(job.font, (unsigned char)*end));
-			if (next.right - next.left > ST7789_WIDTH - job.text_x) break;
+			if (next.right - next.left > ST7789_WIDTH - job.text_x) {
+				break;
+			}
 			line = next;
 			end++;
 		}
@@ -330,7 +368,9 @@ static int NextTextWindow(void)
 	job.text = *end == '\n' ? end + 1 : end;
 	job.text_x = 0;
 	job.text_y += job.font->height;
-	if (width == 0) return -1;
+	if (width == 0) {
+		return -1;
+	}
 	window.x1 = window.x0 + width - 1;
 	window.y1 = window.y0 + job.font->height - 1;
 	window.source = TEXT_PIXELS;
@@ -348,15 +388,31 @@ static int NextWindow(void)
 		case PROGRESS_BAR:
 		case PIXEL_RECTANGLE:
 		case INDEXED_ASSET:
-			if (job.stage++) return 0;
+			if (job.stage++) {
+				return 0;
+			}
 			SolidWindow(job.x[0], job.y[0], job.x[1], job.y[1]);
-			if (job.kind == IMAGE) window.source = IMAGE_BYTES;
-			if (job.kind == GRADIENT) window.source = HORIZONTAL_GRADIENT;
-			if (job.kind == WHEEL) window.source = WHEEL_PIXELS;
-			if (job.kind == ROUNDED_RECTANGLE) window.source = ROUNDED_PIXELS;
-			if (job.kind == PROGRESS_BAR) window.source = PROGRESS_PIXELS;
-			if (job.kind == PIXEL_RECTANGLE) window.source = CUSTOM_PIXELS;
-			if (job.kind == INDEXED_ASSET) window.source = ASSET_PIXELS;
+			if (job.kind == IMAGE) {
+				window.source = IMAGE_BYTES;
+			}
+			if (job.kind == GRADIENT) {
+				window.source = HORIZONTAL_GRADIENT;
+			}
+			if (job.kind == WHEEL) {
+				window.source = WHEEL_PIXELS;
+			}
+			if (job.kind == ROUNDED_RECTANGLE) {
+				window.source = ROUNDED_PIXELS;
+			}
+			if (job.kind == PROGRESS_BAR) {
+				window.source = PROGRESS_PIXELS;
+			}
+			if (job.kind == PIXEL_RECTANGLE) {
+				window.source = CUSTOM_PIXELS;
+			}
+			if (job.kind == INDEXED_ASSET) {
+				window.source = ASSET_PIXELS;
+			}
 			return 1;
 		case LINE:
 			return NextLineWindow();
@@ -364,26 +420,36 @@ static int NextWindow(void)
 			/* Do not transmit corner pixels twice. Degenerate rectangles work. */
 			while (job.stage < 4) {
 				uint8_t edge = job.stage++;
-				if (edge == 0)
+				if (edge == 0) {
 					return SolidWindow(job.x[0], job.y[0], job.x[1], job.y[0]);
-				if (edge == 1 && job.y[1] > job.y[0])
+				}
+				if (edge == 1 && job.y[1] > job.y[0]) {
 					return SolidWindow(job.x[0], job.y[1], job.x[1], job.y[1]);
-				if (edge == 2 && job.y[1] - job.y[0] > 1)
+				}
+				if (edge == 2 && job.y[1] - job.y[0] > 1) {
 					return SolidWindow(job.x[0], job.y[0] + 1, job.x[0], job.y[1] - 1);
-				if (edge == 3 && job.x[1] > job.x[0] && job.y[1] - job.y[0] > 1)
+				}
+				if (edge == 3 && job.x[1] > job.x[0] && job.y[1] - job.y[0] > 1) {
 					return SolidWindow(job.x[1], job.y[0] + 1, job.x[1], job.y[1] - 1);
+			}
 			}
 			return 0;
 		case CIRCLE:
 		case FILLED_CIRCLE:
-			if (job.stage++) return 0;
+			if (job.stage++) {
+				return 0;
+			}
 			SolidWindow(job.x[0] - job.radius, job.y[0] - job.radius,
 						job.x[0] + job.radius, job.y[0] + job.radius);
 			window.source = CIRCLE_PIXELS;
 			return 1;
 		case TRIANGLE:
-			if (NextLineWindow()) return 1;
-			if (++job.stage == 3) return 0;
+			if (NextLineWindow()) {
+				return 1;
+			}
+			if (++job.stage == 3) {
+				return 0;
+			}
 			InitLine(job.x[job.stage], job.y[job.stage],
 						job.x[(job.stage + 1U) % 3U], job.y[(job.stage + 1U) % 3U]);
 			return -1;
@@ -424,7 +490,9 @@ static uint16_t WheelColor(uint32_t position)
 	int32_t hub = radius / 4;
 	int32_t spoke = Max(radius / 10, 1);
 
-	if (distance2 > radius * radius) return job.background;
+	if (distance2 > radius * radius) {
+		return job.background;
+	}
 
 	/* Inverse rotation: two integer dot products per pixel. Trigonometry
 	 * is evaluated only once, when the drawing request is accepted.
@@ -433,25 +501,35 @@ static uint16_t WheelColor(uint32_t position)
 	int32_t local_y = (-x * job.sine + y * job.cosine) / 1024;
 
 	if (distance2 >= inner * inner) {
-		if (local_y < 0 && Abs(local_x) <= spoke) return job.accent;
+		if (local_y < 0 && Abs(local_x) <= spoke) {
+			return job.accent;
+		}
 		return job.color;
 	}
-	if (distance2 <= hub * hub) return job.color;
-	if (Abs(local_y) <= spoke || (local_y > 0 && Abs(local_x) <= spoke))
+	if (distance2 <= hub * hub) {
 		return job.color;
+	}
+	if (Abs(local_y) <= spoke || (local_y > 0 && Abs(local_x) <= spoke)) {
+		return job.color;
+	}
 	return job.background;
 }
 
 static uint16_t AssetPixel(int32_t x, int32_t y)
 {
 	const GraphicAsset *asset = job.asset;
-	if (x < 0 || y < 0 || x >= asset->width || y >= asset->height)
+	if (x < 0 || y < 0 || x >= asset->width || y >= asset->height) {
 		return job.background;
+	}
 	uint8_t pixel = asset->data[y * asset->stride + x];
 	uint32_t alpha = pixel & 0x0FU;
-	if (alpha == 0) return job.background;
+	if (alpha == 0) {
+		return job.background;
+	}
 	uint16_t color = job.asset_tinted ? job.color : asset->palette[pixel >> 4];
-	if (alpha == 15) return color;
+	if (alpha == 15) {
+		return color;
+	}
 
 	/* Composite before interpolation, so transparent RGB cannot create halos. */
 	uint32_t background = 15U - alpha;
@@ -474,8 +552,9 @@ static uint16_t AssetColor(uint32_t position)
 	int32_t sx = dx * job.cosine + dy * job.sine + (asset->width - 1) * 1024;
 	int32_t sy = -dx * job.sine + dy * job.cosine + (asset->height - 1) * 1024;
 	if (sx <= -2048 || sy <= -2048 ||
-		sx >= asset->width * 2048 || sy >= asset->height * 2048)
+		sx >= asset->width * 2048 || sy >= asset->height * 2048) {
 		return job.background;
+	}
 
 	/* Floor also for negative coordinates, then fractions in 1/256 steps.
 	 * Four weights sum to 65536. Interpolate RGB565 channels independently,
@@ -509,15 +588,23 @@ static uint16_t AssetColor(uint32_t position)
  */
 static uint32_t DiskCoverage(int32_t x, int32_t y, int32_t radius)
 {
-	if (radius <= 0) return 0;
+	if (radius <= 0) {
+		return 0;
+	}
 	int64_t distance = (int64_t)x * x + (int64_t)y * y;
-	if (radius >= 6 && distance <= (int64_t)(radius - 6) * (radius - 6)) return 16;
-	if (distance >= (int64_t)(radius + 6) * (radius + 6)) return 0;
+	if (radius >= 6 && distance <= (int64_t)(radius - 6) * (radius - 6)) {
+		return 16;
+	}
+	if (distance >= (int64_t)(radius + 6) * (radius + 6)) {
+		return 0;
+	}
 	uint32_t coverage = 0;
 	for (int32_t sy = -3; sy <= 3; sy += 2) {
 		for (int32_t sx = -3; sx <= 3; sx += 2) {
 			int64_t dx = x + sx, dy = y + sy;
-			if (dx * dx + dy * dy <= (int64_t)radius * radius) coverage++;
+			if (dx * dx + dy * dy <= (int64_t)radius * radius) {
+				coverage++;
+			}
 		}
 	}
 	return coverage;
@@ -540,11 +627,17 @@ static uint16_t ShapeColor(uint32_t border, uint32_t fill, uint32_t background)
 static uint32_t RoundedCoverage(int32_t x, int32_t y, int32_t w,
 								int32_t h, int32_t radius)
 {
-	if (x < 0 || y < 0 || x >= w || y >= h) return 0;
-	if (radius == 0) return 16;
+	if (x < 0 || y < 0 || x >= w || y >= h) {
+		return 0;
+	}
+	if (radius == 0) {
+		return 16;
+	}
 	/* Straight edges are aligned to pixel boundaries and need no sampling. */
 	if ((x >= radius && x < w - radius) ||
-		(y >= radius && y < h - radius)) return 16;
+		(y >= radius && y < h - radius)) {
+		return 16;
+	}
 	int32_t cx = x < radius ? radius * 8 : (w - radius) * 8;
 	int32_t cy = y < radius ? radius * 8 : (h - radius) * 8;
 	return DiskCoverage(x * 8 + 4 - cx, y * 8 + 4 - cy, radius * 8);
@@ -568,19 +661,25 @@ static uint16_t ProgressBarColor(uint32_t position)
 	uint32_t outer = RoundedCoverage(x, y, w, h, job.radius);
 	uint32_t fill = RoundedCoverage(x, y, job.field_width, h,
 									Min(job.radius, job.field_width / 2));
-	if (fill > outer) fill = outer;
+	if (fill > outer) {
+		fill = outer;
+	}
 	return ShapeColor(fill, outer - fill, 16U - outer);
 }
 
 static uint16_t CircleColor(uint32_t position)
 {
-	if (job.radius == 0) return job.color;
+	if (job.radius == 0) {
+		return job.color;
+	}
 	int32_t width = window.x1 - window.x0 + 1;
 	int32_t x = ((int32_t)(position % width) + window.x0 - job.x[0]) * 8;
 	int32_t y = ((int32_t)(position / width) + window.y0 - job.y[0]) * 8;
 	int32_t radius = job.radius * 8 + 4;
 	uint32_t coverage = DiskCoverage(x, y, radius);
-	if (job.kind == CIRCLE) coverage -= DiskCoverage(x, y, radius - 8);
+	if (job.kind == CIRCLE) {
+		coverage -= DiskCoverage(x, y, radius - 8);
+	}
 	return ShapeColor(coverage, 0, 16U - coverage);
 }
 
@@ -590,7 +689,9 @@ static uint16_t CircleColor(uint32_t position)
  */
 static void PrepareTextPixels(uint8_t *data, uint16_t pixels)
 {
-	for (uint16_t i = 0; i < pixels; i++) data[2U * i] = 0;
+	for (uint16_t i = 0; i < pixels; i++) {
+		data[2U * i] = 0;
+	}
 	int32_t width = window.x1 - window.x0 + 1;
 	int32_t first_row = source_offset / width;
 	int32_t last_row = (source_offset + pixels - 1) / width;
@@ -617,7 +718,9 @@ static void PrepareTextPixels(uint8_t *data, uint16_t pixels)
 				uint8_t packed = job.font->data[offset];
 				uint8_t coverage = (column & 1U) ? packed & 0x0FU : packed >> 4;
 				uint32_t i = y * width + x - source_offset;
-				if (coverage > data[2U * i]) data[2U * i] = coverage;
+				if (coverage > data[2U * i]) {
+					data[2U * i] = coverage;
+				}
 			}
 		}
 		pen += advance;
@@ -644,13 +747,27 @@ static void PreparePixels(uint8_t *data, uint16_t pixels)
 			continue;
 		}
 		uint16_t color = job.color;
-		if (window.source == HORIZONTAL_GRADIENT) color = GradientColor(position);
-		if (window.source == WHEEL_PIXELS) color = WheelColor(position);
-		if (window.source == ASSET_PIXELS) color = AssetColor(position);
-		if (window.source == ROUNDED_PIXELS) color = RoundedRectangleColor(position);
-		if (window.source == PROGRESS_PIXELS) color = ProgressBarColor(position);
-		if (window.source == CUSTOM_PIXELS) color = job.pixel_color(job.pixel_context, position);
-		if (window.source == CIRCLE_PIXELS) color = CircleColor(position);
+		if (window.source == HORIZONTAL_GRADIENT) {
+			color = GradientColor(position);
+		}
+		if (window.source == WHEEL_PIXELS) {
+			color = WheelColor(position);
+		}
+		if (window.source == ASSET_PIXELS) {
+			color = AssetColor(position);
+		}
+		if (window.source == ROUNDED_PIXELS) {
+			color = RoundedRectangleColor(position);
+		}
+		if (window.source == PROGRESS_PIXELS) {
+			color = ProgressBarColor(position);
+		}
+		if (window.source == CUSTOM_PIXELS) {
+			color = job.pixel_color(job.pixel_context, position);
+		}
+		if (window.source == CIRCLE_PIXELS) {
+			color = CircleColor(position);
+		}
 		data[2U * i] = (uint8_t)(color >> 8);
 		data[2U * i + 1U] = (uint8_t)color;
 	}
@@ -659,9 +776,13 @@ static void PreparePixels(uint8_t *data, uint16_t pixels)
 /* Called under a short critical section; never prepares pixels or commands. */
 static void StartReadyBuffer(void)
 {
-	if (drawing_state != ST7789_STATE_BUSY || active_buffer >= 0) return;
+	if (drawing_state != ST7789_STATE_BUSY || active_buffer >= 0) {
+		return;
+	}
 	PixelBuffer *buffer = &buffers[send_index];
-	if (buffer->state != READY) return;
+	if (buffer->state != READY) {
+		return;
+	}
 	active_buffer = (int8_t)send_index;
 	buffer->state = IN_FLIGHT;
 	send_index ^= 1U;
@@ -683,14 +804,18 @@ bool ST7789_NeedsProcess(void)
 
 void ST7789_Process(void)
 {
-	if (drawing_state != ST7789_STATE_BUSY) return;
+	if (drawing_state != ST7789_STATE_BUSY) {
+		return;
+	}
 	if (!window_active) {
 		int next = NextWindow();
 		if (next == 0) {
 			drawing_state = ST7789_STATE_IDLE;
 			return;
 		}
-		if (next < 0) return;
+		if (next < 0) {
+			return;
+		}
 		ST7789_BeginWindow(window.x0, window.y0, window.x1, window.y1);
 		buffers[0].state = FREE;
 		buffers[1].state = FREE;
@@ -763,7 +888,9 @@ void ST7789_PixelsCompleteISR(void)
 ST7789_Result ST7789_Fill(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
 {
 	ST7789_GraphicsReady();
-	if (x0 > x1 || y0 > y1 || !OnScreen(x1, y1)) Error_Handler();
+	if (x0 > x1 || y0 > y1 || !OnScreen(x1, y1)) {
+		Error_Handler();
+	}
 	NewJob(FILL, color);
 	job.x[0] = x0; job.y[0] = y0; job.x[1] = x1; job.y[1] = y1;
 	return ST7789_OK;
@@ -796,7 +923,9 @@ ST7789_Result ST7789_DrawSteeringWheel(uint16_t x, uint16_t y, uint16_t diameter
 {
 	ST7789_GraphicsReady();
 	if (!OnScreen(x, y) || diameter < 16 || diameter > ST7789_WIDTH - x ||
-		diameter > ST7789_HEIGHT - y) Error_Handler();
+		diameter > ST7789_HEIGHT - y) {
+		Error_Handler();
+	}
 
 	float radians = angle_deci_deg * (3.14159265f / 1800.0f);
 	NewJob(WHEEL, color);
@@ -813,12 +942,14 @@ ST7789_Result ST7789_DrawAsset(uint16_t x, uint16_t y, GraphicAssetId asset,
 								int16_t angle_deci_deg, uint16_t background)
 {
 	ST7789_GraphicsReady();
-	if ((unsigned)asset == ASSET_INVALID || (unsigned)asset >= ASSET_COUNT)
+	if ((unsigned)asset == ASSET_INVALID || (unsigned)asset >= ASSET_COUNT) {
 		Error_Handler();
+	}
 	const GraphicAsset *info = &Assets[asset];
 	uint16_t side = Max(info->width, info->height);
-	if (!OnScreen(x, y) || side > ST7789_WIDTH - x || side > ST7789_HEIGHT - y)
+	if (!OnScreen(x, y) || side > ST7789_WIDTH - x || side > ST7789_HEIGHT - y) {
 		Error_Handler();
+	}
 
 	float radians = angle_deci_deg * (3.14159265f / 1800.0f);
 	NewJob(INDEXED_ASSET, 0);
@@ -847,8 +978,9 @@ ST7789_Result ST7789_DrawRoundedRectangle(uint16_t x, uint16_t y, uint16_t w,
 	ST7789_GraphicsReady();
 	if (!OnScreen(x, y) || w < 3 || h < 3 || radius < 1 ||
 		2U * radius >= w || 2U * radius >= h ||
-		w > ST7789_WIDTH - x || h > ST7789_HEIGHT - y)
+		w > ST7789_WIDTH - x || h > ST7789_HEIGHT - y) {
 		Error_Handler();
+	}
 	NewJob(ROUNDED_RECTANGLE, border);
 	job.x[0] = x; job.y[0] = y;
 	job.x[1] = x + w - 1; job.y[1] = y + h - 1;
@@ -864,8 +996,9 @@ ST7789_Result ST7789_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_
 {
 	ST7789_GraphicsReady();
 	if (!OnScreen(x, y) || w < h || h < 2 ||
-		w > ST7789_WIDTH - x || h > ST7789_HEIGHT - y)
+		w > ST7789_WIDTH - x || h > ST7789_HEIGHT - y) {
 		Error_Handler();
+	}
 	NewJob(PROGRESS_BAR, color);
 	job.x[0] = x; job.y[0] = y;
 	job.x[1] = x + w - 1; job.y[1] = y + h - 1;
@@ -897,7 +1030,9 @@ void ST7789_DrawRectanglePixels(uint16_t x, uint16_t y, uint16_t width, uint16_t
 ST7789_Result ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color)
 {
 	ST7789_GraphicsReady();
-	if (x == 0 || y == 0 || !OnScreen(x, y)) Error_Handler();
+	if (x == 0 || y == 0 || !OnScreen(x, y)) {
+		Error_Handler();
+	}
 	/* Preserve the original primitive's actual 3x3 footprint. */
 	return ST7789_Fill(x - 1, y - 1, Min(x + 1, ST7789_WIDTH - 1),
 						Min(y + 1, ST7789_HEIGHT - 1), color);
@@ -907,9 +1042,15 @@ ST7789_Result ST7789_DrawFilledRectangle(uint16_t x, uint16_t y, uint16_t w,
 										uint16_t h, uint16_t color)
 {
 	ST7789_GraphicsReady();
-	if (!OnScreen(x, y) || w == 0 || h == 0) Error_Handler();
-	if (w > ST7789_WIDTH - x) w = ST7789_WIDTH - x;
-	if (h > ST7789_HEIGHT - y) h = ST7789_HEIGHT - y;
+	if (!OnScreen(x, y) || w == 0 || h == 0) {
+		Error_Handler();
+	}
+	if (w > ST7789_WIDTH - x) {
+		w = ST7789_WIDTH - x;
+	}
+	if (h > ST7789_HEIGHT - y) {
+		h = ST7789_HEIGHT - y;
+	}
 	return ST7789_Fill(x, y, x + w - 1, y + h - 1, color);
 }
 
@@ -917,7 +1058,9 @@ ST7789_Result ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1,
 								uint16_t y1, uint16_t color)
 {
 	ST7789_GraphicsReady();
-	if (!OnScreen(x0, y0) || !OnScreen(x1, y1)) Error_Handler();
+	if (!OnScreen(x0, y0) || !OnScreen(x1, y1)) {
+		Error_Handler();
+	}
 	NewJob(LINE, color);
 	InitLine(x0, y0, x1, y1);
 	return ST7789_OK;
@@ -927,7 +1070,9 @@ ST7789_Result ST7789_DrawRectangle(uint16_t x0, uint16_t y0, uint16_t x1,
 									uint16_t y1, uint16_t color)
 {
 	ST7789_GraphicsReady();
-	if (x0 > x1 || y0 > y1 || !OnScreen(x1, y1)) Error_Handler();
+	if (x0 > x1 || y0 > y1 || !OnScreen(x1, y1)) {
+		Error_Handler();
+	}
 	NewJob(RECTANGLE, color);
 	job.x[0] = x0; job.y[0] = y0; job.x[1] = x1; job.y[1] = y1;
 	return ST7789_OK;
@@ -938,8 +1083,9 @@ static ST7789_Result CircleJob(int32_t x, int32_t y, int32_t radius,
 {
 	ST7789_GraphicsReady();
 	if (radius < 0 || x + radius < 0 || y + radius < 0 ||
-		x - radius >= (int32_t)ST7789_WIDTH || y - radius >= (int32_t)ST7789_HEIGHT)
+		x - radius >= (int32_t)ST7789_WIDTH || y - radius >= (int32_t)ST7789_HEIGHT) {
 		Error_Handler();
+	}
 	NewJob(kind, color);
 	job.x[0] = x; job.y[0] = y; job.radius = radius;
 	job.background = background;
@@ -961,8 +1107,9 @@ static ST7789_Result TriangleJob(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t
 									uint16_t x2, uint16_t y2, uint16_t color, JobKind kind)
 {
 	ST7789_GraphicsReady();
-	if (!OnScreen(x0, y0) || !OnScreen(x1, y1) || !OnScreen(x2, y2))
+	if (!OnScreen(x0, y0) || !OnScreen(x1, y1) || !OnScreen(x2, y2)) {
 		Error_Handler();
+	}
 	NewJob(kind, color);
 	job.x[0] = x0; job.y[0] = y0; job.x[1] = x1; job.y[1] = y1;
 	job.x[2] = x2; job.y[2] = y2;
@@ -1003,7 +1150,9 @@ ST7789_Result ST7789_DrawImage(uint16_t x, uint16_t y, uint16_t w,
 {
 	ST7789_GraphicsReady();
 	if (data == NULL || !OnScreen(x, y) || w == 0 || h == 0 ||
-		w > ST7789_WIDTH - x || h > ST7789_HEIGHT - y) Error_Handler();
+		w > ST7789_WIDTH - x || h > ST7789_HEIGHT - y) {
+		Error_Handler();
+	}
 	NewJob(IMAGE, 0);
 	job.x[0] = x; job.y[0] = y; job.x[1] = x + w - 1; job.y[1] = y + h - 1;
 	job.image = (const uint8_t *)data;
@@ -1014,17 +1163,26 @@ ST7789_Result ST7789_WriteString(uint16_t x, uint16_t y, const char *text,
 								FontId font, uint16_t color, uint16_t background)
 {
 	ST7789_GraphicsReady();
-	if (text == NULL || !OnScreen(x, y) || (unsigned)font >= FONT_COUNT)
+	if (text == NULL || !OnScreen(x, y) || (unsigned)font >= FONT_COUNT) {
 		Error_Handler();
+	}
 	ST7789_TextSize size;
 	ST7789_MeasureText(text, font, &size);
-	if (Fonts[font].height > ST7789_HEIGHT - y) Error_Handler();
-	for (const char *p = text; *p != '\0'; p++) {
-		if (*p == '\n') continue;
-		TextLine glyph_line = AppendGlyph((TextLine){0}, TextGlyph(&Fonts[font], (unsigned char)*p));
-		if (glyph_line.right - glyph_line.left > ST7789_WIDTH) Error_Handler();
+	if (Fonts[font].height > ST7789_HEIGHT - y) {
+		Error_Handler();
 	}
-	if (!CopyText(text)) Error_Handler();
+	for (const char *p = text; *p != '\0'; p++) {
+		if (*p == '\n') {
+			continue;
+		}
+		TextLine glyph_line = AppendGlyph((TextLine){0}, TextGlyph(&Fonts[font], (unsigned char)*p));
+		if (glyph_line.right - glyph_line.left > ST7789_WIDTH) {
+			Error_Handler();
+		}
+	}
+	if (!CopyText(text)) {
+		Error_Handler();
+	}
 	NewJob(TEXT, color);
 	job.text = job.text_buffer;
 	job.font = &Fonts[font];
@@ -1041,14 +1199,21 @@ ST7789_Result ST7789_WriteTextField(uint16_t x, uint16_t y, uint16_t width,
 	ST7789_GraphicsReady();
 	ST7789_TextSize size;
 	if (!OnScreen(x, y) || width == 0 || width > ST7789_WIDTH - x ||
-		(unsigned)align > ST7789_TEXT_RIGHT)
+		(unsigned)align > ST7789_TEXT_RIGHT) {
 		Error_Handler();
+	}
 	ST7789_MeasureText(text, font, &size);
-	if (Fonts[font].height > ST7789_HEIGHT - y || size.width > width)
+	if (Fonts[font].height > ST7789_HEIGHT - y || size.width > width) {
 		Error_Handler();
-	for (const char *p = text; *p != '\0'; p++)
-		if (*p == '\n') Error_Handler();
-	if (!CopyText(text)) Error_Handler();
+	}
+	for (const char *p = text; *p != '\0'; p++) {
+		if (*p == '\n') {
+			Error_Handler();
+		}
+	}
+	if (!CopyText(text)) {
+		Error_Handler();
+	}
 	NewJob(TEXT, color);
 	job.text = job.text_buffer;
 	job.font = &Fonts[font];
@@ -1066,30 +1231,41 @@ ST7789_Result ST7789_WriteNumberField(uint16_t x, uint16_t y, uint16_t width,
 {
 	ST7789_GraphicsReady();
 	if (number == NULL || !OnScreen(x, y) || width == 0 ||
-		width > ST7789_WIDTH - x || (unsigned)font >= FONT_COUNT)
+		width > ST7789_WIDTH - x || (unsigned)font >= FONT_COUNT) {
 		Error_Handler();
+	}
 	const FontInfo *info = &Fonts[font];
-	if (info->height > ST7789_HEIGHT - y) Error_Handler();
+	if (info->height > ST7789_HEIGHT - y) {
+		Error_Handler();
+	}
 
 	/* One slot wide enough for every digit and sign, computed once per job. */
 	uint16_t cell = 0;
 	const char *symbols = "0123456789+-";
 	for (const char *p = symbols; *p != '\0'; p++) {
-		if (*p < info->first_char || *p > info->last_char)
+		if (*p < info->first_char || *p > info->last_char) {
 			Error_Handler();
+		}
 		const FontGlyph *glyph = TextGlyph(info, (unsigned char)*p);
 		cell = Max(cell, Max(glyph->advance, glyph->width));
 	}
-	if ('.' < info->first_char || '.' > info->last_char) Error_Handler();
+	if ('.' < info->first_char || '.' > info->last_char) {
+		Error_Handler();
+	}
 	uint32_t number_width = 0;
 	for (const char *p = number; *p != '\0'; p++) {
-		if (!(*p >= '0' && *p <= '9') && *p != '+' && *p != '-' && *p != '.')
+		if (!(*p >= '0' && *p <= '9') && *p != '+' && *p != '-' && *p != '.') {
 			Error_Handler();
+		}
 		number_width += NumberAdvance(info, (unsigned char)*p, cell);
 	}
-	if (number_width > width) Error_Handler();
+	if (number_width > width) {
+		Error_Handler();
+	}
 
-	if (!CopyText(number)) Error_Handler();
+	if (!CopyText(number)) {
+		Error_Handler();
+	}
 	NewJob(TEXT, color);
 	job.text = job.text_buffer;
 	job.font = info;
@@ -1106,7 +1282,9 @@ ST7789_Result ST7789_WriteChar(uint16_t x, uint16_t y, char ch,
 								FontId font, uint16_t color, uint16_t background)
 {
 	ST7789_GraphicsReady();
-	if (ch == '\0') Error_Handler();
+	if (ch == '\0') {
+		Error_Handler();
+	}
 	char text[2] = {ch, '\0'};
 	return ST7789_WriteString(x, y, text, font, color, background);
 }

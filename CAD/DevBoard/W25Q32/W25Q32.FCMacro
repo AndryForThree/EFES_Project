@@ -1,0 +1,90 @@
+# -*- coding: utf-8 -*-
+"""W25Q32 SPI Flash: modello semplice con esportazione STEP automatica.
+Origine: pin 1 VCC. Vista componenti: X destra, Y basso, header in basso.
+Z=0 sul fronte PCB, Z positivo verso il retro, come le altre DevBoard.
+Contorno e centri pin secondo le coordinate fornite; PCB e centratura stimati.
+Stime non misurate: PCB 1.6 mm, header 2.54 mm, pin 0.64 mm quadrati,
+sporgenza libera pin 6 mm. Componenti sul fronte indicativi dalle foto.
+KiCad: rotazione X=180 gradi; regolare Z secondo l'altezza dei socket.
+"""
+from pathlib import Path
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+V = App.Vector
+doc = App.newDocument('W25Q32')
+pezzi = []
+
+
+def aggiungi(nome, forma, colore, etichetta=None):
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma
+    obj.Label = etichetta or nome.replace('_', ' ')
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (0.12, 0.12, 0.12)
+    pezzi.append(obj)
+    return obj
+
+
+# PCB: solo i sei fori del connettore, nessun foro di montaggio.
+pcb = Part.makeBox(15.0, 14.0, 1.6, V(-1.15, -13.0, 0))
+for i in range(6):
+    pcb = pcb.cut(Part.makeCylinder(0.5, 1.8, V(2.54*i, 0, -0.1)))
+obj_pcb = aggiungi('PCB', pcb, (0.025, 0.25, 0.72), 'W25Q32 - PCB 15 x 14 mm')
+obj_pcb.addProperty('App::PropertyStringList', 'NoteQuote', 'Note')
+obj_pcb.NoteQuote = ['Contorno PCB e centratura header: indicativi, coordinate fornite',
+    'PCB: spessore stimato 1.6 mm', 'Header: isolante alto 2.54 mm',
+    'Pin: 0.64 x 0.64 mm, sporgenza libera posteriore 6 mm',
+    'SOIC-8 e passivi: ingombri e posizioni indicativi da foto']
+
+# Header maschio diritto sul retro, origine al centro del pin VCC.
+corpo = Part.makeBox(15.24, 2.54, 2.54, V(-1.27, -1.27, 1.6))
+piazzole = []
+for i, segnale in enumerate(('VCC', 'CS', 'DO_MISO', 'GND', 'CLK_SCK', 'DI_MOSI')):
+    x = 2.54*i
+    corpo = corpo.cut(Part.makeBox(0.64, 0.64, 2.74, V(x-0.32, -0.32, 1.5)))
+    pin = aggiungi('Pin_%d_%s' % (i+1, segnale),
+        Part.makeBox(0.64, 0.64, 10.94, V(x-0.32, -0.32, -0.8)),
+        (0.78, 0.73, 0.58), 'Pin %d - %s' % (i+1, segnale))
+    pin.addProperty('App::PropertyInteger', 'NumeroPin', 'Connettore')
+    pin.NumeroPin = i+1
+    pad = (Part.makeBox(1.8, 1.8, 0.035, V(x-0.9, -0.9, -0.035)) if i==0
+           else Part.makeCylinder(0.9, 0.035, V(x, 0, -0.035)))
+    piazzole.append(pad.cut(Part.makeCylinder(0.5, 0.1, V(x, 0, -0.06))))
+aggiungi('Header_1x6', corpo, (0.045, 0.045, 0.050))
+aggiungi('Piazzole', Part.makeCompound(piazzole), (0.75, 0.70, 0.54))
+
+# SOIC-8 semplificato, parte destra del PCB; otto terminali riconoscibili.
+aggiungi('W25Q32_SOIC8', Part.makeBox(3.9, 4.9, 1.5, V(7.0, -8.8, -1.5)),
+         (0.065, 0.065, 0.070), 'W25Q32 - SOIC-8 indicativo')
+piedini = []
+for i in range(4):
+    for x in (5.9, 10.9):
+        piedini.append(Part.makeBox(1.1, 0.45, 0.22, V(x, -8.48+1.27*i, -0.22)))
+aggiungi('Terminali_SOIC8', Part.makeCompound(piedini), (0.72, 0.73, 0.75))
+aggiungi('Indice_Pin1_IC', Part.makeCylinder(0.28, 0.015, V(7.6, -8.15, -1.515)),
+         (0.29, 0.29, 0.30))
+
+# Tre soli componenti aggiuntivi: LED, resistore R1 e condensatore C1.
+def passivo(nome, x, y, lx, ly, h, colore):
+    aggiungi(nome, Part.makeBox(lx, ly, h, V(x, y, -h)), colore)
+    terminali = [Part.makeBox(0.3, ly, h, V(px, y, -h))
+                 for px in (x-0.3, x+lx)]
+    aggiungi(nome+'_Terminali', Part.makeCompound(terminali), (0.72, 0.73, 0.75))
+
+passivo('LED_Alimentazione', 1.0, -6.0, 1.6, 1.2, 0.8, (0.87, 0.88, 0.57))
+passivo('R1_2k', 1.0, -10.8, 1.4, 0.8, 0.45, (0.09, 0.09, 0.09))
+passivo('C1', 5.2, -11.5, 1.4, 0.8, 0.7, (0.65, 0.48, 0.23))
+
+# Rieseguire la macro aggiorna lo stesso STEP colorato, senza altri output.
+doc.recompute()
+cartella = (Path(__file__).resolve().parent if '__file__' in globals() else
+            Path('/home/andrea/Scuola/EFES_Project/CAD/DevBoard/W25Q32'))
+file_step = cartella / 'W25Q32.step'
+ImportGui.export(pezzi, str(file_step))
+Gui.activeDocument().activeView().viewBottom()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('W25Q32: STEP creato in %s\n' % file_step)
+App.Console.PrintMessage('PCB 15 x 14 mm, 6 pin passo 2.54 mm, origine VCC. Spessori e componenti stimati.\n')

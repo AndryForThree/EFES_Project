@@ -1,0 +1,1800 @@
+# -*- coding: utf-8 -*-
+"""EFES - Assemblaggio torre v0.8 + mozzo v0.1 (mm).
+
+Novita':
+- gambe Øcostante, tagliate a filo delle facce della torre;
+- bracci rettilinei di larghezza costante, con estremita' NASCOSTE
+  dentro i cilindri delle gambe (niente linguette sporgenti);
+- raccordi reali tra anello centrale e 4 bracci (1.8 mm);
+- raccordi concavi alle basette e ai due supporti dei cuscinetti;
+- cinque morsetti con profilo, giochi e raccordi delle flange comuni;
+- ghiere opzionali, sedi 624ZZ e fori PCB; lamature rondelle standard Ø8.
+
+Quote preliminari: verificare accoppiamenti, rigidita' e stampabilita'.
+La macro crea un documento FreeCAD con componenti separati; non salva e non esporta file.
+"""
+
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+
+V = App.Vector
+
+# ==================== PARAMETRI PRINCIPALI ====================
+# Modifica solo questo pannello e riesegui la macro. Quote in mm.
+# I pezzi commerciali restano: albero Ø4, cuscinetti 624ZZ, magnete Ø6, viti M3.
+# Razze, rinforzi, morsetti e lunghezza albero si dimensionano automaticamente.
+# Le proprieta' nel documento FreeCAD sono informative: si modifica qui.
+
+# --- TORRE - ingombri e quote rispetto al PCB (Z = 0) ---
+diametro_cerchio_top = 32.0  # interasse delle gambe in alto
+diametro_cerchio_bottom = 55.0  # interasse delle gambe alla base
+diametro_gambe = 8.0  # bracci e piedini si adattano automaticamente
+quota_supporto_inferiore = 25.0  # faccia inferiore del piano basso
+quota_supporto_superiore = 57.0  # faccia inferiore del piano alto
+
+# --- VOLANTE - forma e rigidita' ---
+volante_diametro_esterno = 90.0  # diametro totale
+volante_diametro_corona = 7.0  # spessore della presa arrotondata
+volante_profondita_coppa = 10.0  # dislivello mozzo/corona verso il guidatore
+volante_robustezza = 1.0  # 1 = attuale; ad es. 1.1 rinforza razze e nervature; collari regolati a parte
+volante_gradualita_attacchi = 0.9  # moltiplica il raggio: con R=4, 1.1 -> 4.4 mm, 1.5 -> 6 mm, 2 -> 8 mm
+# Cresce il raccordo reale, insieme alla zona di transizione della razza.
+# Il raggio non viene piu' ridotto allo spessore della nervatura.
+volante_luce_ghiera = 2.0  # distanza minima sotto il mozzo; albero adattato da solo
+volante_distanza_collari_razze = 0.2  # gioco minimo in mm sopra/sotto le razze, inclusi raccordi e accessi M3
+# I collari si centrano fra due razze. Mozzo e albero si accorciano da soli;
+# l'ingombro per inserire la vite puo' richiedere piu' spazio del solo gioco.
+
+# --- RACCORDI - raggi richiesti in mm, non angoli; 0 li disabilita ---
+# Torre/gambe: ricostruzione con raggio ridotto se necessario; valore effettivo
+# indicato nella Vista rapporto e nelle proprieta del supporto. Volante: raggio moltiplicato
+# per gradualita' e robustezza; se impossibile viene segnalato, mai omesso.
+raggio_raccordo_torre = 1.8  # fra anelli portacuscinetti e bracci
+raggio_raccordo_gambe = 1.3  # contorno continuo attacchi montanti e bordi esterni dei supporti
+raggio_raccordo_volante = 4  # innesti razze/mozzo e razze/corona, scalato dalla robustezza
+
+# --- ACCOPPIAMENTI DI STAMPA - giochi DIAMETRALI, non raggi ---
+gioco_sede_diametrale = 0.1  # sede 624ZZ Ø13.1: gioco 0.05 mm per lato
+gioco_albero_diametrale = 0.1  # fori dei due mozzi = 4 mm + questo gioco
+
+# --- MAGNETE - separazione dal fondo dell'albero in acciaio ---
+distanza_albero_magnete = 6.0  # mm di distacco; il magnete resta alla stessa quota sul PCB
+
+# --- COLLARI - geometria comune a volante, magnete e fermi arancioni ---
+collari_diametro_esterno = 10.0  # corpo coassiale; i soli naselli dei cuscinetti restano Ø5.8
+collari_raccordo_orecchie = 1.5  # raccordo strutturale fra flange M3 e corpo, in mm; 0 disabilita
+collari_gioco_assiale = 0.1  # gioco TOTALE fra le due battute; evitare precarico dei cuscinetti
+
+# --- FINECORSA MECCANICI - regolazione a fori, zero con perno rimovibile ---
+finecorsa_attivi = True  # aggiunge piastra, dente integrato e battute separate
+finecorsa_angolo_per_lato = 170  # scegliere 90, 110, 130, 150 oppure 170 gradi
+finecorsa_robustezza_braccio = 1.0  # 1 = nuova radice larga 14 mm e nervatura; fino a 1.5
+
+# --- VISUALIZZAZIONE - non cambia i pezzi da stampare ---
+mostra_assemblaggio = True  # mostra albero, magnete e cuscinetti di riferimento
+mostra_ghiere = True  # mostra le due ghiere predisposte nella torre
+
+# --- COMPONENTI - False esclude il singolo pezzo dalla generazione/vista ---
+# I due interruttori generali sopra restano validi per i riferimenti e le ghiere.
+# La torre e' un solo pezzo stampabile, incluse gambe e basette.
+mostra_torre = True
+mostra_volante = True
+mostra_ghiera_superiore = True
+mostra_ghiera_inferiore = True
+mostra_mozzo_magnete = True
+mostra_cappellotto_magnete = True
+mostra_collare_assiale_inferiore = True
+mostra_collare_assiale_superiore = True
+mostra_albero = True
+mostra_cuscinetto_inferiore = True
+mostra_cuscinetto_superiore = True
+mostra_magnete = True
+mostra_piastra_finecorsa = True
+mostra_battuta_finecorsa_1 = True
+mostra_battuta_finecorsa_2 = True  # seconda battuta montata, presente per corse inferiori a ±170
+# Le quote del volante richiedono il suo calcolo anche quando e' nascosto,
+# se devono posizionare i finecorsa o determinare la lunghezza reale dell'albero.
+
+# --- FERRAMENTA - oggetti separati; nessuna variazione ai pezzi stampati ---
+mostra_ferramenta = True  # spegne tutta la ferramenta e salta la sua costruzione
+# Lunghezze commerciali scelte automaticamente con almeno 1 mm oltre il dado.
+
+# ==================== FINE PARAMETRI PRINCIPALI ====================
+
+# DETTAGLI TECNICI INTERNI - non richiedono regolazioni per personalizzare.
+# Mantengono ferramenta e accoppiamenti del progetto; le quote collegate
+# sono derivate dai parametri principali, anziche' da regolare una per una.
+# I valori sotto conservano la geometria attuale con i parametri di default.
+
+# Controlli iniziali con messaggi riferiti al pannello principale.
+if not (diametro_cerchio_bottom > diametro_cerchio_top > 0):
+    raise ValueError('Torre: il diametro alla base deve superare quello in alto, entrambi positivi.')
+if not (0 < quota_supporto_inferiore and quota_supporto_inferiore+16 < quota_supporto_superiore):
+    raise ValueError("Torre: separare i due piani di oltre 16 mm, con quota inferiore positiva.")
+if diametro_gambe <= 4:
+    raise ValueError('Torre: usare gambe di diametro maggiore di 4 mm.')
+if not (0.8 <= volante_robustezza <= 1.3):
+    raise ValueError('Volante: robustezza supportata da 0.8 a 1.3; 1.0 mantiene la versione attuale.')
+if not math.isfinite(volante_gradualita_attacchi) or volante_gradualita_attacchi <= 0:
+    raise ValueError('Volante: gradualita attacchi deve essere un numero positivo; 1 mantiene la forma attuale.')
+if not (volante_diametro_corona >= 6 and volante_diametro_esterno > 2*volante_diametro_corona):
+    raise ValueError('Volante: presa almeno Ø6 mm e diametro totale maggiore del doppio della presa.')
+if volante_profondita_coppa < 0 or volante_luce_ghiera < 0:
+    raise ValueError('Volante: profondita coppa e luce ghiera devono essere non negative.')
+if not math.isfinite(volante_distanza_collari_razze) or volante_distanza_collari_razze < 0:
+    raise ValueError('Volante: distanza collari/razze deve essere non negativa, in mm.')
+if min(raggio_raccordo_torre,raggio_raccordo_gambe,raggio_raccordo_volante) < 0:
+    raise ValueError('Raccordi: usare raggi non negativi in mm; 0 disabilita il raccordo.')
+if not (0 <= gioco_sede_diametrale <= 0.6 and 0 < gioco_albero_diametrale <= 0.4):
+    raise ValueError('Accoppiamenti: gioco cuscinetto da 0 a 0.6 mm; gioco albero maggiore di 0 e fino a 0.4 mm.')
+
+
+# Standard comune a tutte le lamature: rondelle M3 normali Ø7 in sede Ø8.
+diametro_sedi_rondelle = 8.0
+# Un unico morsetto: tutte le varianti usano queste quote e la stessa funzione.
+collare_H = 9.5
+collare_orecchie_Y = min(10.6,collari_diametro_esterno-2.0)  # innesti dentro il cilindro anche a Ø10
+collare_vite_x = 6.5
+collare_x1 = collare_vite_x-diametro_sedi_rondelle/2-0.6
+collare_x2 = collare_vite_x+diametro_sedi_rondelle/2+1.0
+collare_foro_M3 = 3.4
+collare_taglio = 1.2
+collare_lamatura_H = 0.6
+collare_foro_albero = 4.0+gioco_albero_diametrale
+if not (10 <= collari_diametro_esterno <= 16 and 0 <= collari_raccordo_orecchie <= 3):
+    raise ValueError('Collari: diametro esterno da 10 a 16 mm e raccordo flange da 0 a 3 mm.')
+
+# Torre, piedini e sedi 624ZZ.
+ANGOLI_GAMBE = (45, 135, 225, 315)
+spessore_supporto = 8.0
+spessore_piedini = 5.0
+sede_rondella_D = diametro_sedi_rondelle
+sede_rondella_profondita = 0.6
+foro_M3_passante = 3.4
+diametro_piedini = diametro_gambe + 4.0
+spostamento_foratura_tangenziale = max(10.0, (diametro_gambe+sede_rondella_D)/2+1.5)
+diametro_portacuscinetti = 21.0
+_delta_r_piano = ((diametro_cerchio_bottom-diametro_cerchio_top)/2 *
+                  spessore_supporto / (quota_supporto_superiore+spessore_supporto-spessore_piedini))
+larghezza_bracci = min(
+    6.5*diametro_gambe/8.0,
+    2*math.sqrt(max(0.0,(diametro_gambe/2-0.2)**2-_delta_r_piano**2)))
+raccordo_anello_braccio = min(raggio_raccordo_torre, larghezza_bracci/2-0.2)
+raccordo_gamba_piano = min(raggio_raccordo_gambe,spessore_piedini/3,diametro_gambe/4)
+cuscinetto_D = 13.0
+cuscinetto_H = 5.0
+profondita_sede = 5.2
+foro_libero_albero = 5.5
+diametro_scarico_battuta = 10.5
+
+# Ghiere, ritenzione e ferramenta M3 con rondelle in lamature cilindriche.
+predisponi_ghiere = True
+ANGOLI_GHIERE = (0, 180)
+raggio_viti_ghiera = 12.4
+diametro_orecchiette = 9.8
+spessore_ghiera = 2.2
+diametro_corpo_ghiera = 19.6
+foro_centrale_ghiera = 10.5
+diametro_esterno_nervatura = 12.6
+diametro_interno_nervatura = 10.7
+altezza_nervatura = 0.15
+foro_vite_ghiera = 3.4
+
+# Mozzo magnetico: allungare solo la base conserva la presa del morsetto.
+if not math.isfinite(distanza_albero_magnete) or distanza_albero_magnete < 2.0:
+    raise ValueError("Magnete: mantenere almeno 2 mm di separazione dall albero.")
+mozzo_quota_fondo = 4.5
+mozzo_spessore_fondo = distanza_albero_magnete
+mozzo_altezza = 8.7 + mozzo_spessore_fondo  # conserva 6.2 mm di presa sull'albero
+mozzo_diametro_corpo = collari_diametro_esterno
+mozzo_foratura_albero = collare_foro_albero
+mozzo_sede_magnete_D = 6.05
+mozzo_sede_magnete_H = 2.5
+mozzo_taglio = collare_taglio
+mozzo_gioco_cappellotto = 0.2  # spazio sotto il cappellotto per chiuderlo lateralmente
+mozzo_foro_M3 = collare_foro_M3
+magnete_D = 6.0
+magnete_H = 2.5
+
+# Volante: razze, innesti e mozzo coordinati dalla robustezza.
+volante_angoli_razze = (30.0, 150.0, 270.0)
+volante_mozzo_D = collari_diametro_esterno
+volante_mozzo_H = 16.0
+volante_inserimento_albero = 12.0
+volante_foro_albero = mozzo_foratura_albero
+volante_taglio = collare_taglio
+volante_prolunga_mozzo = 10.0
+volante_abbassamento_mozzo = 6.5
+volante_larghezza_razze = 6.0 * volante_robustezza
+volante_spessore_razze = min(4.0*volante_robustezza, 0.65*volante_diametro_corona)
+volante_nervatura_spessore = 2.5 * volante_robustezza
+volante_nervatura_altezza = 3.0 * volante_robustezza
+volante_nervatura_altezza_corona = min(
+    0.8*volante_robustezza,volante_diametro_corona/2-volante_spessore_razze/2-0.4)
+volante_larghezza_innesto_mozzo = min(
+    9.0*volante_robustezza,0.75*volante_mozzo_D)  # evita innesti troppo larghi col mozzo Ø10
+volante_larghezza_innesto_corona = 9.0 * volante_robustezza
+_spazio_transizioni = ((volante_diametro_esterno-volante_diametro_corona)/2 -
+                       volante_mozzo_D/2-volante_diametro_corona/2)
+_allargamento_base = min(8.0,_spazio_transizioni/3)
+# Due transizioni distinte: lasciare sempre un tratto centrale fra loro.
+volante_lunghezza_allargamento = min(
+    _allargamento_base*volante_gradualita_attacchi,0.48*_spazio_transizioni)
+volante_raccordo_innesti = (
+    raggio_raccordo_volante*volante_robustezza*volante_gradualita_attacchi)
+
+# Morsetti basso/alto: ferramenta M3 e spazi di accesso.
+volante_orecchie_x_inizio = collare_x1
+volante_vite_x = collare_vite_x
+volante_orecchie_x_fine = collare_x2
+volante_orecchie_larghezza = collare_orecchie_Y
+volante_orecchie_altezza = collare_H
+volante_vite_z_rel = collare_H/2
+volante_foro_M3 = collare_foro_M3
+volante_sede_rondella_D = diametro_sedi_rondelle
+volante_sede_rondella_profondita = collare_lamatura_H
+volante_seconda_vite = True
+volante_interasse_viti = 10.0
+volante_collare_superiore_H = collare_H
+volante_luce_collare_superiore = 2.0
+volante_margine_cima_albero = 1.0
+
+# Posizionamento automatico e aspetto.
+lunghezza_albero_assemblaggio = (
+    quota_supporto_superiore+spessore_supporto+spessore_ghiera+volante_luce_ghiera+0.3 +
+    volante_inserimento_albero+volante_abbassamento_mozzo -
+    (mozzo_quota_fondo+mozzo_sede_magnete_H+mozzo_spessore_fondo))
+trasparenza_torre = 0
+trasparenza_mozzo = 65
+trasparenza_cuscinetti = 35
+trasparenza_albero = 15
+trasparenza_volante = 0
+
+if larghezza_bracci <= 0.4:
+    raise ValueError('Torre: gambe troppo sottili per questa inclinazione; aumentare il diametro o ridurre la differenza fra i due interassi.')
+if quota_supporto_inferiore <= mozzo_quota_fondo+mozzo_altezza+spessore_ghiera:
+    raise ValueError('Torre: quota_supporto_inferiore deve superare %.1f mm per lasciare spazio al mozzo magnetico e alla ghiera.' %
+                     (mozzo_quota_fondo+mozzo_altezza+spessore_ghiera))
+if diametro_cerchio_top/2+diametro_gambe/2 <= diametro_portacuscinetti/2+0.8:
+    raise ValueError('Torre: interasse alto troppo piccolo per il portacuscinetto; aumentare diametro_cerchio_top.')
+
+# QUOTE DERIVATE E CONTROLLI - calcolati dai parametri sopra.
+raggio_top = diametro_cerchio_top / 2.0
+raggio_bottom = diametro_cerchio_bottom / 2.0
+raggio_gamba = diametro_gambe / 2.0
+raggio_supporto = diametro_portacuscinetti / 2.0
+sede_D = cuscinetto_D + gioco_sede_diametrale
+quota_fine = quota_supporto_superiore + spessore_supporto
+z_gambe_bottom = spessore_piedini - 1.0
+z_gambe_top = quota_fine - 1.0
+
+# Geometrie con parametri non validi sono meglio segnalate che stampate.
+assert diametro_cerchio_bottom > diametro_cerchio_top > 0
+assert 0 < quota_supporto_inferiore < quota_supporto_superiore
+assert quota_supporto_inferiore + spessore_supporto + 8 < quota_supporto_superiore
+assert spessore_supporto > profondita_sede >= cuscinetto_H
+assert diametro_portacuscinetti > sede_D + 5.0
+assert 4 < foro_libero_albero < diametro_scarico_battuta < cuscinetto_D
+assert diametro_gambe > 0 and larghezza_bracci > 0
+assert larghezza_bracci < diametro_gambe - 0.4
+assert 0 <= raccordo_anello_braccio < larghezza_bracci/2
+assert 0 <= raccordo_gamba_piano <= diametro_gambe/4
+assert raggio_top + raggio_gamba > raggio_supporto + 0.8
+for quota in (quota_supporto_inferiore,quota_supporto_superiore):
+    # I quattro spigoli del braccio devono terminare DENTRO la gamba
+    # su entrambe le facce del piano, non creare punte esterne.
+    delta_r = abs((raggio_top-raggio_bottom)*spessore_supporto /
+                  (z_gambe_top-z_gambe_bottom))
+    assert delta_r**2 + (larghezza_bracci/2)**2 < (raggio_gamba - 0.1)**2, \
+        'Piano troppo spesso o gambe troppo inclinate per i bracci attuali.'
+assert spostamento_foratura_tangenziale > (diametro_gambe + sede_rondella_D)/2 + 1
+assert spessore_piedini > sede_rondella_profondita >= 0
+if predisponi_ghiere:
+    assert diametro_corpo_ghiera < diametro_portacuscinetti
+    assert foro_centrale_ghiera >= diametro_scarico_battuta
+    assert 0 < diametro_interno_nervatura < diametro_esterno_nervatura < sede_D
+    assert diametro_interno_nervatura >= foro_centrale_ghiera
+    assert 0 < altezza_nervatura <= profondita_sede - cuscinetto_H
+    assert raggio_viti_ghiera > raggio_supporto
+    assert raggio_viti_ghiera - diametro_orecchiette/2 < raggio_supporto - 1
+    assert diametro_orecchiette > diametro_sedi_rondelle + 1.5
+    assert 0 < sede_rondella_profondita < spessore_supporto/2
+
+
+def polare(r, gradi, z):
+    a = math.radians(gradi)
+    return V(r*math.cos(a), r*math.sin(a), z)
+
+
+def cilindro(r, h, pos):
+    return Part.makeCylinder(r, h, pos)
+
+
+def grezzo_collare(z_base):
+    """Profilo comune dei cinque morsetti, raccordato prima delle forature."""
+    r = collari_diametro_esterno/2
+    y = collare_orecchie_Y/2
+    forma = cilindro(r,collare_H,V(0,0,z_base)).fuse(Part.makeBox(
+        collare_x2-collare_x1,2*y,collare_H,V(collare_x1,-y,z_base))).removeSplitter()
+    if collari_raccordo_orecchie > 0:
+        spigoli = [e for e in forma.Edges
+                   if abs(e.BoundBox.ZLength-collare_H)<1e-5
+                   and abs(e.Length-collare_H)<1e-5
+                   and e.CenterOfMass.x>0
+                   and abs(abs(e.CenterOfMass.y)-y)<1e-5
+                   and abs(math.hypot(e.CenterOfMass.x,e.CenterOfMass.y)-r)<1e-5]
+        if len(spigoli)!=2:
+            raise ValueError('Collari: innesti delle flange non riconosciuti.')
+        forma = forma.makeFillet(collari_raccordo_orecchie,spigoli).removeSplitter()
+        if not forma.isValid() or len(forma.Solids)!=1:
+            raise ValueError('Collari: raccordo flange non valido; ridurre il raggio.')
+    return forma
+
+
+def utensili_collare(z_vite):
+    # La lamatura parte fuori dal cilindro: nessun labbro curvo davanti
+    # alla rondella. Il piano di appoggio e' comune a tutti i morsetti.
+    esterno = max(collari_diametro_esterno/2,collare_orecchie_Y/2)+collari_raccordo_orecchie+0.1
+    piano = collare_orecchie_Y/2-collare_lamatura_H
+    utensili = [Part.makeCylinder(collare_foro_M3/2,2*esterno,
+                 V(collare_vite_x,-esterno,z_vite),V(0,1,0))]
+    for segno in (-1,1):
+        utensili.append(Part.makeCylinder(diametro_sedi_rondelle/2,esterno-piano,
+            V(collare_vite_x,segno*esterno,z_vite),V(0,-segno,0)))
+    return utensili
+
+
+def raggio_gamba_a_quota(z):
+    t = (z-z_gambe_bottom) / (z_gambe_top-z_gambe_bottom)
+    return raggio_bottom + t*(raggio_top-raggio_bottom)
+
+
+def gamba_cilindrica(angolo):
+    """Montante cilindrico Øcostante; facce finali esattamente orizzontali.
+
+    Il cilindro viene creato un po' piu' lungo e tagliato fra Z=0
+    e il piano superiore. Evita le piccole 'unghie' della v0.7
+    provocate dal tappo obliquo che terminava DENTRO il tavolino.
+    """
+    z1, z2 = -3.0, quota_fine + 3.0 + 2*raccordo_gamba_piano
+    p1 = polare(raggio_gamba_a_quota(z1), angolo, z1)
+    p2 = polare(raggio_gamba_a_quota(z2), angolo, z2)
+    direzione = p2.sub(p1)
+    tubo = Part.makeCylinder(raggio_gamba, direzione.Length, p1, direzione)
+    # Sovrametallo temporaneo: chiude il contorno del raccordo anche sul
+    # piano superiore. Il supporto finito viene rifilato a quota_fine.
+    box = Part.makeBox(200,200,quota_fine+2*raccordo_gamba_piano,V(-100,-100,0))
+    return tubo.common(box)
+
+
+def capsula(p1, p2, larghezza, z, h):
+    """Braccio con estremita' tonde, non rettangolo con spigoli vivi."""
+    dx, dy = p2.x-p1.x, p2.y-p1.y
+    L = math.hypot(dx, dy)
+    if L < 0.01:
+        return cilindro(larghezza/2, h, V(p1.x, p1.y, z))
+    ang = math.degrees(math.atan2(dy, dx))
+    radius = larghezza/2
+    a = cilindro(radius, h, V(p1.x, p1.y, z))
+    b = cilindro(radius, h, V(p2.x, p2.y, z))
+    rect = Part.makeBox(L, larghezza, h, V(p1.x, p1.y-radius, z))
+    rect.rotate(V(p1.x, p1.y, z), V(0,0,1), ang)
+    return a.fuse(rect).fuse(b)
+
+
+def piedino(p1, p2):
+    return capsula(p1, p2, diametro_piedini, 0, spessore_piedini)
+
+
+def raccordo_adattivo(forma, raggio, spigoli, descrizione):
+    """Riduce solo il raccordo se il kernel non accetta il raggio richiesto.
+
+    Non altera le sedi di precisione. Un raccordo non realizzabile non deve
+    impedire la creazione di un corpo altrimenti valido e connesso.
+    """
+    for fattore in (1.0, 0.75, 0.5, 0.25):
+        try:
+            candidata = forma.makeFillet(raggio*fattore,spigoli)
+            if not candidata.isNull() and candidata.isValid() and len(candidata.Solids) == 1:
+                if fattore < 1.0:
+                    App.Console.PrintWarning('%s: raggio adattato a %.2f mm.\n' %
+                                             (descrizione,raggio*fattore))
+                return candidata.removeSplitter()
+        except Exception:
+            continue
+    App.Console.PrintWarning('%s: raccordo non applicabile a queste quote; '
+                             'corpo mantenuto con gli innesti pieni.\n' % descrizione)
+    return forma
+
+
+def raccordo_obbligatorio(forma,raggio,spigoli,descrizione):
+    """Mai omettere silenziosamente una finitura richiesta."""
+    try:
+        candidata = forma.makeFillet(raggio,spigoli).removeSplitter()
+    except Exception as errore:
+        raise ValueError('%s: raggio %.2f mm non costruibile; ridurre raggio_raccordo_gambe.' %
+                         (descrizione,raggio)) from errore
+    if candidata.isNull() or not candidata.isValid() or len(candidata.Solids)!=1:
+        raise ValueError('%s: raccordo non valido; ridurre raggio_raccordo_gambe.' % descrizione)
+    return candidata
+
+
+def fissaggi_ghiera(quota):
+    """Fissaggi esterni all'inviluppo rotante; superiore ruotato di 90 gradi.
+
+    Conserva i parametri originali: la nuova distanza e' una quota tecnica
+    derivata dalla ferramenta M3 e dal suo ingombro durante la rotazione.
+    """
+    raggio = max(raggio_viti_ghiera,collare_x2+diametro_sedi_rondelle/2+4.5)
+    angoli = tuple(a+90 for a in ANGOLI_GHIERE) if abs(quota-quota_supporto_superiore)<1e-6 else ANGOLI_GHIERE
+    return raggio,angoli
+
+
+def supporto_anulare(quota):
+    """Anello + 4 bracci: estremita' assorbite completamente dalle gambe.
+
+    I raccordi sono costruiti PRIMA delle unioni coi cilindri delle gambe:
+    in questa fase gli spigoli sono ben identificabili ed il fillet e'
+    affidabile. Non raccordiamo le sedi di precisione del cuscinetto.
+    """
+    r_inizio = raggio_supporto - 2.0
+    r_fine = raggio_gamba_a_quota(quota + spessore_supporto)
+    forma = cilindro(raggio_supporto, spessore_supporto,V(0,0,quota))
+    for ang in ANGOLI_GAMBE:
+        # Prisma rettilineo (niente tappi a capsula all'estremita').
+        braccio = Part.makeBox(r_fine-r_inizio,larghezza_bracci,
+                              spessore_supporto,
+                              V(r_inizio,-larghezza_bracci/2,quota))
+        braccio.rotate(V(0,0,0),V(0,0,1),ang)
+        forma = forma.fuse(braccio)
+    forma = forma.removeSplitter()
+
+    # 8 spigoli verticali: due su ogni innesto braccio/anello.
+    if raccordo_anello_braccio > 0:
+        spigoli=[]
+        for bordo in forma.Edges:
+            c = bordo.CenterOfMass
+            bb = bordo.BoundBox
+            r = math.hypot(c.x,c.y)
+            if (bb.ZLength > spessore_supporto-0.05 and
+                    abs(bordo.Length-spessore_supporto)<0.05 and
+                    raggio_supporto-1.5 < r < raggio_supporto+0.5):
+                spigoli.append(bordo)
+        if len(spigoli) != 8:
+            App.Console.PrintWarning('Torre: raccordi anello-bracci non riconosciuti; '
+                                     'innesti pieni conservati.\n')
+        else:
+            forma = raccordo_adattivo(forma,raccordo_anello_braccio,spigoli,
+                                      'Raccordi anello-bracci torre')
+
+    # Orecchiette delle ghiere aggiunte DOPO i raccordi, senza bossaggi.
+    if predisponi_ghiere:
+        for ang in ANGOLI_GHIERE:
+            forma = forma.fuse(cilindro(diametro_orecchiette/2,
+                                       spessore_supporto,
+                                       polare(raggio_viti_ghiera,ang,quota)))
+    forma = forma.removeSplitter()
+    if raccordo_gamba_piano > 0:
+        # Raccordi in pianta fra anello e orecchiette tonde delle ghiere.
+        innesti = []
+        for bordo in forma.Edges:
+            if bordo.BoundBox.ZLength < spessore_supporto-1e-5:
+                continue
+            facce = [f for f in forma.Faces if any(bordo.isSame(e) for e in f.Edges)]
+            if len(facce)==2 and all(type(f.Surface).__name__=='Cylinder' for f in facce):
+                innesti.append(bordo)
+        if innesti:
+            forma = raccordo_obbligatorio(forma,raccordo_gamba_piano,innesti,
+                                         'Innesti orecchiette portacuscinetti')
+    if raccordo_gamba_piano > 0:
+        # Arrotondare il bordo del braccio PRIMA di unire i montanti elimina
+        # il vertice a tre facce e consente un raccordo unico su tutto l'attacco.
+        # Le sedi e gli appoggi precisi vengono lavorati successivamente.
+        perimetri = [e for e in forma.Edges if e.BoundBox.ZLength<1e-5]
+        forma = raccordo_obbligatorio(forma,raccordo_gamba_piano,perimetri,
+                                     'Perimetri esterni supporti cuscinetti')
+    return forma.removeSplitter()
+
+
+
+def raccorda_giunzioni_montanti(forma):
+    """Un solo raccordo lungo ogni contorno chiuso montante/supporto.
+
+    Il bordo arrotondato del braccio permette al raccordo inferiore di
+    proseguire su quello laterale con una transizione tangente. Si includono
+    anche gli spigoli contro le superfici curve degli angoli, senza ritagliare
+    o sommare raccordi separati: erano quelle maschere a creare le cuspidi.
+    """
+    r = raccordo_gamba_piano
+    if r > 0:
+        spigoli = []
+        for bordo in forma.Edges:
+            facce = [f for f in forma.Faces if any(bordo.isSame(e) for e in f.Edges)]
+            montante = any(type(f.Surface).__name__=='Cylinder' and
+                           abs(f.Surface.Radius-raggio_gamba)<1e-5 for f in facce)
+            tappo = bordo.BoundBox.ZLength<1e-5 and (
+                abs(bordo.CenterOfMass.z)<1e-5 or bordo.CenterOfMass.z>quota_fine+r)
+            if montante and len(facce)==2 and not tappo:
+                spigoli.append(bordo)
+        if not spigoli:
+            raise ValueError('Torre: contorni delle giunzioni montanti non riconosciuti.')
+        forma = raccordo_obbligatorio(forma,r,spigoli,
+                                     'Contorni continui montanti-supporti')
+        App.Console.PrintMessage('Torre: raccordi continui attorno agli attacchi, '
+                                 '%d bordi, raggio %.2f mm.\n' % (len(spigoli),r))
+    # L'altezza finale e le superfici di appoggio restano quelle richieste.
+    forma = forma.common(Part.makeBox(200,200,quota_fine,V(-100,-100,0))).removeSplitter()
+    if not forma.isValid() or len(forma.Solids)!=1:
+        raise ValueError('Torre: rifilatura dei raccordi continui non valida.')
+    return forma
+
+
+def genera_torre_raccordata():
+    """Ricostruisce tutti gli attacchi insieme quando il raggio non e' fattibile.
+
+    Cambia solo la quota tecnica effettiva, mai il parametro dell'utente.
+    Ogni tentativo riparte dai grezzi: bordi e innesti usano lo stesso raggio,
+    mantenendo la continuita' delle superfici senza omettere i raccordi.
+    """
+    global raccordo_gamba_piano
+    r_iniziale = raccordo_gamba_piano
+    tentativi = [r_iniziale] if r_iniziale == 0 else [
+        r_iniziale*f for f in (1.0,0.75,0.5,0.25)]
+    for indice,r_effettivo in enumerate(tentativi):
+        raccordo_gamba_piano = r_effettivo
+        try:
+            parti = []
+            centri_viti_piedini = []
+
+            for ang in ANGOLI_GAMBE:
+                parti.append(gamba_cilindrica(ang))
+                a = math.radians(ang)
+                p_leg = polare(raggio_bottom,ang,0)
+                p_vite = V(p_leg.x - math.sin(a)*spostamento_foratura_tangenziale,
+                           p_leg.y + math.cos(a)*spostamento_foratura_tangenziale,0)
+                parti.append(piedino(p_leg,p_vite))
+                centri_viti_piedini.append(p_vite)
+
+            for quota in (quota_supporto_inferiore, quota_supporto_superiore):
+                parti.append(supporto_anulare(quota))
+
+            solido = parti[0]
+            for shape in parti[1:]:
+                solido = solido.fuse(shape)
+            solido = solido.removeSplitter()
+            solido = raccorda_giunzioni_montanti(solido)
+        except Exception as errore:
+            if indice+1 == len(tentativi):
+                raise RuntimeError('Torre: impossibile costruire raccordi continui anche '
+                                   'con raggi ridotti. Nessun raccordo e stato omesso.') from errore
+            App.Console.PrintWarning('Torre: raccordo da %.3f mm non costruibile; '
+                                     'ricostruzione completa con raggio %.3f mm.\n' %
+                                     (r_effettivo,tentativi[indice+1]))
+            continue
+        if abs(r_effettivo-raggio_raccordo_gambe)>1e-7:
+            App.Console.PrintWarning('Torre: raggio richiesto %.3f mm, raggio effettivo '
+                                     '%.3f mm su tutti gli attacchi continui.\n' %
+                                     (raggio_raccordo_gambe,r_effettivo))
+        return solido,centri_viti_piedini
+
+
+def sede_rondella_assiale(pos_xy, z_base, profondita):
+    """Lamatura cilindrica Ø8; dado/rondella accessibili dalla faccia esterna."""
+    return cilindro(diametro_sedi_rondelle/2,profondita,V(pos_xy.x,pos_xy.y,z_base))
+
+
+def ghiera(quota_sede, lato):
+    """Ghiera completa, da tenere separata dalla struttura.
+
+    lato = 'sopra' per cuscinetto superiore, 'sotto' per inferiore.
+    La nervatura e' dalla parte rivolta al cuscinetto.
+    """
+    eps_lamatura = 0.1
+    if lato == 'sopra':
+        z_piastra = quota_sede + spessore_supporto
+        z_nervo = z_piastra-altezza_nervatura
+    else:
+        z_piastra = quota_sede-spessore_ghiera
+        z_nervo = quota_sede
+
+    forma = cilindro(diametro_corpo_ghiera/2, spessore_ghiera,
+                     V(0,0,z_piastra))
+    r_viti,angoli = fissaggi_ghiera(quota_sede)
+    for ang in angoli:
+        forma = forma.fuse(capsula(polare(diametro_corpo_ghiera/2-1,ang,0),
+            polare(r_viti,ang,0),diametro_orecchiette,z_piastra,spessore_ghiera))
+
+    # Nervatura di presa, alloggiata nella tasca del cuscinetto.
+    nervo = cilindro(diametro_esterno_nervatura/2, altezza_nervatura,
+                     V(0,0,z_nervo))
+    nervo = nervo.cut(cilindro(diametro_interno_nervatura/2,
+                               altezza_nervatura+0.2, V(0,0,z_nervo-0.1)))
+    forma = forma.fuse(nervo)
+    forma = forma.cut(cilindro(foro_centrale_ghiera/2,
+                              spessore_ghiera+2*altezza_nervatura+0.4,
+                              V(0,0,z_piastra-altezza_nervatura-0.2)))
+    for ang in angoli:
+        forma = forma.cut(cilindro(foro_vite_ghiera/2, spessore_ghiera+0.4,
+                                  polare(r_viti,ang,z_piastra-0.2)))
+        # Lamatura sulla faccia esterna: testa e rondella non fra ghiera e torre.
+        z_sede = (z_piastra+spessore_ghiera-sede_rondella_profondita
+                  if lato == 'sopra' else z_piastra-eps_lamatura)
+        forma = forma.cut(sede_rondella_assiale(
+            polare(r_viti,ang,z_sede),z_sede,
+            sede_rondella_profondita+eps_lamatura))
+    try:
+        forma = forma.removeSplitter()
+    except Exception:
+        pass
+    if forma.isNull() or not forma.isValid() or len(forma.Solids)!=1:
+        raise RuntimeError('Ghiera non valida: controlla le quote della ritenzione.')
+    return forma
+
+
+def aggiungi_oggetto(doc, nome, shape, color, trasparenza=0):
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = shape
+    obj.ViewObject.ShapeColor = color
+    obj.ViewObject.LineColor = (0.16,0.20,0.24)
+    obj.ViewObject.Transparency = trasparenza
+    return obj
+
+
+
+def quote_volante(quota_inizio_albero):
+    """Quote di riferimento e grezzo per la costruzione dei raccordi.
+
+    Le posizioni di razze e corona restano invariate. Dopo i raccordi,
+    genera_volante calcola le quote compatte definitive dei collari.
+    """
+    cima_nominale = quota_inizio_albero + lunghezza_albero_assemblaggio
+    fondo = cima_nominale-volante_inserimento_albero-volante_abbassamento_mozzo
+    attacco = fondo+volante_mozzo_H+volante_prolunga_mozzo
+    radice = attacco-volante_spessore_razze/2
+    corona = radice+volante_profondita_coppa
+    base_collare = max(attacco,corona+volante_diametro_corona/2) + volante_luce_collare_superiore
+    cima = base_collare+volante_collare_superiore_H if volante_seconda_vite else attacco
+    viti = [(fondo+volante_vite_z_rel,fondo,volante_orecchie_altezza)]
+    if volante_seconda_vite:
+        viti.append((base_collare+volante_collare_superiore_H/2,
+                     base_collare,volante_collare_superiore_H))
+    cima_albero = max(cima_nominale,cima-volante_margine_cima_albero) if volante_seconda_vite else cima_nominale
+    return dict(fondo=fondo,attacco=attacco,radice=radice,corona=corona,
+                cima=cima,viti=viti,cima_albero=cima_albero)
+
+def posizioni_battute_finecorsa(limite):
+    """Fori compensati di 10 gradi per i due fianchi piani a +/-5 gradi."""
+    if limite not in (90,110,130,150,170):
+        raise ValueError('Finecorsa: scegliere 90, 110, 130, 150 o 170 gradi per lato.')
+    a = limite+10.0
+    return [180.0] if limite == 170 else [a,360.0-a]
+
+
+def scritta_finecorsa(testo, raggio, angolo, z):
+    """Cifre a sette segmenti incise; nessun font o modulo esterno richiesto."""
+    w,h,t,passo = 1.3,2.4,0.35,1.65
+    segmenti = {
+        'a':(t,h-t,w-2*t,t), 'g':(t,(h-t)/2,w-2*t,t),
+        'd':(t,0,w-2*t,t), 'f':(0,h/2+0.03,t,h/2-t-0.03),
+        'b':(w-t,h/2+0.03,t,h/2-t-0.03),
+        'e':(0,t+0.03,t,h/2-t-0.06),
+        'c':(w-t,t+0.03,t,h/2-t-0.06)}
+    codici = {'0':'ab cdef'.replace(' ',''),'1':'bc','2':'abged',
+              '3':'abgcd','4':'fgbc','5':'afgcd','6':'afgecd',
+              '7':'abc','8':'abcdefg','9':'abfgcd'}
+    larghezza = (len(testo)-1)*passo+w
+    utensili = []
+    for indice,cifra in enumerate(testo):
+        for segmento in codici[cifra]:
+            x,y,dx,dy = segmenti[segmento]
+            u = Part.makeBox(dx,dy,0.40,V(indice*passo+x-larghezza/2,y,0))
+            u.rotate(V(0,0,0),V(0,0,1),angolo+90)
+            u.translate(polare(raggio+h/2,angolo,z-0.35))
+            utensili.append(u)
+    return Part.makeCompound(utensili)
+
+
+def settore_finecorsa(r_interno, r_esterno, semiangolo, z, altezza):
+    """Settore anulare con fianchi radiali piani, normali alla spinta."""
+    a,b = polare(r_esterno,-semiangolo,z),polare(r_esterno,semiangolo,z)
+    c,d = polare(r_interno,semiangolo,z),polare(r_interno,-semiangolo,z)
+    bordi = [Part.Arc(a,V(r_esterno,0,z),b).toShape(),Part.makeLine(b,c),
+             Part.Arc(c,V(r_interno,0,z),d).toShape(),Part.makeLine(d,a)]
+    return Part.Face(Part.Wire(bordi)).extrude(V(0,0,altezza))
+
+
+def estendi_attacchi_ghiere(forma):
+    """Estensioni dopo i raccordi dei montanti: mantiene i raccordi esistenti."""
+    for quota in (quota_supporto_inferiore,quota_supporto_superiore):
+        r_viti,angoli = fissaggi_ghiera(quota)
+        for angolo in angoli:
+            braccio = capsula(polare(raggio_supporto-2,angolo,0),polare(r_viti,angolo,0),
+                               diametro_orecchiette,quota,spessore_supporto).removeSplitter()
+            bordi = [e for e in braccio.Edges if e.BoundBox.ZLength<1e-5]
+            braccio = braccio.makeFillet(0.8,bordi).removeSplitter()
+            forma = forma.fuse(braccio)
+    return forma.removeSplitter()
+
+
+def attacchi_torre_finecorsa(forma):
+    """Due nuove mensole dedicate: non usano le linguette delle ghiere."""
+    r_attacco = max(35.0,volante_diametro_esterno/2-10.0)-12.0
+    if r_attacco < raggio_viti_ghiera+10:
+        raise ValueError('Finecorsa: diametro volante insufficiente per attacchi indipendenti.')
+    for angolo in (0,180):
+        mensola = cilindro(6.0,spessore_supporto,
+            polare(r_attacco,angolo,quota_supporto_superiore))
+        # Ogni mensola scarica su due montanti con bracci dedicati a V;
+        # le linguette della ghiera non costituiscono il suo unico appoggio.
+        r_montante = raggio_gamba_a_quota(quota_supporto_superiore+spessore_supporto/2)
+        for lato in (-45,45):
+            mensola = mensola.fuse(capsula(polare(r_montante,angolo+lato,0),
+                polare(r_attacco,angolo,0),diametro_gambe,
+                quota_supporto_superiore,spessore_supporto))
+        mensola = mensola.removeSplitter()
+        bordi = [e for e in mensola.Edges if e.BoundBox.ZLength<1e-5]
+        mensola = mensola.makeFillet(0.8,bordi)
+        forma = forma.fuse(mensola)
+    forma = forma.removeSplitter()
+    for angolo in (0,180):
+        p = polare(r_attacco,angolo,quota_supporto_superiore)
+        forma = forma.cut(cilindro(foro_M3_passante/2,spessore_supporto+0.2,p.sub(V(0,0,0.1))))
+        forma = forma.cut(cilindro(diametro_sedi_rondelle/2,0.7,p.sub(V(0,0,0.1))))
+    return forma.removeSplitter()
+
+
+def genera_finecorsa(volante_base, quote, limite):
+    """Fianchi piani a +/-5 gradi: contatto esteso dopo 10 gradi relativi.
+
+    Chiavette sotto le battute ne impediscono la rotazione sulla vite M3.
+    Quattro raggi collegano anello esterno e cintura interna; due viti
+    dedicate fissano la cintura alle nuove mensole della torre.
+    """
+    posizioni = posizioni_battute_finecorsa(limite)
+    robustezza = finecorsa_robustezza_braccio
+    if not math.isfinite(robustezza) or not 1.0 <= robustezza <= 1.5:
+        raise ValueError('Finecorsa: robustezza braccio da 1 a 1.5; 1 e gia rinforzato.')
+    r = max(35.0,volante_diametro_esterno/2-10.0)
+    r_attacco = r-12.0
+    r_interno,r_esterno = r-6.5,r+6.5
+    z_base = quota_fine
+    h_piastra = 5.5
+    z_piastra = z_base+h_piastra
+    # Teste M3 e rondelle completamente sotto il piano superiore, su fondo da 2 mm.
+    profondita_testa = 3.5
+    z_dente = z_piastra+0.6
+    z_dente_top = min(quote['viti'][0][0]-4.4,z_dente+8.0*robustezza)
+    h_dente = z_dente_top-z_dente
+    if h_dente < 7.5:
+        raise ValueError('Finecorsa: alzare il mozzo del volante per lasciare almeno 7.5 mm al braccio.')
+    z_stelo_alto = z_dente_top+1.0
+    z_battuta_top = z_stelo_alto+2.0
+    r_zero = r-8.0
+    diametro_foro_zero = 3.2
+
+    piastra = None
+    if mostra_piastra_finecorsa:
+        piastra = cilindro(r_esterno,h_piastra,V(0,0,z_base)).cut(
+            cilindro(r_interno,h_piastra+0.2,V(0,0,z_base-0.1)))
+        cintura = cilindro(r_attacco+2.5,h_piastra,V(0,0,z_base)).cut(
+            cilindro(r_attacco-3.0,h_piastra+0.2,V(0,0,z_base-0.1)))
+        piastra = piastra.fuse(cintura)
+        for angolo in (0,90,180,270):
+            piastra = piastra.fuse(capsula(polare(r_attacco,angolo,0),polare(r,angolo,0),
+                                          8.0,z_base,h_piastra))
+        piastra = piastra.removeSplitter()
+        innesti = [e for e in piastra.Edges if abs(e.BoundBox.ZLength-h_piastra)<1e-5
+                   and abs(e.Length-h_piastra)<1e-5
+                   and any(abs(math.hypot(e.CenterOfMass.x,e.CenterOfMass.y)-rr)<1e-4
+                           for rr in (r_interno,r_attacco+2.5))]
+        if innesti:
+            piastra = piastra.makeFillet(1.0,innesti).removeSplitter()
+        bordi = [e for e in piastra.Edges if e.BoundBox.ZLength<1e-5
+                 and type(e.Curve).__name__=='Circle'
+                 and abs(e.Curve.Radius-r_esterno)<1e-5]
+        if bordi:
+            piastra = piastra.makeFillet(0.4,bordi).removeSplitter()
+        r_ghiera,angoli_ghiera = fissaggi_ghiera(quota_supporto_superiore)
+        for angolo in angoli_ghiera:
+            # Raggio largo ai lati dello scarico: mantiene due ponti laterali.
+            rinforzo = capsula(polare(r_attacco,angolo,0),polare(r_interno+1,angolo,0),
+                                16.0,z_base,h_piastra).removeSplitter()
+            bordi_r = [e for e in rinforzo.Edges if e.BoundBox.ZLength<1e-5]
+            rinforzo = rinforzo.makeFillet(0.4,bordi_r)
+            rinforzo = rinforzo.cut(cilindro(r_attacco-3,h_piastra+0.2,V(0,0,z_base-0.1)))
+            piastra = piastra.fuse(rinforzo)
+        piastra = piastra.removeSplitter()
+        for angolo in (0,180):
+            p = polare(r_attacco,angolo,z_base)
+            piastra = piastra.cut(cilindro(foro_M3_passante/2,h_piastra+0.2,p.sub(V(0,0,0.1))))
+            piastra = piastra.cut(cilindro(diametro_sedi_rondelle/2,profondita_testa+0.1,
+                                         V(p.x,p.y,z_piastra-profondita_testa)))
+        for angolo in sorted(set(a for c in (90,110,130,150,170)
+                                  for a in posizioni_battute_finecorsa(c))):
+            p = polare(r,angolo,z_base)
+            piastra = piastra.cut(cilindro(foro_M3_passante/2,h_piastra+0.2,p.sub(V(0,0,0.1))))
+            piastra = piastra.cut(cilindro(diametro_sedi_rondelle/2,0.7,p.sub(V(0,0,0.1))))
+            # Sede rettangolare di orientamento, NON una sede per dado.
+            sede = Part.makeBox(8.2,5.2,1.6,V(r-4.1,-2.6,z_piastra-1.5))
+            sede.rotate(V(0,0,0),V(0,0,1),angolo)
+            piastra = piastra.cut(sede)
+            etichetta = int(round(min(angolo,360-angolo)-10))
+            piastra = piastra.cut(scritta_finecorsa(str(etichetta),r+4.7,angolo+10,z_piastra))
+        piastra = piastra.cut(cilindro(diametro_foro_zero/2,h_piastra+0.2,V(r_zero,0,z_base-0.1)))
+        piastra = piastra.cut(scritta_finecorsa('0',r+4.7,10,z_piastra))
+        # Linea fissa lunga, direttamente sotto il bordo del dente (luce 0.6 mm).
+        tacca = Part.makeBox(r_esterno-r_zero,0.6,0.4,V(r_zero,-0.3,z_piastra-0.35))
+        piastra = piastra.cut(tacca).removeSplitter()
+        # Le nuove linguette superiori sono a 90/270 gradi. Scarichi tondi
+        # passanti, con 0.5 mm di luce radiale, per linguette e utensili.
+        r_ghiera,angoli_ghiera = fissaggi_ghiera(quota_supporto_superiore)
+        for angolo in angoli_ghiera:
+            piastra = piastra.cut(cilindro(diametro_orecchiette/2+0.5,h_piastra+0.2,
+                polare(r_ghiera,angolo,z_base-0.1)))
+        piastra = piastra.removeSplitter()
+
+    dente = None
+    volante = volante_base
+    if mostra_volante:
+        # Braccio largo alla radice, alto e con nervatura triangolare centrale.
+        # Il naso termina in un settore: entrambi i fianchi di arresto sono piani.
+        x_innesto = volante_mozzo_D/4
+        mezzo_radice = 7.0*robustezza
+        x_naso = r_interno+1.0
+        y_naso = x_naso*math.tan(math.radians(5))
+        punti = [V(x_innesto,-mezzo_radice,z_dente),V(x_naso,-y_naso,z_dente),
+                 V(x_naso,y_naso,z_dente),V(x_innesto,mezzo_radice,z_dente)]
+        braccio = Part.Face(Part.makePolygon(punti+[punti[0]])).extrude(V(0,0,h_dente))
+        naso = settore_finecorsa(r_interno,r_esterno-1.0,5,z_dente,h_dente)
+        dente = cilindro(volante_mozzo_D/2,h_dente,V(0,0,z_dente)).fuse(braccio).fuse(naso).removeSplitter()
+        bordi = [e for e in dente.Edges if e.BoundBox.ZLength<1e-5]
+        dente = dente.makeFillet(0.5,bordi).removeSplitter()
+        # La nervatura scarica sul corpo del mozzo senza chiudere gli accessi M3.
+        z_cima_nervatura = quote['fondo']+10.0
+        x_rib = max(volante_foro_albero/2+0.6,volante_mozzo_D/2-1.0)
+        y_rib = 2.0
+        punti_rib = [V(x_rib,-y_rib,z_dente_top-1),V(x_naso-2,-y_rib,z_dente_top-1),
+                     V(x_rib,-y_rib,z_cima_nervatura)]
+        nervatura = Part.Face(Part.makePolygon(punti_rib+[punti_rib[0]])).extrude(V(0,2*y_rib,0))
+        dente = dente.fuse(nervatura).removeSplitter()
+        dente = dente.cut(cilindro(volante_foro_albero/2,z_cima_nervatura-z_dente+1,V(0,0,z_dente-0.1)))
+        taglio = Part.makeBox(volante_orecchie_x_fine+0.1,volante_taglio,z_cima_nervatura-z_dente+1,
+                             V(0,-volante_taglio/2,z_dente-0.1))
+        taglio.rotate(V(0,0,0),V(0,0,1),quote['angolo_collari'])
+        dente = dente.cut(taglio)
+        dente = dente.cut(cilindro(diametro_foro_zero/2,h_dente+0.2,V(r_zero,0,z_dente-0.1)))
+        # Tacca superiore lunga e continuazione sulla parete verticale del naso.
+        dente = dente.cut(Part.makeBox(r_esterno-r_zero,0.6,0.4,V(r_zero,-0.3,z_dente_top-0.35)))
+        dente = dente.cut(Part.makeBox(0.5,0.6,h_dente+0.2,V(r_esterno-1.35,-0.3,z_dente-0.1)))
+        dente = dente.removeSplitter()
+        volante = volante_base.fuse(dente).removeSplitter()
+
+    battuta = battuta_locale = None
+    posate = []
+    if mostra_battuta_finecorsa_1 or mostra_battuta_finecorsa_2:
+        # Due facce radiali piane da circa 10 x 8 mm. La vite e la chiavetta
+        # orientano il blocco: il contatto non puo farlo ruotare attorno alla M3.
+        battuta = settore_finecorsa(r-4.0,r_esterno-0.5,5,z_piastra,z_stelo_alto-z_piastra)
+        chiavetta = Part.makeBox(8.0,5.0,1.5,V(r-4,-2.5,z_piastra-1.5))
+        battuta = battuta.fuse(chiavetta).fuse(cilindro(diametro_orecchiette/2,2,V(r,0,z_stelo_alto))).removeSplitter()
+        battuta = battuta.cut(cilindro(foro_M3_passante/2,z_battuta_top-z_piastra+1.7,V(r,0,z_piastra-1.6)))
+        battuta = battuta.cut(cilindro(diametro_sedi_rondelle/2,0.7,V(r,0,z_battuta_top-0.6))).removeSplitter()
+        battuta_locale = battuta.copy(); battuta_locale.translate(V(-r,0,0))
+        posate = []
+        for a in posizioni:
+            pezzo = battuta.copy(); pezzo.rotate(V(0,0,0),V(0,0,1),a)
+            posate.append((a,pezzo))
+    for nome,forma in [('piastra',piastra),('dente',dente),('volante',volante),('battuta',battuta)]:
+        if forma is not None and (forma.isNull() or not forma.isValid() or len(forma.Solids)!=1):
+            raise ValueError('Finecorsa: geometria non valida o disconnessa per '+nome)
+    if mostra_volante and volante.common(taglio).Volume>1e-6:
+        raise ValueError('Finecorsa: il dente chiude il taglio del collare inferiore.')
+    return dict(volante=volante,dente=dente,piastra=piastra,battuta_locale=battuta_locale,
+                battute=posate,raggio=r,raggio_attacchi=r_attacco,
+                profondita_testa=profondita_testa,z_base=z_base,z_piastra=z_piastra,z_dente=z_dente,
+                z_dente_top=z_dente_top,z_battuta_top=z_battuta_top,raggio_zero=r_zero)
+
+
+# Ferramenta commerciale: inviluppi nominali, filetti rappresentati lisci
+# per mantenere leggera la macro. M3 passo 0.5, ISO 4762 / DIN 985 / ISO 7089.
+def lunghezza_standard_m3(minima):
+    for lunghezza in (12,14,16,20,25,30,35,40,45,50):
+        if lunghezza >= minima-1e-8:
+            return lunghezza
+    raise ValueError('Ferramenta: occorre una vite M3 oltre 50 mm.')
+
+
+def poligono_esagonale_ferramenta(chiave,z,altezza):
+    r = chiave/math.sqrt(3)
+    punti = [polare(r,30+60*i,z) for i in range(6)]
+    return Part.Face(Part.makePolygon(punti+[punti[0]])).extrude(V(0,0,altezza))
+
+
+def modelli_ferramenta_m3(lunghezza,pacco):
+    """Asse locale Z dentro il pacco; z=0 e' il piano della prima rondella.
+
+    La lunghezza della vite parte SOTTO TESTA (z=-0.5). Rondelle 0.5,
+    testa Ø5.5 H3, brugola AF2.5; dado AF5.5 H4 con collare superiore.
+    Il dado resta sul pezzo opposto anche quando la vite non lo raggiunge.
+    """
+    vite = cilindro(1.5,lunghezza,V(0,0,-0.5)).fuse(cilindro(2.75,3,V(0,0,-3.5)))
+    bordi = [e for e in vite.Edges if e.BoundBox.ZLength<1e-6
+             and abs(e.CenterOfMass.z+3.5)<1e-6]
+    vite = vite.makeFillet(0.15,bordi)
+    vite = vite.cut(poligono_esagonale_ferramenta(2.5,-3.6,1.4)).removeSplitter()
+    rondella = cilindro(3.5,0.5,V(0,0,-0.5)).cut(cilindro(1.6,0.7,V(0,0,-0.6)))
+    rondella_dado = rondella.copy();rondella_dado.translate(V(0,0,pacco+0.5))
+    z_dado = pacco+0.5
+    dado = poligono_esagonale_ferramenta(5.5,z_dado,2.4).fuse(
+        cilindro(2.75,1.6,V(0,0,z_dado+2.4)))
+    dado = dado.cut(cilindro(1.5,4.2,V(0,0,z_dado-0.1))).removeSplitter()
+    return [('Vite',vite),('Rondella_Testa',rondella),('Rondella_Dado',rondella_dado),('Dado',dado)]
+
+
+def posizioni_ferramenta_m3(documento,quote,quote_fc):
+    """Piano rondella testa, direzione vite e pacco fra i due piani rondelle."""
+    posizioni = []
+    def presente(nome):
+        return documento.getObject(nome) is not None
+    def collare(nome,x,z,angolo):
+        piano = collare_orecchie_Y/2-collare_lamatura_H
+        rot = App.Rotation(V(0,0,1),angolo)
+        posizioni.append((nome,rot.multVec(V(x,piano,z)),rot.multVec(V(0,-1,0)),2*piano))
+    if presente('Volante_Tre_Razze'):
+        for i,(z,base,h) in enumerate(quote['viti'],1):
+            collare('Volante_%d'%i,collare_vite_x,z,quote['angolo_collari'])
+    if presente('Mozzo_Magnete') and presente('Cappellotto_Mozzo_Magnete'):
+        for i,x in enumerate((-collare_vite_x,collare_vite_x),1):
+            collare('Mozzo_Magnete_%d'%i,x,mozzo_quota_fondo+mozzo_altezza-collare_H/2,0)
+    for nome,z,angolo in (
+        ('Collare_Assiale_Inferiore',quota_supporto_inferiore+spessore_supporto+0.4+collare_H/2,90),
+        ('Collare_Assiale_Superiore',quota_supporto_superiore-0.4-collare_H/2,270)):
+        if presente(nome):
+            collare(nome,collare_vite_x,z,angolo)
+    if presente('Supporto_Torre'):
+        for nome,q,lato in (('Ghiera_Inferiore',quota_supporto_inferiore,'sotto'),
+                            ('Ghiera_Superiore',quota_supporto_superiore,'sopra')):
+            if not presente(nome):
+                continue
+            if lato=='sopra':
+                z = q+spessore_supporto+spessore_ghiera-sede_rondella_profondita
+                verso = -1
+            else:
+                z = q-spessore_ghiera+sede_rondella_profondita
+                verso = 1
+            pacco = spessore_supporto+spessore_ghiera-2*sede_rondella_profondita
+            r_viti,angoli = fissaggi_ghiera(q)
+            for i,angolo in enumerate(angoli,1):
+                posizioni.append((nome+'_%d'%i,polare(r_viti,angolo,z),V(0,0,verso),pacco))
+    if quote_fc is not None:
+        if presente('Supporto_Torre') and presente('Finecorsa_Piastra'):
+            z = quote_fc['z_piastra']-quote_fc['profondita_testa']
+            pacco = z-(quota_supporto_superiore+sede_rondella_profondita)
+            for i,angolo in enumerate((0,180),1):
+                posizioni.append(('Piastra_Finecorsa_%d'%i,
+                    polare(quote_fc['raggio_attacchi'],angolo,z),V(0,0,-1),pacco))
+        if presente('Finecorsa_Piastra'):
+            z = quote_fc['z_battuta_top']-0.6
+            pacco = z-(quote_fc['z_base']+0.6)
+            for i,(angolo,forma) in enumerate(quote_fc['battute'],1):
+                if presente('Finecorsa_Battuta_%d'%i):
+                    posizioni.append(('Battuta_Finecorsa_%d'%i,polare(quote_fc['raggio'],angolo,z),V(0,0,-1),pacco))
+    # Basette/PCB escluse: spessore PCB, distanziali e fissaggio sono ancora da definire.
+    return posizioni
+
+
+def aggiungi_ferramenta_m3(documento,quote,quote_fc):
+    gruppo = documento.addObject('App::DocumentObjectGroup','Ferramenta_M3')
+    gruppo.Label = 'FERRAMENTA - lunghezze commerciali verificate'
+    gruppo.addProperty('App::PropertyString','Standard','Ferramenta')
+    gruppo.Standard = 'M3x0.5; ISO4762 testa Ø5.5 H3 AF2.5; DIN985 AF5.5 H4; ISO7089 Ø3.2x7x0.5; inox A2'
+    gruppo.addProperty('App::PropertyString','Criterio','Ferramenta')
+    gruppo.Criterio = 'Dado alto 4 mm; due rondelle da 0.5; margine richiesto oltre dado: due filetti, 1 mm.'
+    gruppo.addProperty('App::PropertyString','Rappresentazione','Ferramenta')
+    gruppo.Rappresentazione = 'Filetti lisci al diametro nominale; ingombri esterni commerciali. Fissaggi PCB esclusi.'
+    distinta,esiti = {},[]
+    for nome,origine,direzione,pacco in posizioni_ferramenta_m3(documento,quote,quote_fc):
+        # 0.5 + 0.5 rondelle, 4 dado, 1 oltre dado = 6 mm oltre il pacco.
+        consigliata = lunghezza_standard_m3(pacco+6.0)
+        lunghezza = consigliata
+        sporgenza = lunghezza-pacco-5.0
+        if sporgenza < -1e-6:
+            stato,colore = 'TROPPO CORTA: non attraversa tutto il dado',(0.90,0.18,0.12)
+        elif sporgenza < 1.0-1e-6:
+            stato,colore = 'AL LIMITE: meno di due filetti oltre il dado',(0.98,0.60,0.12)
+        else:
+            stato,colore = 'OK: almeno due filetti oltre il dado',(0.63,0.67,0.72)
+        fissaggio = documento.addObject('App::DocumentObjectGroup','Fissaggio_'+nome)
+        fissaggio.Label = '%s - M3x%d - %s'%(nome.replace('_',' '),lunghezza,stato.split(':')[0])
+        for prop,val in (('LunghezzaVite',lunghezza),('PaccoSerrato',pacco),
+                         ('SporgenzaOltreDado',sporgenza),('LunghezzaConsigliata',consigliata)):
+            fissaggio.addProperty('App::PropertyFloat',prop,'Verifica mm')
+            setattr(fissaggio,prop,val);fissaggio.setEditorMode(prop,1)
+        fissaggio.addProperty('App::PropertyString','Esito','Verifica mm')
+        fissaggio.Esito = stato;fissaggio.setEditorMode('Esito',1)
+        gruppo.addObject(fissaggio)
+        posa = App.Placement(origine,App.Rotation(V(0,0,1),direzione))
+        for tipo,forma in modelli_ferramenta_m3(lunghezza,pacco):
+            forma.Placement = posa.multiply(forma.Placement)
+            oggetto = aggiungi_oggetto(documento,tipo+'_'+nome,forma,
+                colore if tipo=='Vite' else (0.72,0.74,0.77))
+            oggetto.Label = (('VITE M3x%d ISO4762'%lunghezza if tipo=='Vite' else
+                'DADO M3 DIN985' if tipo=='Dado' else 'RONDELLA M3 ISO7089 Ø7')+' - '+nome.replace('_',' '))
+            oggetto.addProperty('App::PropertyBool','ComponenteCommerciale','Ferramenta')
+            oggetto.ComponenteCommerciale = True;oggetto.setEditorMode('ComponenteCommerciale',1)
+            fissaggio.addObject(oggetto)
+        distinta[lunghezza] = distinta.get(lunghezza,0)+1
+        esiti.append('%s: M3x%d, oltre dado %.2f mm; consigliata M3x%d; %s'%
+                     (nome,lunghezza,sporgenza,consigliata,stato))
+    gruppo.addProperty('App::PropertyString','AmbitoDistinta','Ferramenta')
+    gruppo.AmbitoDistinta = 'Solo fissaggi dei componenti presenti nella vista; attivare tutti i pezzi per la distinta completa. Fissaggi PCB esclusi.'
+    gruppo.addProperty('App::PropertyStringList','Distinta','Ferramenta')
+    quantita = sum(distinta.values())
+    gruppo.Distinta = ['%d viti M3x%d ISO4762'%(n,l) for l,n in sorted(distinta.items())]+[
+        '%d dadi M3 DIN985'%quantita,'%d rondelle M3 ISO7089 Ø7'%(2*quantita)]
+    gruppo.addProperty('App::PropertyStringList','Verifiche','Ferramenta')
+    gruppo.Verifiche = esiti
+    App.Console.PrintMessage('\nFerramenta visualizzata: '+', '.join(gruppo.Distinta)+'.\n')
+    App.Console.PrintMessage('Distinta: solo componenti visualizzati; Fissaggi PCB esclusi.\n')
+    for esito in esiti:
+        if esito.endswith('OK: almeno due filetti oltre il dado'):
+            App.Console.PrintMessage(esito+'\n')
+        else:
+            App.Console.PrintWarning(esito+'\n')
+    return gruppo
+
+
+# ================= GENERAZIONE DEL MODELLO =================
+
+doc = App.newDocument('EFES_Assemblaggio_Torre_Mozzo')
+if mostra_torre:
+    solido,centri_viti_piedini = genera_torre_raccordata()
+    if predisponi_ghiere:
+        solido = estendi_attacchi_ghiere(solido)
+    if finecorsa_attivi:
+        solido = attacchi_torre_finecorsa(solido)
+
+    # L'albero da 4 mm non tocca mai la plastica lungo il supporto.
+    solido = solido.cut(cilindro(foro_libero_albero/2,quota_fine+2,V(0,0,-1)))
+
+    # Tasche con battuta radiale: entra dal basso quello inferiore,
+    # dall'alto quello superiore.
+    solido = solido.cut(cilindro(sede_D/2, profondita_sede+0.1,
+                                V(0,0,quota_supporto_inferiore-0.1)))
+    solido = solido.cut(cilindro(sede_D/2, profondita_sede+0.1,
+                                V(0,0,quota_fine-profondita_sede)))
+    for q in (quota_supporto_inferiore,quota_supporto_superiore):
+        solido = solido.cut(cilindro(diametro_scarico_battuta/2,
+                                    spessore_supporto+0.2,V(0,0,q-0.1)))
+
+    # Fori viti ghiere e sedi Ø8 per rondelle sulla FACCIA OPPOSTA a quella
+    # di inserimento del cuscinetto. Dadi esterni accessibili con una chiave.
+    if predisponi_ghiere:
+        for q in (quota_supporto_inferiore,quota_supporto_superiore):
+            r_viti,angoli = fissaggi_ghiera(q)
+            for ang in angoli:
+                punto = polare(r_viti,ang,q)
+                solido = solido.cut(cilindro(foro_vite_ghiera/2,
+                                            spessore_supporto+0.4,
+                                            V(punto.x,punto.y,q-0.2)))
+                if q == quota_supporto_inferiore:
+                    z_sede = q+spessore_supporto-sede_rondella_profondita
+                else:
+                    z_sede = q-0.1
+                solido = solido.cut(sede_rondella_assiale(
+                    punto,z_sede,sede_rondella_profondita+0.1))
+
+    # Fori piedini PCB e sedi rondelle.
+    for p in centri_viti_piedini:
+        solido = solido.cut(cilindro(foro_M3_passante/2,spessore_piedini+0.4,
+                                    V(p.x,p.y,-0.2)))
+        if sede_rondella_profondita>0:
+            solido = solido.cut(cilindro(sede_rondella_D/2,
+                                        sede_rondella_profondita+0.2,
+                                        V(p.x,p.y,
+                                          spessore_piedini-sede_rondella_profondita)))
+    try:
+        solido = solido.removeSplitter()
+    except Exception:
+        pass
+
+    if solido.isNull() or not solido.isValid() or len(solido.Solids)!=1:
+        raise RuntimeError('Supporto non valido o disconnesso: verifica le quote top/bottom e i fori.')
+
+    supporto = aggiungi_oggetto(doc, 'Supporto_Torre', solido, (0.77,0.83,0.88))
+    supporto.Label = 'SUPPORTO V0.8 - raccordi puliti e bracci integrati'
+    supporto.ViewObject.Transparency = trasparenza_torre
+
+    # Quote informative: modificare in cima allo script e rieseguire.
+    for nome,valore in (
+        ('DiametroCerchioTop_mm',diametro_cerchio_top),
+        ('DiametroCerchioBottom_mm',diametro_cerchio_bottom),
+        ('DiametroGambe_mm',diametro_gambe),
+        ('LarghezzaBracci_mm',larghezza_bracci),
+        ('RaccordoBraccio_mm',raccordo_anello_braccio),
+        ('RaccordoGamba_mm',raccordo_gamba_piano),
+        ('QuotaSupportoBasso_mm',quota_supporto_inferiore),
+        ('QuotaSupportoAlto_mm',quota_supporto_superiore),
+        ('DiametroSede_mm',sede_D),
+        ('DiametroScaricoBattuta_mm',diametro_scarico_battuta),
+        ('RaggioVitiGhiera_mm',fissaggi_ghiera(quota_supporto_superiore)[0]),
+        ('DiametroForoM3_PCB_mm',foro_M3_passante),
+    ):
+        supporto.addProperty('App::PropertyFloat',nome,'Quote informative')
+        setattr(supporto,nome,valore)
+        supporto.setEditorMode(nome,1)
+
+if predisponi_ghiere and mostra_ghiere:
+    gruppog = doc.addObject('App::DocumentObjectGroup','Ghiere_Opzionali')
+    gruppog.Label = 'GHIERE OPZIONALI (due parti distinte)'
+    for nome,q,lato in (
+        ('Ghiera_Superiore',quota_supporto_superiore,'sopra'),
+        ('Ghiera_Inferiore',quota_supporto_inferiore,'sotto'),
+    ):
+        if not (mostra_ghiera_superiore if lato=='sopra' else mostra_ghiera_inferiore):
+            continue
+        obj = aggiungi_oggetto(doc,nome,ghiera(q,lato),(0.40,0.70,0.86),10)
+        obj.addProperty('App::PropertyLength','RaggioFissaggi','Quote informative')
+        obj.RaggioFissaggi = fissaggi_ghiera(q)[0]
+        obj.setEditorMode('RaggioFissaggi',1)
+        obj.addProperty('App::PropertyString','AngoliFissaggi','Quote informative')
+        obj.AngoliFissaggi = ', '.join(str(a) for a in fissaggi_ghiera(q)[1])
+        obj.setEditorMode('AngoliFissaggi',1)
+        gruppog.addObject(obj)
+
+
+
+# ================ MOZZO SPLIT-CLAMP MAGNETE 9049 ==============
+# Un componente indipendente dal supporto, semitrasparente.
+# Le dimensioni sono una v0.1 PRELIMINARE, non quote definitive di stampa.
+
+def genera_mozzo():
+    """Base portamagnete integra e cappellotto laterale indipendente a due M3.
+
+    La separazione interessa solo la zona superiore del mozzo. La base sotto
+    il cappellotto conserva la tasca intera; il magnete viene incollato nella
+    tasca dal basso. Le due viti avvicinano direttamente le due ganasce.
+    """
+    z0 = mozzo_quota_fondo
+    z1 = z0+mozzo_altezza
+    z_albero = z0+mozzo_sede_magnete_H+mozzo_spessore_fondo
+    z_ganasce = z1-collare_H
+    z_vite = z_ganasce+collare_H/2
+    z_cappellotto = z_ganasce+mozzo_gioco_cappellotto
+    if z1 >= quota_supporto_inferiore or (
+            predisponi_ghiere and z1 >= quota_supporto_inferiore-spessore_ghiera):
+        raise ValueError('Mozzo magnetico: spazio insufficiente sotto il cuscinetto/ghiera.')
+    if not (z0+mozzo_sede_magnete_H < z_ganasce < z_cappellotto < z_albero < z1-2):
+        raise ValueError('Mozzo magnetico: quote incompatibili con base integra e cappellotto.')
+    if z_vite-diametro_sedi_rondelle/2 < z_cappellotto+0.5:
+        raise ValueError('Mozzo magnetico: bordo insufficiente sotto la sede rondella del cappellotto.')
+
+    # Due attacchi simmetrici: profilo e raccordi delle flange condivisi
+    # con gli altri collari, stesso diametro del corpo coassiale.
+    ganasce = grezzo_collare(z_ganasce)
+    sinistra = ganasce.copy()
+    sinistra.rotate(V(0,0,0),V(0,0,1),180)
+    ganasce = ganasce.fuse(sinistra).removeSplitter()
+    grezzo = ganasce.fuse(cilindro(mozzo_diametro_corpo/2,
+                                  z_ganasce-z0+0.1,V(0,0,z0))).removeSplitter()
+    estensione = 2*(collare_x2+mozzo_diametro_corpo)
+    # La parte fissa comprende l'intera base. La ganascia mobile ha un
+    # piccolo gioco assiale, per scorrere senza impuntarsi sulla base.
+    corpo = grezzo.cut(Part.makeBox(2*estensione,estensione+mozzo_taglio/2,
+        z1-z_ganasce+0.1,V(-estensione,-mozzo_taglio/2,z_ganasce)))
+    cappellotto = ganasce.common(Part.makeBox(2*estensione,estensione,
+        z1-z_cappellotto+0.1,V(-estensione,mozzo_taglio/2,z_cappellotto)))
+    corpo = corpo.cut(cilindro(mozzo_sede_magnete_D/2,
+                               mozzo_sede_magnete_H+0.1,V(0,0,z0-0.1)))
+    foro_albero = cilindro(mozzo_foratura_albero/2,z1-z_albero+0.1,V(0,0,z_albero))
+    corpo = corpo.cut(foro_albero)
+    cappellotto = cappellotto.cut(foro_albero)
+    for lato in (-1,1):
+        for utensile in utensili_collare(z_vite):
+            if lato < 0:
+                utensile.rotate(V(0,0,0),V(0,0,1),180)
+            corpo = corpo.cut(utensile)
+            cappellotto = cappellotto.cut(utensile)
+    corpo = corpo.removeSplitter()
+    cappellotto = cappellotto.removeSplitter()
+    for nome,forma in (('corpo portamagnete',corpo),('cappellotto',cappellotto)):
+        if forma.isNull() or not forma.isValid() or len(forma.Solids)!=1:
+            raise RuntimeError('Mozzo magnetico: '+nome+' non valido o disconnesso.')
+    if corpo.common(cappellotto).Volume > 1e-6:
+        raise RuntimeError('Mozzo magnetico: interferenza tra corpo e cappellotto.')
+    return corpo,cappellotto,z_albero,z1
+
+
+quota_albero = mozzo_quota_fondo+mozzo_sede_magnete_H+mozzo_spessore_fondo
+quota_cima_mozzo = mozzo_quota_fondo+mozzo_altezza
+if mostra_mozzo_magnete or mostra_cappellotto_magnete:
+    forma_mozzo,forma_cappellotto,quota_albero,quota_cima_mozzo = genera_mozzo()
+mozzo_obj = cappellotto_obj = None
+assemblaggio = doc.addObject('App::DocumentObjectGroup','Assemblaggio_Magnetico')
+assemblaggio.Label = 'ASSEMBLAGGIO - albero, magnete, mozzo e cuscinetti'
+
+if mostra_mozzo_magnete:
+    mozzo_obj = aggiungi_oggetto(doc,'Mozzo_Magnete',forma_mozzo,
+                                 (0.32,0.70,0.82),trasparenza_mozzo)
+    mozzo_obj.Label = 'MOZZO - corpo portamagnete e ganascia fissa Ø4'
+    assemblaggio.addObject(mozzo_obj)
+
+if mostra_cappellotto_magnete:
+    cappellotto_obj = aggiungi_oggetto(doc,'Cappellotto_Mozzo_Magnete',forma_cappellotto,
+                                      (0.25,0.58,0.75),trasparenza_mozzo)
+    cappellotto_obj.Label = 'MOZZO - cappellotto laterale, due viti M3'
+    assemblaggio.addObject(cappellotto_obj)
+
+for obj in (o for o in (mozzo_obj,cappellotto_obj) if o is not None):
+    obj.addProperty('App::PropertyLength','InterasseViti','Quote informative')
+    obj.InterasseViti = 2*collare_vite_x
+    obj.setEditorMode('InterasseViti',1)
+App.Console.PrintMessage('Mozzo magnetico: corpo e cappellotto separati, due M3; '
+                         'magnete da incollare nella tasca integra.\n')
+
+# Riferimenti visivi, separati per poterli nascondere singolarmente.
+# Cuscinetti semplificati come anelli: non e' il loro modello dettagliato.
+if mostra_assemblaggio:
+    z_cusc_basso = quota_supporto_inferiore+profondita_sede-cuscinetto_H
+    z_cusc_alto = quota_fine-profondita_sede
+    for nome,z in (('Cuscinetto_624ZZ_Basso',z_cusc_basso),
+                   ('Cuscinetto_624ZZ_Alto',z_cusc_alto)):
+        if not (mostra_cuscinetto_inferiore if nome.endswith('Basso') else mostra_cuscinetto_superiore):
+            continue
+        forma = cilindro(cuscinetto_D/2,cuscinetto_H,V(0,0,z))
+        forma = forma.cut(cilindro(2.0,cuscinetto_H+0.2,V(0,0,z-0.1)))
+        obj = aggiungi_oggetto(doc,nome,forma,(0.88,0.68,0.26),
+                               trasparenza_cuscinetti)
+        assemblaggio.addObject(obj)
+
+    if mostra_albero:
+        # Albero infilato nel foro superiore del mozzo.
+        lunghezza_albero_effettiva = quote_volante(quota_albero)['cima_albero']-quota_albero
+        forma_albero = cilindro(2.0,lunghezza_albero_effettiva,
+                               V(0,0,quota_albero))
+        albero_obj = aggiungi_oggetto(doc,'Albero_4mm',forma_albero,
+                                      (0.55,0.60,0.65),trasparenza_albero)
+        albero_obj.addProperty('App::PropertyLength','LunghezzaEffettiva','Quote informative')
+        albero_obj.LunghezzaEffettiva = lunghezza_albero_effettiva
+        albero_obj.setEditorMode('LunghezzaEffettiva',1)
+        assemblaggio.addObject(albero_obj)
+
+    if mostra_magnete:
+        # Magnete nella tasca INFERIORE del mozzo.
+        forma_magnete = cilindro(magnete_D/2,magnete_H,V(0,0,mozzo_quota_fondo))
+        magnete_obj = aggiungi_oggetto(doc,'Magnete_9049',forma_magnete,
+                                       (0.86,0.25,0.28),0)
+        assemblaggio.addObject(magnete_obj)
+
+
+def genera_volante():
+    """Volante a coppa con razze a T e morsetto a due quote lungo l'albero.
+
+    Una vite sotto le razze e una sopra. I morsetti sono orientati fra due
+    razze e avvicinati in base agli ingombri effettivi e al gioco richiesto.
+    Il corpo e' continuo; il taglio attraversa entrambi i morsetti.
+    """
+    eps = 0.1
+    toll_volume = 1e-6
+    quote = quote_volante(quota_albero)
+    z_albero_top = quote['cima_albero']
+    z0, z1 = quote['fondo'], quote['cima']
+    h_mozzo = z1-z0
+    z_radice, z_corona = quote['radice'], quote['corona']
+    r_corona = (volante_diametro_esterno-volante_diametro_corona)/2
+    r_tubo = volante_diametro_corona/2
+    r_mozzo = volante_mozzo_D/2
+    r_radice = r_mozzo/2
+    y_esterno = volante_orecchie_larghezza/2
+    r_sede = volante_sede_rondella_D/2
+    quote_viti = quote['viti']
+
+    def verifica(condizione, messaggio):
+        if not condizione:
+            raise ValueError('Volante: ' + messaggio)
+
+    verifica(volante_diametro_corona > 0 and r_corona > r_tubo,
+             'diametri della corona non validi.')
+    verifica(0 < volante_spessore_razze <= volante_diametro_corona and
+             0 < volante_larghezza_razze < volante_mozzo_D,
+             'sezione delle razze non valida.')
+    verifica(volante_larghezza_razze <= volante_larghezza_innesto_mozzo < volante_mozzo_D and
+             volante_larghezza_razze <= volante_larghezza_innesto_corona and
+             0 < volante_lunghezza_allargamento < (r_corona-r_mozzo-r_tubo)/2,
+             'allargamenti delle razze non validi.')
+    verifica(len(volante_angoli_razze) == 3 and
+             len(set(a % 360 for a in volante_angoli_razze)) == 3,
+             'servono tre angoli distinti per le razze.')
+    verifica(4.0 <= volante_foro_albero < volante_mozzo_D and
+             0 < volante_taglio < volante_foro_albero and
+             r_radice > volante_foro_albero/2,
+             'foro albero, mozzo o taglio non valido.')
+    verifica(volante_prolunga_mozzo >= 0 and volante_abbassamento_mozzo >= 0 and
+             0 < volante_inserimento_albero + volante_abbassamento_mozzo <= h_mozzo,
+             'inserimento albero o prolunga non valido.')
+    verifica(volante_profondita_coppa >= 0 and
+             0 < volante_nervatura_spessore < volante_larghezza_razze and
+             0 < volante_nervatura_altezza_corona <= volante_nervatura_altezza and
+             volante_spessore_razze/2 + volante_nervatura_altezza_corona < r_tubo,
+             'coppa o sezione delle nervature non valida.')
+    verifica(volante_raccordo_innesti >= 0,'raggio degli innesti negativo.')
+    verifica(0 < volante_orecchie_x_inizio < r_mozzo and
+             volante_orecchie_x_fine > r_mozzo and
+             y_esterno > volante_taglio/2 and 0 < volante_orecchie_altezza < h_mozzo,
+             'orecchie non collegate al mozzo o troppo alte.')
+    verifica(3.0 < volante_foro_M3 < volante_sede_rondella_D and
+             0 <= volante_sede_rondella_profondita < y_esterno-volante_taglio/2,
+             'foratura M3 o profondita delle lamature non valida.')
+    verifica(volante_orecchie_x_inizio < volante_vite_x-r_sede and
+             math.hypot(volante_vite_x-r_sede,y_esterno-volante_sede_rondella_profondita) > volante_foro_albero/2+0.6 and
+             volante_vite_x+r_sede < volante_orecchie_x_fine,
+             'lamature troppo vicine al foro albero o ai bordi delle flange.')
+    verifica(volante_luce_collare_superiore >= 0 and
+             0 < volante_margine_cima_albero < volante_collare_superiore_H/2-volante_foro_M3/2,
+             'luce del collare o margine cima albero non valido.')
+    # Il vecchio interasse resta un minimo; la nuova quota alta deriva
+    # dallo spazio necessario sopra razze e corona, non dalla vecchia vite.
+    verifica(not volante_seconda_vite or quote_viti[1][0]-quote_viti[0][0] >=
+             max(volante_interasse_viti,2*r_sede),
+             'interasse insufficiente per le due viti.')
+    for z_vite, base_orecchie, h_orecchie in quote_viti:
+        verifica(base_orecchie+r_sede < z_vite < base_orecchie+h_orecchie-r_sede,
+                 'lamature troppo vicine ai bordi delle orecchie.')
+        verifica(quota_albero < z_vite-volante_foro_M3/2 and
+                 z_vite+volante_foro_M3/2 < z_albero_top,
+                 'una vite si trova fuori dalla zona di presa sull albero.')
+    verifica(r_corona-r_tubo > math.hypot(volante_orecchie_x_fine,y_esterno),
+             'corona troppo vicina al morsetto.')
+    verifica(volante_luce_ghiera >= 0 and min(z0,z_corona-r_tubo) >=
+             quota_fine + (spessore_ghiera if predisponi_ghiere else 0) +
+             volante_luce_ghiera,
+             'interferenza con la torre/ghiera: rivedere abbassamento mozzo.')
+
+    corona = Part.makeTorus(r_corona,r_tubo,V(0,0,z_corona),V(0,0,1))
+    mozzo = cilindro(r_mozzo,h_mozzo,V(0,0,z0))
+    # La cucitura parametrica del cilindro deve cadere fra le razze:
+    # se attraversa un innesto, OCC puo' fallire anche con raggi fattibili.
+    mozzo.rotate(V(0,0,0),V(0,0,1),90)
+    pendenza = volante_profondita_coppa/(r_corona-r_radice)
+
+    def quota_razza(r):
+        return z_radice + (r-r_radice)*pendenza
+
+    def prisma_inclinato(profilo, larghezza):
+        # Profilo nel piano XZ, estruso tangenzialmente lungo Y.
+        punti = [V(r,-larghezza/2,z) for r,z in profilo]
+        punti.append(punti[0])
+        return Part.Face(Part.makePolygon(punti)).extrude(V(0,larghezza,0))
+
+    meta = volante_spessore_razze/2
+    # Contorno con transizioni cubiche tangenti: piu' materiale agli
+    # innesti senza uno scalino tra piede largo e tratto centrale leggero.
+    x_a = r_radice
+    x_b = r_mozzo+volante_lunghezza_allargamento
+    x_c = r_corona-r_tubo-volante_lunghezza_allargamento
+    x_d = r_corona
+    w_a = volante_larghezza_innesto_mozzo/2
+    w_b = volante_larghezza_razze/2
+    w_d = volante_larghezza_innesto_corona/2
+
+    def transizione(xa,ya,xb,yb):
+        curva = Part.BezierCurve()
+        curva.setPoles([V(xa,ya,0),V(xa+(xb-xa)/3,ya,0),
+                        V(xb-(xb-xa)/3,yb,0),V(xb,yb,0)])
+        return curva.toShape()
+
+    contorno = Part.Wire([
+        transizione(x_a,w_a,x_b,w_b),
+        Part.makeLine(V(x_b,w_b,0),V(x_c,w_b,0)),
+        transizione(x_c,w_b,x_d,w_d),
+        Part.makeLine(V(x_d,w_d,0),V(x_d,-w_d,0)),
+        transizione(x_d,-w_d,x_c,-w_b),
+        Part.makeLine(V(x_c,-w_b,0),V(x_b,-w_b,0)),
+        transizione(x_b,-w_b,x_a,-w_a),
+        Part.makeLine(V(x_a,-w_a,0),V(x_a,w_a,0))])
+    fascia = Part.Face(contorno).extrude(V(0,0,volante_spessore_razze))
+    inclinazione = App.Matrix()
+    inclinazione.A31 = pendenza
+    inclinazione.A34 = z_radice-meta-r_radice*pendenza
+    fascia = fascia.transformGeometry(inclinazione)
+    # A gradualita' 1 il profilo resta esattamente quello lineare esistente.
+    # Per valori maggiori la crescita di profondita' della nervatura segue
+    # una Bezier quintica: pendenza e curvatura del rinforzo si attenuano
+    # agli estremi, senza aumentare la profondita' massima o cambiare presa.
+    if volante_gradualita_attacchi > 1:
+        peso = min(1.0,volante_gradualita_attacchi-1.0)
+        y_nervo = -volante_nervatura_spessore/2
+        poli = []
+        for i in range(6):
+            t = i/5.0
+            r = r_radice+(r_corona-r_radice)*t
+            h_lineare = (volante_nervatura_altezza*(1-t) +
+                         volante_nervatura_altezza_corona*t)
+            h_morbida = (volante_nervatura_altezza if i < 3 else
+                         volante_nervatura_altezza_corona)
+            h = h_lineare*(1-peso)+h_morbida*peso
+            poli.append(V(r,y_nervo,quota_razza(r)-meta-h))
+        curva_nervo = Part.BezierCurve()
+        curva_nervo.setPoles(poli)
+        alto_esterno = V(r_corona,y_nervo,quota_razza(r_corona)-meta+eps)
+        alto_interno = V(r_radice,y_nervo,quota_razza(r_radice)-meta+eps)
+        profilo_nervo = Part.Wire([
+            curva_nervo.toShape(),Part.makeLine(poli[-1],alto_esterno),
+            Part.makeLine(alto_esterno,alto_interno),Part.makeLine(alto_interno,poli[0])])
+        nervatura_base = Part.Face(profilo_nervo).extrude(V(0,volante_nervatura_spessore,0))
+    else:
+        nervatura_base = prisma_inclinato([
+            (r_radice,quota_razza(r_radice)-meta-volante_nervatura_altezza),
+            (r_corona,quota_razza(r_corona)-meta-volante_nervatura_altezza_corona),
+            (r_corona,quota_razza(r_corona)-meta+eps),
+            (r_radice,quota_razza(r_radice)-meta+eps)],volante_nervatura_spessore)
+    razze = []
+    for angolo in volante_angoli_razze:
+        razza = fascia.copy()
+        razza = razza.fuse(nervatura_base).removeSplitter()
+        razza.rotate(V(0,0,0),V(0,0,1),angolo)
+        razze.append(razza)
+
+    forma = mozzo.fuse(corona)
+    for razza in razze:
+        forma = forma.fuse(razza)
+    forma = forma.removeSplitter()
+    def spigoli_attacco_superiori(corpo):
+        # I raccordi portanti sono fra la faccia superiore delle razze e
+        # mozzo/corona. I bordi delle nervature NON limitano questo raggio.
+        spigoli = []
+        for bordo in corpo.Edges:
+            c = bordo.CenterOfMass
+            r = math.hypot(c.x,c.y)
+            sul_mozzo = r_mozzo-1.0 < r < r_mozzo+eps
+            sulla_corona = r_corona-r_tubo-eps < r < r_corona
+            if not (sul_mozzo or sulla_corona):
+                continue
+            angolo = min(volante_angoli_razze,key=lambda a:
+                abs((math.degrees(math.atan2(c.y,c.x))-a+180)%360-180))
+            ca, sa = math.cos(math.radians(angolo)),math.sin(math.radians(angolo))
+            if all(abs(p.z-(quota_razza(p.x*ca+p.y*sa)+meta)) < eps/100
+                   for p in bordo.discretize(Number=9)):
+                spigoli.append(bordo)
+        return spigoli
+
+    if volante_raccordo_innesti > 0:
+        innesti = spigoli_attacco_superiori(forma)
+        verifica(len(innesti) >= 6,'innesti superiori non identificati per tutti gli attacchi.')
+        try:
+            candidata = forma.makeFillet(volante_raccordo_innesti,innesti)
+        except Exception as errore:
+            raise ValueError('Volante: raccordo richiesto di %.2f mm non costruibile '
+                             'con questa geometria; il raccordo NON e stato omesso. '
+                             'Ridurre gradualita o raggio, oppure aumentare il diametro volante.' %
+                             volante_raccordo_innesti) from errore
+        verifica(not candidata.isNull() and candidata.isValid() and len(candidata.Solids)==1,
+                 'raccordo richiesto non valido; nessun ripiego a spigoli vivi.')
+        verifica(candidata.Volume > forma.Volume+toll_volume,
+                 'il raccordo non ha aggiunto materiale agli innesti.')
+        forma = candidata.removeSplitter()
+        App.Console.PrintMessage('Volante: raccordi portanti applicati, raggio %.2f mm.\n' %
+                                 volante_raccordo_innesti)
+
+    # Bisettrice dello spazio piu' ampio fra razze; a parita', primo spazio.
+    # Con gli angoli 30/150/270 il morsetto e' esattamente a 90 gradi.
+    angoli = sorted(a % 360 for a in volante_angoli_razze)
+    intervalli = [(angoli[(i+1)%len(angoli)] + (360 if i==len(angoli)-1 else 0) - a,a)
+                  for i,a in enumerate(angoli)]
+    apertura, inizio = max(intervalli,key=lambda x:x[0])
+    angolo_collari = (inizio+apertura/2) % 360
+
+    def orienta(forma_locale):
+        forma_locale.rotate(V(0,0,0),V(0,0,1),angolo_collari)
+        return forma_locale
+
+    # Proiettare gli ingombri REALI delle razze raccordate nelle zone del
+    # morsetto e degli utensili. Si considera solo materiale fuori dal
+    # cilindro centrale: il cilindro collega intenzionalmente i collari.
+    parti_esterne = forma.cut(mozzo)
+    altezza_finestra = max(z1,z_corona+r_tubo)-z0+2*eps
+
+    def quote_in_finestra(xa,xb,ya,yb):
+        finestra = orienta(Part.makeBox(xb-xa,yb-ya,altezza_finestra,V(xa,ya,z0-eps)))
+        intersezione = parti_esterne.common(finestra)
+        if intersezione.isNull() or intersezione.Volume < toll_volume:
+            return None
+        # BoundBox puo' includere i poli delle spline dei raccordi, molto
+        # oltre la superficie reale: usare gli estremi geometrici effettivi.
+        limiti = intersezione.optimalBoundingBox(False,False)
+        return limiti.ZMin,limiti.ZMax
+
+    gap = volante_distanza_collari_razze
+    h_basso = volante_orecchie_altezza
+    h_alto = volante_collare_superiore_H
+    centro_basso = z_radice-meta-volante_nervatura_altezza-gap-h_basso/2
+    centro_alto = z_radice+meta+gap+h_alto/2
+    limiti = quote_in_finestra(volante_orecchie_x_inizio,volante_orecchie_x_fine,
+                               -max(y_esterno+collari_raccordo_orecchie,r_mozzo),
+                               max(y_esterno+collari_raccordo_orecchie,r_mozzo))
+    if limiti:
+        centro_basso = min(centro_basso,limiti[0]-gap-h_basso/2)
+        centro_alto = max(centro_alto,limiti[1]+gap+h_alto/2)
+
+    # Spazio per una chiave/bussola corta Ø8 vicino a testa e dado; per
+    # inserire una M3x16, verificare anche 16 mm liberi lungo il suo asse.
+    # Non serve un tunnel cilindrico fino all'esterno della corona.
+    lunghezza_chiave = 6.0
+    lunghezza_inserimento_vite = 16.0
+    r_vite = volante_foro_M3/2
+    for segno in (-1,1):
+        for r_utensile,lunghezza in ((r_sede,lunghezza_chiave),
+                                     (r_vite,lunghezza_inserimento_vite)):
+            ya,yb = sorted((segno*y_esterno,segno*(y_esterno+lunghezza)))
+            limiti = quote_in_finestra(volante_vite_x-r_utensile,volante_vite_x+r_utensile,ya,yb)
+            if limiti:
+                centro_basso = min(centro_basso,limiti[0]-r_utensile-gap)
+                centro_alto = max(centro_alto,limiti[1]+r_utensile+gap)
+
+    base_basso = centro_basso-h_basso/2
+    base_alto = centro_alto-h_alto/2
+    fondo_definitivo = base_basso
+    cima_definitiva = base_alto+h_alto if volante_seconda_vite else max(z_radice+meta,base_basso+h_basso)
+    verifica(fondo_definitivo >= quota_fine+spessore_ghiera+volante_luce_ghiera,
+             'distanza collari troppo grande verso la torre; ridurre volante_distanza_collari_razze o aumentare volante_luce_ghiera.')
+    verifica(fondo_definitivo >= z0-eps and cima_definitiva <= z1+eps,
+             'collari fuori dal grezzo disponibile: ridurre distanza collari o coppa.')
+    # Tagliare solo le code del cilindro, senza accorciare razze o corona.
+    if fondo_definitivo > z0:
+        forma = forma.cut(cilindro(r_mozzo,fondo_definitivo-z0,V(0,0,z0)))
+    if cima_definitiva < z1:
+        forma = forma.cut(cilindro(r_mozzo,z1-cima_definitiva,V(0,0,cima_definitiva)))
+    quote_viti = [(centro_basso,base_basso,h_basso)]
+    if volante_seconda_vite:
+        quote_viti.append((centro_alto,base_alto,h_alto))
+    orecchie_morsetti = []
+    utensili_morsetti = []
+    accessi = []
+    for z_vite,base_orecchie,h_orecchie in quote_viti:
+        orecchie_morsetti.append(orienta(grezzo_collare(base_orecchie)))
+        utensili_morsetti.extend(orienta(u) for u in utensili_collare(z_vite))
+        for segno in (-1,1):
+            for r_utensile,lunghezza in ((r_sede,lunghezza_chiave),
+                                         (r_vite,lunghezza_inserimento_vite)):
+                accessi.append(orienta(Part.makeCylinder(r_utensile,lunghezza,
+                    V(volante_vite_x,segno*(y_esterno-eps),z_vite),V(0,segno,0))))
+    foro_albero = cilindro(volante_foro_albero/2,z1-z0+2*eps,V(0,0,z0-eps))
+    taglio = orienta(Part.makeBox(volante_orecchie_x_fine+eps,volante_taglio,
+                                 z1-z0+2*eps,V(0,-volante_taglio/2,z0-eps)))
+    for orecchie in orecchie_morsetti:
+        forma = forma.fuse(orecchie)
+    forma = forma.cut(taglio).cut(foro_albero)
+    for utensile in utensili_morsetti:
+        forma = forma.cut(utensile)
+    forma = forma.removeSplitter()
+    quote_definitive = dict(quote,fondo=fondo_definitivo,cima=cima_definitiva,
+                           viti=quote_viti,cima_albero=cima_definitiva-volante_margine_cima_albero,
+                           angolo_collari=angolo_collari)
+
+    # Il raccordo non deve richiudere il morsetto o ostruire le lamature.
+    verifica(forma.common(taglio).Volume < toll_volume,
+             'un raccordo chiude il taglio del morsetto.')
+    for accesso in accessi:
+        verifica(forma.common(accesso).Volume < toll_volume,
+                 'un raccordo ostruisce l accesso a una vite.')
+    if forma.isNull() or not forma.isValid() or len(forma.Solids) != 1:
+        raise RuntimeError('Volante non valido o disconnesso: verificare le quote.')
+    return forma, quote_definitive
+
+
+serve_finecorsa = finecorsa_attivi and (mostra_volante or mostra_piastra_finecorsa or
+    mostra_battuta_finecorsa_1 or mostra_battuta_finecorsa_2)
+serve_volante = mostra_volante or serve_finecorsa or (mostra_assemblaggio and mostra_albero)
+volante_obj = None
+quote_volante_definitive = None
+if serve_volante:
+    forma_volante, quote_volante_definitive = genera_volante()
+if mostra_assemblaggio and mostra_albero:
+    lunghezza_albero_effettiva = quote_volante_definitive['cima_albero']-quota_albero
+    albero_obj.Shape = cilindro(2.0,lunghezza_albero_effettiva,V(0,0,quota_albero))
+    albero_obj.LunghezzaEffettiva = lunghezza_albero_effettiva
+
+if mostra_volante:
+    volante_obj = aggiungi_oggetto(doc,'Volante_Tre_Razze',forma_volante,
+                                  (0.22,0.25,0.29),trasparenza_volante)
+    volante_obj.Label = 'VOLANTE A COPPA - Ø%g, razze a T, morsetto M3' % volante_diametro_esterno
+    for nome, valore in sorted(list(globals().items())):
+        if nome.startswith('volante_') and isinstance(valore, (int, float)):
+            volante_obj.addProperty('App::PropertyFloat',nome,'Quote informative')
+            setattr(volante_obj,nome,valore)
+            volante_obj.setEditorMode(nome,1)
+    volante_obj.addProperty('App::PropertyString','AngoliRazze','Quote informative')
+    volante_obj.AngoliRazze = ', '.join('%g' % a for a in volante_angoli_razze)
+    volante_obj.setEditorMode('AngoliRazze',1)
+    volante_obj.addProperty('App::PropertyAngle','AngoloCollari','Quote informative')
+    volante_obj.AngoloCollari = quote_volante_definitive['angolo_collari']
+    volante_obj.setEditorMode('AngoloCollari',1)
+    volante_obj.addProperty('App::PropertyLength','AltezzaMozzoCompatto','Quote informative')
+    volante_obj.AltezzaMozzoCompatto = quote_volante_definitive['cima']-quote_volante_definitive['fondo']
+    volante_obj.setEditorMode('AltezzaMozzoCompatto',1)
+
+# ================= COLLARI SEPARATI DI FERMO ASSIALE =================
+# Dentro la torre, fra i due cuscinetti: nessuna modifica al mozzo magnetico.
+# Ogni collare ha corpo split-clamp e una battuta stretta che attraversa
+# lo scarico centrale del piano, appoggiandosi SOLO all'anello interno.
+# Ø5.8 e' nell'intervallo di battuta dei 624ZZ EZO (5.6..5.9 mm);
+# verificare la faccia interna del cuscinetto effettivamente acquistato.
+# https://www.ezo-brg.co.jp/english/product/spec.php?eid=00391&unit=mm
+
+def genera_collari_assiali():
+    if not math.isfinite(collari_gioco_assiale) or collari_gioco_assiale < 0:
+        raise ValueError('Collari assiali: il gioco totale deve essere non negativo, in mm.')
+    eps = 0.1
+    corpo_D = collari_diametro_esterno
+    corpo_H = collare_H
+    battuta_D = 5.8  # eccezione funzionale: appoggio solo sull'anello interno 624ZZ
+    luce_piano = 0.4
+    taglio_L = collare_taglio
+    orecchie_x1,orecchie_x2 = collare_x1,collare_x2
+    orecchie_Y = collare_orecchie_Y
+    vite_x = collare_vite_x
+    foro_M3 = collare_foro_M3
+    foro_albero = collare_foro_albero
+    z_faccia_bassa = quota_supporto_inferiore+profondita_sede
+    z_faccia_alta = quota_fine-profondita_sede
+    z_corpo_basso = quota_supporto_inferiore+spessore_supporto+luce_piano
+    z_corpo_alto = quota_supporto_superiore-luce_piano-corpo_H
+    z_battuta_bassa = z_faccia_bassa+collari_gioco_assiale/2
+    z_battuta_alta = z_faccia_alta-collari_gioco_assiale/2
+    if not (foro_albero < battuta_D < diametro_scarico_battuta and
+            z_battuta_bassa < z_corpo_basso and
+            z_corpo_alto+corpo_H < z_battuta_alta):
+        raise ValueError('Collari assiali: gioco o quote incompatibili con le battute dei cuscinetti.')
+    if z_corpo_basso+corpo_H+0.4 >= z_corpo_alto:
+        raise ValueError('Collari assiali: spazio insufficiente fra i piani; aumentare quota_supporto_superiore.')
+
+    risultati = []
+    for nome,z_corpo,z_estremo,lato,angolo in (
+        ('Collare_Assiale_Inferiore',z_corpo_basso,z_battuta_bassa,'basso',90.0),
+        ('Collare_Assiale_Superiore',z_corpo_alto,z_battuta_alta,'alto',270.0),
+    ):
+        if not (mostra_collare_assiale_inferiore if lato=='basso' else mostra_collare_assiale_superiore):
+            continue
+        forma = grezzo_collare(z_corpo)
+        if lato == 'basso':
+            base_naso = z_estremo
+            altezza_naso = z_corpo-z_estremo+eps
+        else:
+            base_naso = z_corpo+corpo_H-eps
+            altezza_naso = z_estremo-base_naso
+        forma = forma.fuse(cilindro(battuta_D/2,altezza_naso,V(0,0,base_naso)))
+        z_min,z_max = min(z_corpo,z_estremo),max(z_corpo+corpo_H,z_estremo)
+        forma = forma.cut(cilindro(foro_albero/2,z_max-z_min+2*eps,V(0,0,z_min-eps)))
+        forma = forma.cut(Part.makeBox(orecchie_x2+eps,taglio_L,z_max-z_min+2*eps,
+                                       V(0,-taglio_L/2,z_min-eps)))
+        z_vite = z_corpo+corpo_H/2
+        for utensile in utensili_collare(z_vite):
+            forma = forma.cut(utensile)
+        forma = forma.removeSplitter()
+        forma.rotate(V(0,0,0),V(0,0,1),angolo)
+        if forma.isNull() or not forma.isValid() or len(forma.Solids)!=1:
+            raise RuntimeError('Collare assiale non valido: '+nome)
+        # Accesso reale al foro M3 per inserire una vite da 16 mm.
+        # Testa, rondella e dado restano all'esterno, senza incassi esagonali.
+        accessi = []
+        for segno in (-1,1):
+            accesso = Part.makeCylinder(foro_M3/2,16.0,
+                V(vite_x,segno*orecchie_Y/2,z_vite),V(0,segno,0))
+            accesso.rotate(V(0,0,0),V(0,0,1),angolo)
+            accessi.append(accesso)
+        risultati.append((nome,forma,accessi))
+    return risultati
+
+
+# Sempre creati come parti stampabili, anche quando i riferimenti visivi
+# albero/cuscinetti sono nascosti da mostra_assemblaggio.
+gruppo_collari = doc.addObject('App::DocumentObjectGroup','Collari_Fermo_Assiale')
+gruppo_collari.Label = 'FERMI ASSIALI - due collari Ø4 split-clamp M3'
+collari_creati = []
+for nome,forma,accessi in genera_collari_assiali():
+    for esistente in doc.Objects:
+        if esistente.TypeId != 'Part::Feature':
+            continue
+        if forma.common(esistente.Shape).Volume > 1e-6:
+            raise ValueError('Interferenza fra '+nome+' e '+esistente.Name)
+        for accesso in accessi:
+            if accesso.common(esistente.Shape).Volume > 1e-6:
+                raise ValueError('Accesso alla vite di '+nome+' ostruito da '+esistente.Name)
+    obj = aggiungi_oggetto(doc,nome,forma,(0.91,0.48,0.20))
+    obj.Label = nome.replace('_',' ')+' - M3, battuta anello interno'
+    obj.addProperty('App::PropertyLength','GiocoAssialeTotale','Quote informative')
+    obj.GiocoAssialeTotale = collari_gioco_assiale
+    obj.setEditorMode('GiocoAssialeTotale',1)
+    obj.addProperty('App::PropertyLength','DiametroBattuta','Quote informative')
+    obj.DiametroBattuta = 5.8
+    obj.setEditorMode('DiametroBattuta',1)
+    gruppo_collari.addObject(obj)
+    collari_creati.append(obj)
+App.Console.PrintMessage('Collari assiali: due parti separate, gioco totale %.2f mm; '
+                         'serrare sull albero senza precaricare i cuscinetti.\n' % collari_gioco_assiale)
+
+# Finecorsa applicati dopo aver costruito e posizionato i componenti originali.
+if serve_finecorsa:
+    geometria_finecorsa = genera_finecorsa(forma_volante,quote_volante_definitive,
+                                         finecorsa_angolo_per_lato)
+    gruppo_finecorsa = doc.addObject('App::DocumentObjectGroup','Finecorsa_Regolabili')
+    gruppo_finecorsa.Label = 'FINECORSA REGOLABILI - ±%g gradi' % finecorsa_angolo_per_lato
+    gruppo_finecorsa.addProperty('App::PropertyFloat','AngoloPerLato','Configurazione')
+    gruppo_finecorsa.AngoloPerLato = finecorsa_angolo_per_lato
+    gruppo_finecorsa.setEditorMode('AngoloPerLato',1)
+    gruppo_finecorsa.addProperty('App::PropertyString','Regolazione','Configurazione')
+    gruppo_finecorsa.Regolazione = 'Spostare le battute nei fori marcati 90/110/130/150/170; 170 usa una battuta sola.'
+    # Lunghezze sotto testa: pacco serrato, due rondelle da 0.5,
+    # dado autobloccante da 4 e almeno 1 mm (due filetti) oltre il dado.
+    z_fc = geometria_finecorsa
+    lunghezza_viti_piastra = lunghezza_standard_m3(z_fc['z_piastra']-z_fc['profondita_testa']-
+        (quota_supporto_superiore+sede_rondella_profondita)+6.0)
+    lunghezza_viti_battute = lunghezza_standard_m3(z_fc['z_battuta_top']-0.6-
+        (z_fc['z_base']+0.6)+6.0)
+    gruppo_finecorsa.addProperty('App::PropertyString','Ferramenta','Configurazione')
+    gruppo_finecorsa.Ferramenta = ('Piastra: 2 nuove M3x%d, 2 dadi M3 e 4 rondelle; '
+        'battute: M3x%d, un dado M3 e due rondelle per ogni battuta montata.' %
+        (lunghezza_viti_piastra,lunghezza_viti_battute))
+    nuovi = [('Finecorsa_Piastra',geometria_finecorsa['piastra'],(0.42,0.53,0.62),
+              'PIASTRA FINECORSA - 4 raggi, due attacchi indipendenti')]
+    for indice,(angolo,shape) in enumerate(geometria_finecorsa['battute'],1):
+        label = ('BATTUTA POSTERIORE - ±170 gradi' if finecorsa_angolo_per_lato==170 else
+                 'BATTUTA - limite %s%g gradi' % ('+' if indice==1 else '-',finecorsa_angolo_per_lato))
+        nuovi.append(('Finecorsa_Battuta_%d' % indice,shape,(0.95,0.57,0.17),label))
+    # Parti realmente stampabili separate; il dente e' invece fuso nel volante.
+    if volante_obj is not None:
+        volante_obj.Shape = geometria_finecorsa['volante']
+        volante_obj.Label += ' + dente finecorsa'
+    visibilita_finecorsa = {'Finecorsa_Piastra':mostra_piastra_finecorsa,
+        'Finecorsa_Battuta_1':mostra_battuta_finecorsa_1,
+        'Finecorsa_Battuta_2':mostra_battuta_finecorsa_2}
+    for nome,forma,colore,label in nuovi:
+        if not visibilita_finecorsa[nome]:
+            continue
+        for esistente in doc.Objects:
+            if esistente.TypeId=='Part::Feature' and forma.common(esistente.Shape).Volume>1e-6:
+                raise ValueError('Finecorsa: interferenza fra '+nome+' e '+esistente.Name)
+        obj = aggiungi_oggetto(doc,nome,forma,colore)
+        obj.Label = label
+        gruppo_finecorsa.addObject(obj)
+    App.Console.PrintMessage('Finecorsa: ±%g gradi (%g totali); fori compensati per gli ingombri.\n' %
+                             (finecorsa_angolo_per_lato,2*finecorsa_angolo_per_lato))
+    App.Console.PrintMessage('Finecorsa: piastra a quattro raggi con due nuovi fissaggi indipendenti; '
+                             'battute riposizionabili nei fori marcati.\n')
+    App.Console.PrintMessage('Zero meccanico: allineare le tacche e inserire un perno Ø3 nei due fori; '
+                             'sfilare il perno prima di ruotare.\n')
+    App.Console.PrintMessage('Ferramenta finecorsa: '+gruppo_finecorsa.Ferramenta+'\n')
+
+# La ferramenta segue i componenti presenti: nascondendo una parte del
+# giunto non vengono lasciati dadi o rondelle sospesi. Le viti dei collari
+# indipendenti restano visibili anche se si esclude l'albero di riferimento.
+if mostra_ferramenta:
+    aggiungi_ferramenta_m3(doc,quote_volante_definitive,
+        geometria_finecorsa if serve_finecorsa else None)
+
+# Vista assonometrica e fine esecuzione.
+doc.recompute()
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+
+App.Console.PrintMessage('\nEFES - Assemblaggio torre v0.8 + mozzo creato.\n')
+App.Console.PrintMessage('Mozzo semitrasparente: %d%%.\n' % trasparenza_mozzo)
+if predisponi_ghiere:
+    luce = (quota_supporto_inferiore-spessore_ghiera) - quota_cima_mozzo
+    App.Console.PrintMessage('Luce assiale mozzo / ghiera inferiore: %.2f mm.\n' % luce)
+App.Console.PrintMessage('Distacco albero-magnete: %.2f mm.\n' % mozzo_spessore_fondo)
+App.Console.PrintMessage('Magnete: Z=%.1f..%.1f mm rispetto alla superficie superiore PCB.\n' %
+                         (mozzo_quota_fondo,mozzo_quota_fondo+magnete_H))
+App.Console.PrintMessage('Volante a coppa: Ø%g mm, profondita %g mm, razze a T, %d vite/i M3.\n' %
+                         (volante_diametro_esterno,volante_profondita_coppa,
+                          2 if volante_seconda_vite else 1))
+if quote_volante_definitive is not None:
+    App.Console.PrintMessage('Albero Ø4: lunghezza effettiva %.1f mm (prolunga per collare superiore).\n' %
+                             (quote_volante_definitive['cima_albero']-quota_albero))
+    App.Console.PrintMessage('Collari fra le razze a %.1f gradi; gioco minimo %.1f mm, altezza mozzo %.1f mm.\n' %
+                             (quote_volante_definitive['angolo_collari'],volante_distanza_collari_razze,
+                              quote_volante_definitive['cima']-quote_volante_definitive['fondo']))
+
+App.Console.PrintMessage('Puoi nascondere ogni pezzo selezionandolo e premendo Spazio.\n')

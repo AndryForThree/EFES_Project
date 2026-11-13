@@ -286,13 +286,290 @@ bool UI_DeveloperMode_render(UI_DeveloperMode *developer_mode) {
 }
 
 // =======================================================================
+// Segmented bar
+// =======================================================================
+
+// Segment widths share all available pixels, including any division remainder.
+static void UI_SegmentedBar_segmentGeometry(const UI_SegmentedBar *bar, uint16_t segment,
+	uint16_t *x, uint16_t *width, uint16_t *offset, uint16_t *side) {
+	const UI_SegmentedBarConfig *config = bar->config;
+	uint16_t distance;
+	if (segment < config->segments_per_side) {
+		*side = 0;
+		distance = config->segments_per_side - 1 - segment;
+	} else {
+		*side = 1;
+		distance = segment - config->segments_per_side;
+	}
+	*offset = (uint32_t)distance * bar->fill_width[*side] / config->segments_per_side;
+	uint16_t end = (uint32_t)(distance + 1) * bar->fill_width[*side] / config->segments_per_side;
+	*width = end - *offset;
+	if (*side == 0) {
+		*x = bar->center_x - config->center_gap - end - distance * config->segment_gap;
+	} else {
+		*x = bar->center_x + config->zero_width + config->center_gap +
+			*offset + distance * config->segment_gap;
+	}
+}
+
+static uint16_t UI_SegmentedBar_segmentFill(const UI_SegmentedBar *bar, int16_t value,
+	uint16_t side, uint16_t offset, uint16_t width) {
+	int32_t magnitude = 0;
+	if (side == 0 && value < 0) {
+		magnitude = -(int32_t)value;
+	} else if (side == 1 && value > 0) {
+		magnitude = value;
+	}
+	int32_t fill = magnitude * bar->fill_width[side] / bar->config->full_scale - offset;
+	if (fill < 0) {
+		fill = 0;
+	}
+	if (fill > width) {
+		fill = width;
+	}
+	return fill;
+}
+
+static int16_t UI_SegmentedBar_labelValue(const UI_SegmentedBar *bar, uint16_t label) {
+	if (label == 0) {
+		return -bar->config->full_scale;
+	}
+	if (label == bar->label_count - 1) {
+		return bar->config->full_scale;
+	}
+	return ((int32_t)label - bar->label_count / 2) * bar->label_step;
+}
+
+static void UI_SegmentedBar_formatLabel(const UI_SegmentedBar *bar, int16_t value, char *text, size_t size) {
+	const UI_SegmentedBarConfig *config = bar->config;
+	uint32_t factor = 1;
+	for (uint8_t digit = 0; digit < config->decimal_places; digit++) {
+		factor *= 10;
+	}
+	uint32_t magnitude = value;
+	const char *sign = "";
+	if (value < 0) {
+		magnitude = -(int32_t)value;
+	}
+	uint32_t scaled = (magnitude * factor + config->value_divisor / 2) / config->value_divisor;
+	if (value < 0 && scaled != 0) {
+		sign = "-";
+	}
+	if (config->decimal_places == 0) {
+		snprintf(text, size, "%s%lu%s", sign, (unsigned long)scaled, config->unit);
+	} else {
+		snprintf(text, size, "%s%lu.%0*lu%s", sign, (unsigned long)(scaled / factor),
+			config->decimal_places, (unsigned long)(scaled % factor), config->unit);
+	}
+}
+
+static uint16_t UI_SegmentedBar_labelX(const UI_SegmentedBar *bar, int16_t value, uint16_t width) {
+	const UI_SegmentedBarConfig *config = bar->config;
+	int32_t center = bar->center_x + config->zero_width / 2;
+	int32_t position;
+	if (value < 0) {
+		position = center + (int32_t)value * (center - config->x) / config->full_scale;
+	} else {
+		position = center + (int32_t)value * (config->x + config->width - 1 - center) / config->full_scale;
+	}
+	position -= width / 2;
+	if (position < config->x) {
+		position = config->x;
+	}
+	if (position + width > config->x + config->width) {
+		position = config->x + config->width - width;
+	}
+	return position;
+}
+
+// Check the actual text widths before selecting a fixed label layout.
+static bool UI_SegmentedBar_labelsFit(const UI_SegmentedBar *bar) {
+	const UI_SegmentedBarConfig *config = bar->config;
+	uint32_t previous_end = 0;
+	char previous_text[32] = "";
+	for (uint16_t label = 0; label < bar->label_count; label++) {
+		int16_t value = UI_SegmentedBar_labelValue(bar, label);
+		char text[32];
+		UI_SegmentedBar_formatLabel(bar, value, text, sizeof(text));
+		ST7789_TextSize size;
+		ST7789_MeasureText(text, config->label_font, &size);
+		if (size.width > config->width) {
+			return false;
+		}
+		uint16_t x = UI_SegmentedBar_labelX(bar, value, size.width);
+		if (label != 0 && x < previous_end + config->label_min_gap) {
+			return false;
+		}
+		// Avoid labels that round to the same displayed number.
+		if (label != 0 && strcmp(text, previous_text) == 0) {
+			return false;
+		}
+		strcpy(previous_text, text);
+		previous_end = x + size.width;
+	}
+	return true;
+}
+
+void UI_SegmentedBar_init(UI_SegmentedBar *bar, const UI_SegmentedBarConfig *config) {
+	int32_t marker_height = (int32_t)config->height - Fonts[config->label_font].height - config->label_gap;
+	int32_t side_width = ((int32_t)config->width - config->zero_width) / 2;
+	int32_t gaps = config->center_gap + (config->segments_per_side - 1) * config->segment_gap;
+	if (config->full_scale <= 0 || config->value_divisor == 0 || config->decimal_places > SEGMENTED_BAR_MAX_DECIMAL_PLACES ||
+		config->segments_per_side == 0 || config->zero_width == 0 ||
+		marker_height <= 2 * config->zero_extension || side_width - gaps < config->segments_per_side ||
+		(uint32_t)config->x + config->width > ST7789_WIDTH ||
+		(uint32_t)config->y + config->height > ST7789_HEIGHT) {
+		Error_Handler();
+		return;
+	}
+	*bar = (UI_SegmentedBar){0};
+	bar->config = config;
+	bar->center_x = config->x + side_width;
+	bar->segment_height = marker_height - 2 * config->zero_extension;
+	bar->fill_width[0] = side_width - gaps;
+	bar->fill_width[1] = config->width - config->zero_width - side_width - gaps;
+
+	// Try increasingly spaced labels using readable intervals: 1, 2, 5, 10, 20, 50...
+	uint32_t step = 1;
+	uint32_t decade = 1;
+	while (true) {
+		if (step > config->full_scale) {
+			step = config->full_scale;
+		}
+		bar->label_step = step;
+		bar->label_count = 2 * ((config->full_scale - 1) / step) + 3;
+		if (UI_SegmentedBar_labelsFit(bar)) {
+			break;
+		}
+		if (step == config->full_scale) {
+			Error_Handler();
+			return;
+		}
+		if (step == decade) {
+			step = 2 * decade;
+		} else if (step == 2 * decade) {
+			step = 5 * decade;
+		} else {
+			decade *= 10;
+			step = decade;
+		}
+	}
+}
+
+void UI_SegmentedBar_startRendering(UI_SegmentedBar *bar, int32_t value, bool first_draw) {
+	// Limit the captured value to the range represented by the bar.
+	if (value > bar->config->full_scale) {
+		value = bar->config->full_scale;
+	}
+	if (value < -bar->config->full_scale) {
+		value = -bar->config->full_scale;
+	}
+	bar->value = value;
+	bar->segment = 0;
+	bar->label = 0;
+	bar->drawn = !first_draw && bar->value == bar->drawn_value;
+	if (first_draw) {
+		bar->step = 0;
+		bar->drawn_value = 0;
+	} else {
+		bar->step = 3;
+	}
+}
+
+bool UI_SegmentedBar_render(UI_SegmentedBar *bar) {
+	if (bar->drawn) {
+		return true;
+	}
+	if (ST7789_GetState() != ST7789_STATE_IDLE) {
+		return false;
+	}
+	const UI_SegmentedBarConfig *config = bar->config;
+	switch (bar->step) {
+		case 0: {
+			// Draw the empty segments only on the first draw.
+			uint16_t x, width, offset, side;
+			UI_SegmentedBar_segmentGeometry(bar, bar->segment, &x, &width, &offset, &side);
+			ST7789_DrawFilledRectangle(x, config->y + config->zero_extension,
+				width, bar->segment_height, config->color_track);
+			bar->segment++;
+			if (bar->segment == 2 * config->segments_per_side) {
+				bar->segment = 0;
+				bar->step++;
+			}
+			break;
+		}
+		case 1:
+			// Draw the fixed zero marker only on the first draw.
+			ST7789_DrawFilledRectangle(bar->center_x, config->y, config->zero_width,
+				bar->segment_height + 2 * config->zero_extension, config->color_zero);
+			bar->step++;
+			break;
+
+		case 2: {
+			// Labels belong to the item and remain fixed between updates.
+			int16_t value = UI_SegmentedBar_labelValue(bar, bar->label);
+			char text[32];
+			UI_SegmentedBar_formatLabel(bar, value, text, sizeof(text));
+			ST7789_TextSize size;
+			ST7789_MeasureText(text, config->label_font, &size);
+			ST7789_WriteString(UI_SegmentedBar_labelX(bar, value, size.width),
+				config->y + config->height - Fonts[config->label_font].height,
+				text, config->label_font, config->color_label, config->color_background);
+			bar->label++;
+			if (bar->label == bar->label_count) {
+				bar->step++;
+			}
+			break;
+		}
+		case 3:
+			// Skip unchanged segments; submit at most one rectangle per call.
+			while (bar->segment < 2 * config->segments_per_side) {
+				uint16_t segment = bar->segment;
+				bar->segment++;
+				uint16_t x, width, offset, side;
+				UI_SegmentedBar_segmentGeometry(bar, segment, &x, &width, &offset, &side);
+				uint16_t old_fill = UI_SegmentedBar_segmentFill(bar, bar->drawn_value, side, offset, width);
+				uint16_t new_fill = UI_SegmentedBar_segmentFill(bar, bar->value, side, offset, width);
+				if (old_fill == new_fill) {
+					continue;
+				}
+				uint16_t small;
+				uint16_t large;
+				uint16_t color;
+				if (new_fill > old_fill) {
+					small = old_fill;
+					large = new_fill;
+					color = config->color_fill;
+				} else {
+					small = new_fill;
+					large = old_fill;
+					color = config->color_track;
+				}
+				if (side == 0) {
+					x += width - large;
+				} else {
+					x += small;
+				}
+				ST7789_DrawFilledRectangle(x, config->y + config->zero_extension,
+					large - small, bar->segment_height, color);
+				return false;
+			}
+			// All submitted transfers have completed before saving the displayed value.
+			bar->drawn_value = bar->value;
+			bar->drawn = true;
+			return true;
+	}
+	return false;
+}
+
+// =======================================================================
 // Graph
 // =======================================================================
 
 static void UI_Trace_process(UI_Graph *graph, UI_GraphSample sample, bool usable, uint32_t now) {
-	UI_Trace *trace = &graph->history;
-	uint16_t capacity = graph->config.capacity;
-	uint32_t missing;
+	UI_Trace*	trace		= &graph->history;
+	uint16_t	capacity	= graph->config.capacity;
+	uint32_t	missing;
 	if (trace->count == 0) {
 		// Start the history only when the first usable sample is available
 		trace->last_tick = now;
@@ -352,13 +629,17 @@ static void UI_FormatGraphTime(char *text, uint32_t ms) {
 }
 
 static int32_t UI_Graph_valueY(const UI_Graph *graph, int32_t value) {
-	if (value < graph->minimum) {
-		value = graph->minimum;
+	int32_t minimum = 0;
+	if (graph->config.symmetric_scale) {
+		minimum = -(int32_t)graph->maximum;
+	}
+	if (value < minimum) {
+		value = minimum;
 	} else if (value > graph->maximum) {
 		value = graph->maximum;
 	}
 	return (graph->maximum - value) * (graph->config.height - 1) /
-			(graph->maximum - graph->minimum);
+			(graph->maximum - minimum);
 }
 
 // Position is expressed in sample intervals multiplied by the pixel width.
@@ -499,11 +780,6 @@ static void UI_Graph_updateScale(UI_Graph *graph, bool first_draw, uint32_t now)
 	}
 
 	graph->maximum = (int16_t)current;
-	if (graph->config.symmetric_scale) {
-		graph->minimum = (int16_t)-current;
-	} else {
-		graph->minimum = 0;
-	}
 }
 
 static void UI_Graph_prepareLegend(UI_Graph *graph) {
@@ -565,7 +841,7 @@ void UI_Graph_init(UI_Graph *graph, const UI_GraphConfig *config) {
 	graph->history.last_tick = HAL_GetTick();
 }
 
-void UI_Graph_process(UI_Graph *graph, UI_GraphSample sample, bool usable, uint32_t now) {
+void UI_Graph_updateHistory(UI_Graph *graph, UI_GraphSample sample, bool usable, uint32_t now) {
 	UI_Trace_process(graph, sample, usable, now);
 }
 
@@ -574,11 +850,7 @@ void UI_Graph_startRendering(UI_Graph *graph, bool first_draw) {
 	UI_Graph_updateScale(graph, first_draw, now);
 
 	// Use one format for every Y label, based on the largest absolute limit
-	int32_t largest = graph->maximum;
-	if (-(int32_t)graph->minimum > largest) {
-		largest = -(int32_t)graph->minimum;
-	}
-	uint32_t integer_part = largest / 10;
+	uint32_t integer_part = graph->maximum / 10;
 	uint8_t integer_digits = 1;
 	while (integer_part >= 10) {
 		integer_part /= 10;
@@ -591,8 +863,7 @@ void UI_Graph_startRendering(UI_Graph *graph, bool first_draw) {
 		graph->decimal_places = graph->config.max_digits - integer_digits;
 	}
 
-	bool scale_changed = graph->minimum != graph->drawn_minimum ||
-		graph->maximum != graph->drawn_maximum;
+	bool scale_changed = graph->maximum != graph->drawn_maximum;
 	graph->first_draw = first_draw;
 	graph->drawn = false;
 	graph->tick = 0;
@@ -628,7 +899,11 @@ bool UI_Graph_render(UI_Graph *graph) {
 			// Draw three value labels and three time labels
 			char text[16];
 			if (graph->tick < 3) {
-				int32_t value = graph->maximum - ((int32_t)graph->maximum - graph->minimum) * graph->tick / 2;
+				int32_t range = graph->maximum;
+				if (graph->config.symmetric_scale) {
+					range *= 2;
+				}
+				int32_t value = graph->maximum - range * graph->tick / 2;
 				int32_t magnitude = value;
 				if (magnitude < 0) {
 					magnitude = -magnitude;
@@ -733,7 +1008,6 @@ bool UI_Graph_render(UI_Graph *graph) {
 
 		default:
 			graph->drawn_version = graph->snapshot_version;
-			graph->drawn_minimum = graph->minimum;
 			graph->drawn_maximum = graph->maximum;
 			graph->drawn = true;
 			return true;

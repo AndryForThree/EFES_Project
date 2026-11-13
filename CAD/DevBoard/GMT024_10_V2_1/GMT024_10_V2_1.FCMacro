@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""GMT024-10 V2.1: modello semplificato a quote fisse per KiCad.
+
+XY: quote dell'utente, origine nel pin 1, X destra e Y basso guardando
+il display. Per una terna destrorsa Z positivo va verso il RETRO:
+display a Z negativo, pin posteriori a Z positivo. Z=0 e' il fronte PCB.
+In KiCad, per avere il display verso +Z, ruotare il modello 180 gradi su X.
+
+STIME: PCB 1.6 mm; fori montaggio Ø2.8 (solo M2.5 provate, diametro ignoto);
+pin quadrati 0.64 mm, corpo connettore 2.54 mm, parte libera pin 6 mm.
+Pannello, spessori e flex sono approssimati dalle foto.
+Nessun disegno meccanico ufficiale: il modello serve a visualizzare gli ingombri.
+La macro crea il documento ed esporta lo STEP colorato nella stessa cartella.
+"""
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+from pathlib import Path
+
+V = App.Vector
+doc = App.newDocument('GMT024_10_V2_1')
+pezzi = []
+
+
+def aggiungi(nome, forma, colore, etichetta=None):
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma
+    obj.Label = etichetta or nome.replace('_', ' ')
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (0.12, 0.12, 0.12)
+    pezzi.append(obj)
+    return obj
+
+
+# PCB: tutte le posizioni XY sotto sono quelle fornite, senza riscalature.
+fori = [(-10.88, 0.45), (26.12, 0.45), (-10.88, 66.95), (26.12, 66.95)]
+segnali = ['GND', 'VCC', 'SCK', 'SDA', 'RST', 'DC', 'CS']
+pcb = Part.makeBox(42.50, 71.00, 1.60, V(-13.63, -1.80, 0))
+for x, y in fori:
+    pcb = pcb.cut(Part.makeCylinder(1.40, 1.80, V(x, y, -0.10)))
+for i in range(7):
+    pcb = pcb.cut(Part.makeCylinder(0.50, 1.80, V(2.54*i, 0, -0.10)))
+obj_pcb = aggiungi('PCB', pcb, (0.065, 0.105, 0.105), 'PCB 42.50 x 71.00 mm')
+obj_pcb.addProperty('App::PropertyStringList', 'QuoteStimate', 'Note')
+obj_pcb.QuoteStimate = ['PCB: spessore 1.6 mm', 'Fori montaggio: Ø2.8 mm',
+    'Pin: sezione 0.64 x 0.64 mm, sporgenza libera posteriore 6 mm',
+    'Corpo header: altezza 2.54 mm', 'Pannello e flex: ingombri indicativi da foto']
+
+# Poche forme colorate rendono riconoscibile il display.
+aggiungi('Cornice_Backlight', Part.makeBox(42.0, 61.5, 2.8, V(-13.38, 2.70, -2.80)),
+         (0.82, 0.84, 0.80), 'Cornice e backlight - stima')
+aggiungi('Vetro_TFT', Part.makeBox(40.5, 54.5, 0.30, V(-12.63, 4.0, -3.10)),
+         (0.025, 0.035, 0.045), 'Vetro TFT - stima')
+# Area visiva indicativa: circa 2.4 pollici, proporzioni 240:320.
+aggiungi('Schermo', Part.makeBox(36.72, 48.96, 0.06, V(-10.74, 6.0, -3.16)),
+         (0.025, 0.060, 0.085), 'Schermo 240 x 320 - area stimata')
+aggiungi('Fascia_Inferiore_TFT', Part.makeBox(39.5, 5.0, 0.25, V(-12.13, 58.5, -3.05)),
+         (0.055, 0.055, 0.060))
+aggiungi('Flex_Display', Part.makeBox(14.0, 2.4, 0.12, V(0.62, 61.5, -3.17)),
+         (0.80, 0.39, 0.075), 'Flat flessibile - indicativo')
+
+# Header diritto sul retro: sette pin distinti, con nomi/pinout leggibili.
+corpo = Part.makeBox(17.78, 2.54, 2.54, V(-1.27, -1.27, 1.60))
+for i in range(7):
+    corpo = corpo.cut(Part.makeBox(0.64, 0.64, 2.74, V(2.54*i-0.32, -0.32, 1.50)))
+aggiungi('Corpo_Header', corpo, (0.045, 0.045, 0.050), 'Header maschio 1x7, passo 2.54 mm - retro')
+for i, segnale in enumerate(segnali):
+    # Z=4.14..10.14: 6 mm liberi oltre l'isolante; coda saldata fino a Z=-0.8.
+    pin = aggiungi('Pin_%d_%s' % (i+1, segnale),
+        Part.makeBox(0.64, 0.64, 10.94, V(2.54*i-0.32, -0.32, -0.80)),
+        (0.78, 0.65, 0.30), 'Pin %d - %s' % (i+1, segnale))
+    pin.addProperty('App::PropertyInteger', 'NumeroPin', 'Connettore')
+    pin.NumeroPin = i+1
+
+# Piazzole frontali; il pin 1 e' quadrato per rendere riconoscibile l'origine.
+piazzole = []
+for i in range(7):
+    x = 2.54*i
+    pad = (Part.makeBox(1.8, 1.8, 0.035, V(x-0.9, -0.9, -0.035)) if i==0 else
+           Part.makeCylinder(0.9, 0.035, V(x, 0, -0.035)))
+    piazzole.append(pad.cut(Part.makeCylinder(0.5, 0.10, V(x, 0, -0.06))))
+aggiungi('Piazzole_Header', Part.makeCompound(piazzole), (0.68, 0.60, 0.40))
+anelli = []
+for x, y in fori:
+    for z in (-0.035, 1.60):
+        anelli.append(Part.makeCylinder(2.0, 0.035, V(x, y, z)).cut(
+            Part.makeCylinder(1.4, 0.10, V(x, y, z-0.02))))
+aggiungi('Piazzole_Montaggio', Part.makeCompound(anelli), (0.65, 0.59, 0.43))
+
+# Nessun STL o FCStd supplementare: solamente il modello STEP richiesto.
+doc.recompute()
+cartella = (Path(__file__).resolve().parent if '__file__' in globals() else
+            Path('/home/andrea/Scuola/EFES_Project/CAD/DevBoard/GMT024_10_V2_1'))
+file_step = cartella / 'GMT024_10_V2_1.step'
+ImportGui.export(pezzi, str(file_step))
+Gui.activeDocument().activeView().viewBottom()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('GMT024-10 V2.1: STEP creato in %s\n' % file_step)
+App.Console.PrintMessage('Quote XY fornite rispettate; spessori, altezze pin e fori Ø2.8 sono stime.\n')
+App.Console.PrintMessage('XY: pin 1 origine, X destra / Y basso lato display. Z positivo verso il retro.\n')

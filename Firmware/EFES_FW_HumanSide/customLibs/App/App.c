@@ -130,7 +130,9 @@ static void App_HandleNavigationButton(button_event_t event) {
 	}
 
 	// Any other long press in Page Navigation is ignored
-	if (event.type != BUTTON_SHORT_PRESS) return;
+	if (event.type != BUTTON_SHORT_PRESS) {
+		return;
+	}
 
 	// In Page Navigation, Button Down and Button up are used to move though
 	// the pages in opposite directions
@@ -182,7 +184,9 @@ static void App_HandleSettingsButton(button_event_t event) {
 	}
 
 	// Only short presses of buttons are used to navigate menu!
-	if (event.type != BUTTON_SHORT_PRESS) return;
+	if (event.type != BUTTON_SHORT_PRESS) {
+		return;
+	}
 
 	// Decide how to handle button inputs based on the Menu mode the App is in at the moment
 	switch (app_view.menu_mode) {
@@ -208,7 +212,9 @@ static void App_HandleSettingsButton(button_event_t event) {
 						break;
 					
 					case APP_ITEM_ACTION:
-						if (item->action == NULL) break;
+						if (item->action == NULL) {
+							break;
+						}
 						app_view.confirm_ok = false;					// By default, select the CANCEL option of the action
 						app_view.menu_mode = APP_MENU_CONFIRM;			// Enter in the confirmation mode of the menu
 						break;

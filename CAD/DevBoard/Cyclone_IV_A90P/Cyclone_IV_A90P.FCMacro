@@ -1,0 +1,135 @@
+# -*- coding: utf-8 -*-
+"""Cyclone IV E A90P: modello semplificato, STEP colorato accanto alla macro.
+Origine: foro superiore sinistro, vista componenti con USB a sinistra.
+X verso destra, Y verso il basso. Z=0 sul fronte PCB, positivo verso il retro.
+Contorno 88x51 e interassi fori 81x44 secondo le misure fornite.
+Connettori, relativi pin, pulsanti e FPGA: ingombri/posizioni stimati da foto,
+non riferimenti verificati per creare footprint elettrici o aperture precise.
+KiCad: rotazione X=180 gradi, quota Z secondo i distanziali scelti.
+"""
+from pathlib import Path
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+# Sole quote non misurate utili al montaggio (mm).
+diametro_fori = 3.2
+spessore_pcb = 1.6
+
+V = App.Vector
+doc = App.newDocument('Cyclone_IV_A90P')
+pezzi = []
+nero = (0.045, 0.045, 0.050)
+metallo = (0.73, 0.74, 0.76)
+
+
+def aggiungi(nome, forma, colore, etichetta=None):
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma
+    obj.Label = etichetta or nome.replace('_', ' ')
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (0.12, 0.12, 0.12)
+    pezzi.append(obj)
+    return obj
+
+
+def fronte(nome, x, y, lx, ly, h, colore, etichetta=None):
+    return aggiungi(nome, Part.makeBox(lx, ly, h, V(x, y, -h)), colore, etichetta)
+
+
+# Quattro fori circolari: le asole del carrier non appartengono a questa scheda.
+fori = ((0., 0.), (81., 0.), (0., 44.), (81., 44.))
+assert 0 < diametro_fori < 6.0, 'Diametro fori incompatibile con margine PCB'
+assert spessore_pcb > 0
+pcb = Part.makeBox(88., 51., spessore_pcb, V(-3.5, -3.5, 0))
+for x, y in fori:
+    pcb = pcb.cut(Part.makeCylinder(diametro_fori/2, spessore_pcb+0.2, V(x, y, -0.1)))
+obj_pcb = aggiungi('PCB', pcb, (0.065, 0.085, 0.085), 'A90P - PCB 88 x 51 mm')
+obj_pcb.addProperty('App::PropertyStringList', 'NoteQuote', 'Note')
+obj_pcb.NoteQuote = ['Interassi fori misurati: 81 x 44 mm',
+    'Diametro fori stimato: %.2f mm (regolabile a inizio macro)' % diametro_fori,
+    'Spessore PCB stimato: %.2f mm' % spessore_pcb,
+    'Connettori, FPGA e pulsanti: posizioni e altezze indicative da foto',
+    'Pin header: passo nominale 2.54 mm, conteggi stimati da foto',
+    'Orientamento: ultima foto, USB a sinistra']
+
+# Header maschi frontali: due file lunghe 2x23 e una laterale 2x12.
+# I pin sono riuniti per connettore per mantenere leggero l'albero del modello.
+def header(nome, x, y, numero, verticale=False):
+    lx, ly = ((5.08, numero*2.54) if verticale else (numero*2.54, 5.08))
+    corpo = Part.makeBox(lx, ly, 2.54, V(x-1.27, y-1.27, -2.54))
+    pins = []
+    forature = []
+    for i in range(numero):
+        for j in range(2):
+            px = x+2.54*(j if verticale else i)
+            py = y+2.54*(i if verticale else j)
+            forature.append(Part.makeCylinder(0.5, spessore_pcb+0.2, V(px, py, -0.1)))
+            corpo = corpo.cut(Part.makeBox(0.64, 0.64, 2.74, V(px-0.32, py-0.32, -2.64)))
+            pins.append(Part.makeBox(0.64, 0.64, 8.54+spessore_pcb+0.8,
+                                    V(px-0.32, py-0.32, -8.54)))
+    obj_pcb.Shape = obj_pcb.Shape.cut(Part.makeCompound(forature))
+    aggiungi(nome+'_Isolante', corpo, nero)
+    aggiungi(nome+'_Pin', Part.makeCompound(pins), (0.76, 0.73, 0.61))
+
+header('Header_Superiore_2x23', 19.0, -1.4, 23)
+header('Header_Inferiore_2x23', 19.0, 43.0, 23)
+header('Header_Destro_2x12', 74.0, 8.0, 12, True)
+
+# JTAG 2x5 verticale con guscio aperto e tacca laterale per la chiave.
+# L'innesto del cavo avviene frontalmente, normale al PCB.
+guscio = Part.makeBox(9., 21., 8.8, V(9., 11.5, -8.8))
+guscio = guscio.cut(Part.makeBox(6.8, 18.8, 8., V(10.1, 12.6, -9.0)))
+guscio = guscio.cut(Part.makeBox(1.3, 4.5, 7.2, V(8.9, 19.75, -9.0)))
+aggiungi('JTAG_Guscio', guscio, nero, 'JTAG 2x5 - ingombro stimato, innesto frontale')
+pins = []
+for i in range(5):
+    for x in (12.23, 14.77):
+        pins.append(Part.makeBox(0.64, 0.64, 6., V(x-0.32, 16.92+2.54*i-0.32, -7.0)))
+aggiungi('JTAG_Pin', Part.makeCompound(pins), metallo)
+
+# USB sul bordo sinistro, apertura verso X negativo, senza cavo inserito.
+usb = Part.makeBox(8.5, 8., 3.2, V(-4.5, 18., -3.2))
+usb = usb.cut(Part.makeBox(8., 6.8, 2.3, V(-4.6, 18.6, -2.75)))
+aggiungi('USB_Guscio', usb, metallo, 'USB - ingombro indicativo, ingresso da sinistra')
+aggiungi('USB_Linguetta', Part.makeBox(5.5, 4.8, 0.55, V(-3., 19.6, -1.65)), nero)
+
+# FPGA centrale: corpo e cornice di terminali stilizzati, senza singoli pin fini.
+fronte('FPGA_EP4CE6E22C8N', 37., 12., 20., 20., 1.6, (0.10, 0.10, 0.11))
+terminali = []
+for x, y, lx, ly in ((36., 12., 1., 20.), (57., 12., 1., 20.),
+                     (37., 11., 20., 1.), (37., 32., 20., 1.)):
+    terminali.append(Part.makeBox(lx, ly, 0.2, V(x, y, -0.2)))
+aggiungi('FPGA_Terminali_Stilizzati', Part.makeCompound(terminali), metallo)
+aggiungi('FPGA_Indice', Part.makeCylinder(0.45, 0.02, V(38.5, 13.5, -1.62)),
+         (0.28, 0.28, 0.29))
+
+# Cinque pulsanti lungo il bordo destro, incluso RESET.
+for i, y in enumerate((4., 15., 22., 29., 40.)):
+    fronte('Pulsante_%d_Base' % (i+1), 79., y-2.25, 4.5, 4.5, 1.8, metallo)
+    aggiungi('Pulsante_%d_Tasto' % (i+1),
+             Part.makeCylinder(1.6, 0.9, V(81.25, y, -2.7)), (0.90, 0.88, 0.69),
+             'RESET' if i==2 else 'Pulsante %d' % (i+1))
+
+# Piccolo comando alimentazione a sinistra e jumper riconoscibili.
+fronte('Comando_Alimentazione_Base', -2.7, 10., 6., 6., 1.7, nero)
+aggiungi('Comando_Alimentazione_Leva', Part.makeBox(3., 3.5, 3.2, V(-2.2, 11.25, -4.9)),
+         (0.88, 0.88, 0.79))
+for nome, x, y in (('Jumper_Alto', 19., -2.4), ('Jumper_Basso', 26.62, 42.)):
+    # Due cavita lasciano spazio ai pin gia modellati.
+    forma = Part.makeBox(2.4, 5., 5.5, V(x-1.2, y, -7.8))
+    for py in (y+1., y+3.54):
+        forma = forma.cut(Part.makeBox(0.8, 0.8, 5.7, V(x-0.4, py-0.4, -7.9)))
+    aggiungi(nome, forma, (0.95, 0.72, 0.02))
+
+# Output unico STEP; niente STL o file FCStd aggiuntivi.
+doc.recompute()
+cartella = (Path(__file__).resolve().parent if '__file__' in globals() else
+            Path('/home/andrea/Scuola/EFES_Project/CAD/DevBoard/Cyclone_IV_A90P'))
+file_step = cartella / 'Cyclone_IV_A90P.step'
+ImportGui.export(pezzi, str(file_step))
+Gui.activeDocument().activeView().viewBottom()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('Cyclone IV A90P: STEP creato in %s\n' % file_step)
+App.Console.PrintMessage('PCB 88x51 mm, fori interasse 81x44 mm; connettori e componenti stimati da foto.\n')

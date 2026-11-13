@@ -1,5 +1,5 @@
 Reference per velocita angolare massima del volante controllato da drivers:
-https://manuals.plus/m/5ce3edc0e3438f2a29177023d7cb16e53d13941355f3b6a05a46ad5be3907463?utm_source=chatgpt.com#google_vignette
+https://manuals.plus/m/5ce3edc0e3438f2a29177023d7cb16e53d13941355f3b6a05a46ad5be3907463?utm_source=chatgpt.com#google_vignetteTCAN3413DR
 
 ABS Sheet su Aliexpress per fare da base al progetto (si trova a dazi coperti)
 
@@ -7,10 +7,30 @@ DRV8871 Driver da comprare (si trova su aliexpress la schedina gia fatta)
 DRV8876 Driver da comprare (si trova su aliexpress la schedina gia fatta) 
 DRV8874 Driver da comprare (si trova su aliexpress la schedina gia fatta) Probabilmente il migliore (bassa Rds ON)
 
-TCAN3414DR		CAN FD Tranciver
+TCAN3413DR		CAN FD Tranciver
 
 TS02-66-50-BK-100-LCR-D	Pulsante generale
 
 PTV09A-2020U-B102	Potenziometro
 
-			Magnete radiale (Digikey)
+9049			Magnete radiale (Digikey)
+BEARING-624ZZ		Cuscinetto (DigiKey)
+
+
+
+
+BSS138				MOSFET
+
+APT1608SGD3			LED GREEN
+LY Q976.01-Q1R2-36-1		LED Yelllow
+LR Q976.01-P2R2-1-20-R18	LED RED
+
+
+CMS-30204-18L200		Speaker
+
+TMUX1219DBVR			ADC MUX (unico prob -> 12 Ohm di mismatch Ron tra diversi package)
+ADS7044IDCUR			ADC Diff. 
+INA500BIDBVR			INA (OpAmp da STrumentazione)
+				Anti Aliasing Filter - Series Resistor
+				Anti Aliasing Filter - Parallel Resistor
+				Anti Aliasing Filter - Cap.

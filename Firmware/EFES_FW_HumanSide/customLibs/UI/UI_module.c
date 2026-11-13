@@ -85,8 +85,10 @@ void UI_Process(void) {
 		switch (ui.phase) {
 			case RENDER_IDLE:
 				// If there is no new request, remain in Idle and do nothing
-				if (!ui.refresh_pending) break;
-				
+				if (!ui.refresh_pending) {
+					break;
+				}
+
 				ui.refresh_pending = false;					// Consume the refresh request
 				ui.phase = RENDER_PAGE;						// Start rendering the page
 				break;

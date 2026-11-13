@@ -100,7 +100,7 @@ static ST7789_Result WriteAngle(uint16_t x, int angle, uint16_t color)
 
 bool UI_Steering_Process(const App_View *current, bool draw)
 {
-	UI_Graph_process(&history_graph, (UI_GraphSample){
+	UI_Graph_updateHistory(&history_graph, (UI_GraphSample){
 		.values = { current->operating.road_requested_angle_deci_deg, current->road.actual_angle_deci_deg }
 	}, current->road.valid, HAL_GetTick());
 	if (current->page != response.page) {
@@ -112,10 +112,14 @@ bool UI_Steering_Process(const App_View *current, bool draw)
 		response.rendering = false;
 		return false;
 	}
-	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+	if (ST7789_GetState() != ST7789_STATE_IDLE) {
+		return false;
+	}
 
 	if (!response.rendering) {
-		if (response.first_frame) PrepareRender();
+		if (response.first_frame) {
+			PrepareRender();
+		}
 		response.render_view = *current;
 		response.render_started_at_ms = HAL_GetTick();
 		response.developer_started = false;
@@ -130,7 +134,9 @@ bool UI_Steering_Process(const App_View *current, bool draw)
 	}
 	const App_View *state = &response.render_view;
 
-	if (!UI_Header_render(&response.header)) return false;
+	if (!UI_Header_render(&response.header)) {
+		return false;
+	}
 
 	ST7789_Result result = ST7789_OK;
 	const App_View *old = &response.drawn_state;
@@ -168,38 +174,47 @@ bool UI_Steering_Process(const App_View *current, bool draw)
 			}
 			return false;
 		case RESPONSE_REQUESTED:
-			if (first || state->operating.road_requested_angle_deci_deg != old->operating.road_requested_angle_deci_deg)
+			if (first || state->operating.road_requested_angle_deci_deg != old->operating.road_requested_angle_deci_deg) {
 				result = WriteAngle(8, state->operating.road_requested_angle_deci_deg, STEERING_REQUESTED_COLOR);
+			}
 			break;
 		case RESPONSE_ACTUAL:
 			if (first || status_changed || state->road.actual_angle_deci_deg != old->road.actual_angle_deci_deg) {
-				if (fault)
+				if (fault) {
 					result = ST7789_WriteTextField(168, 47, 132, "N/A", STEERING_FONT_VALUE,
 								ST7789_TEXT_RIGHT, STEERING_FAULT_COLOR, UI_CARD_BACKGROUND);
-				else
+				} else {
 					result = WriteAngle(168, state->road.actual_angle_deci_deg, actual_color);
+			}
 			}
 			break;
 		case RESPONSE_ACTUAL_UNIT:
-			if (status_changed)
+			if (status_changed) {
 				result = ST7789_WriteTextField(301, 47, 10, fault ? "" : "\xB0", STEERING_FONT_LABEL,
 							ST7789_TEXT_LEFT, actual_color, UI_CARD_BACKGROUND);
+			}
 			break;
 		case RESPONSE_STATUS_DOT:
-			if (status_changed)
+			if (status_changed) {
 				result = ST7789_DrawFilledCircle(256, 97, 3, status_color, UI_CARD_BACKGROUND);
+			}
 			break;
 		case RESPONSE_STATUS_TEXT:
-			if (status_changed)
+			if (status_changed) {
 				result = ST7789_WriteTextField(266, 90, 41,
 							fault ? "FAULT" : (response.status == FEEDBACK_STALE ? "STALE" : "LIVE"),
 							STEERING_FONT_STATUS, ST7789_TEXT_RIGHT, status_color, UI_CARD_BACKGROUND);
+			}
 			break;
 		case RESPONSE_GRAPH:
-			if (!UI_Graph_render(&history_graph)) return false;
+			if (!UI_Graph_render(&history_graph)) {
+				return false;
+			}
 			break;
 		case RESPONSE_DRIVING_MODE:
-			if (!UI_DrivingMode_render(&response.driving_mode)) return false;
+			if (!UI_DrivingMode_render(&response.driving_mode)) {
+				return false;
+			}
 			break;
 		case RESPONSE_FINISH: {
 			if (state->developer_mode) {
@@ -209,7 +224,9 @@ bool UI_Steering_Process(const App_View *current, bool draw)
 						response.first_frame || !response.drawn_state.developer_mode);
 					response.developer_started = true;
 				}
-				if (!UI_DeveloperMode_render(&response.developer_mode)) return false;
+				if (!UI_DeveloperMode_render(&response.developer_mode)) {
+					return false;
+				}
 			}
 			response.drawn_state = *state;
 			response.drawn_status = response.status;
@@ -220,6 +237,8 @@ bool UI_Steering_Process(const App_View *current, bool draw)
 		}
 	}
 
-	if (result == ST7789_OK) response.step++;
+	if (result == ST7789_OK) {
+		response.step++;
+	}
 	return false;
 }

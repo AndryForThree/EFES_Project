@@ -57,7 +57,9 @@ static void ST7789_WriteSmallData(uint8_t data)
 ST7789_Result ST7789_SetRotation(uint8_t m)
 {
 	ST7789_GraphicsReady();
-	if (m != 1 && m != 3) Error_Handler();
+	if (m != 1 && m != 3) {
+		Error_Handler();
+	}
 	ST7789_WriteCommand(ST7789_MADCTL);	// MADCTL
 	switch (m) {
 		case 1:
@@ -107,7 +109,9 @@ void ST7789_BeginWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
  */
 ST7789_Result ST7789_Init(void)
 {
-	if (ST7789_GetState() == ST7789_STATE_BUSY) Error_Handler();
+	if (ST7789_GetState() == ST7789_STATE_BUSY) {
+		Error_Handler();
+	}
 	ST7789_TransportInit();
 	ST7789_GraphicsReset();
 	/* External reset is released together with MCU nRST. */

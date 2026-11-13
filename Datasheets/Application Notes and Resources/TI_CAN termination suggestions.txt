@@ -1,0 +1,3 @@
+TI forum with practical suggestion for CAN termination
+
+https://e2e.ti.com/support/interface-group/interface/f/interface-forum/1090880/tcan1463-q1-sizing-of-termination-capacitor?utm_source=chatgpt.com

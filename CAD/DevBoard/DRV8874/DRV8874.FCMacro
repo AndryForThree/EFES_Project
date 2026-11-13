@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""DRV8874, modello semplificato per KiCad. Esporta STEP accanto alla macro.
+Origine XY: centro VREF; X a destra e Y in basso guardando i componenti.
+Z=0: superficie frontale PCB; Z positivo verso retro/header.
+PCB e pin rispettano le coordinate fornite (interasse file 12.70 mm assunto).
+Stime: PCB 1.6 mm, pin quadrati 0.64 mm con 6 mm liberi oltre l'isolante,
+header alto 2.54 mm. Componenti frontali indicativi dalle foto.
+Per KiCad: come per il display, rotazione X=180°, quota Z secondo i socket.
+"""
+from pathlib import Path
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+V = App.Vector
+doc = App.newDocument('DRV8874')
+pezzi = []
+
+
+def aggiungi(nome, forma, colore, etichetta=None):
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma
+    obj.Label = etichetta or nome.replace('_', ' ')
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (0.12, 0.12, 0.12)
+    pezzi.append(obj)
+    return obj
+
+
+# PCB 18 x 15 mm; nessun foro di montaggio, solo i 14 fori dei pin.
+pcb = Part.makeBox(18.0, 15.0, 1.6, V(-1.38, -1.15, 0))
+for y in (0.0, 12.7):
+    for i in range(7):
+        pcb = pcb.cut(Part.makeCylinder(0.5, 1.8, V(2.54*i, y, -0.1)))
+obj_pcb = aggiungi('PCB', pcb, (0.80, 0.025, 0.025), 'DRV8874 - PCB 18 x 15 mm')
+obj_pcb.addProperty('App::PropertyStringList', 'NoteQuote', 'Note')
+obj_pcb.NoteQuote = ['PCB: spessore stimato 1.6 mm',
+    'Interasse file 12.70 mm: assunto, non verificato sul modulo',
+    'Pin: 0.64 x 0.64 mm; 6 mm liberi oltre isolante alto 2.54 mm',
+    'Componenti: dimensioni e posizioni indicative da foto',
+    'Numeri pin riferiti al footprint personalizzato, non al circuito integrato']
+
+# Due header sul retro; pin 1 = VREF, pin 8 = CS/IPROPI.
+file_pin = (
+    (0.0, ('VREF', 'nSLEEP', 'PMODE', 'PH_IN2', 'EN_IN1', 'GND', 'VM')),
+    (12.7, ('CS_IPROPI', 'nFAULT', 'IMODE', 'OUT1', 'OUT2', 'GND', 'VM')),
+)
+piazzole = []
+for fila, (y, segnali) in enumerate(file_pin):
+    corpo = Part.makeBox(17.78, 2.54, 2.54, V(-1.27, y-1.27, 1.6))
+    for i, segnale in enumerate(segnali):
+        x = 2.54*i
+        numero = fila*7+i+1
+        corpo = corpo.cut(Part.makeBox(0.64, 0.64, 2.74, V(x-0.32, y-0.32, 1.5)))
+        pin = aggiungi('Pin_%02d_%s' % (numero, segnale),
+            Part.makeBox(0.64, 0.64, 10.94, V(x-0.32, y-0.32, -0.8)),
+            (0.78, 0.73, 0.58), 'Pin %d - %s' % (numero, segnale))
+        pin.addProperty('App::PropertyInteger', 'NumeroPin', 'Connettore')
+        pin.NumeroPin = numero
+        pad = (Part.makeBox(1.8, 1.8, 0.035, V(x-0.9, y-0.9, -0.035))
+               if numero == 1 else Part.makeCylinder(0.9, 0.035, V(x, y, -0.035)))
+        piazzole.append(pad.cut(Part.makeCylinder(0.5, 0.1, V(x, y, -0.06))))
+    aggiungi('Header_%d' % (fila+1), corpo, (0.045, 0.045, 0.050))
+aggiungi('Piazzole', Part.makeCompound(piazzole), (0.75, 0.70, 0.54))
+
+# IC centrale e piedini stilizzati: ingombri stimati, senza dettagli superflui.
+aggiungi('DRV8874_IC', Part.makeBox(4.4, 5.0, 1.1, V(4.0, 3.85, -1.1)),
+         (0.065, 0.065, 0.070), 'DRV8874 - corpo indicativo')
+piedini = []
+for i in range(8):
+    for y in (3.1, 8.85):
+        piedini.append(Part.makeBox(0.25, 0.75, 0.18, V(4.3+0.5*i, y, -0.18)))
+aggiungi('Piedini_IC', Part.makeCompound(piedini), (0.70, 0.71, 0.73))
+
+# Passivi sul fronte: resistori verso VREF/CS, condensatori verso VM.
+def passivo(nome, x, y, lunghezza, larghezza, altezza, colore):
+    aggiungi(nome, Part.makeBox(lunghezza, larghezza, altezza,
+                              V(x, y, -altezza)), colore)
+    terminali = [Part.makeBox(0.25, larghezza, altezza,
+                             V(px, y, -altezza))
+                 for px in (x-0.25, x+lunghezza)]
+    aggiungi(nome+'_Terminali', Part.makeCompound(terminali), (0.72, 0.73, 0.75))
+
+for i, y in enumerate((3.2, 5.3, 7.4, 9.5)):
+    passivo('Resistore_%d' % (i+1), 1.4, y, 1.1, 0.65, 0.45, (0.09, 0.09, 0.09))
+for i, (x, y, lx, ly, h) in enumerate(((12.2, 2.8, 1.8, 1.2, 1.2),
+        (12.2, 5.4, 1.8, 1.2, 1.2), (10.0, 3.4, 1.1, 0.65, 0.7),
+        (10.0, 8.8, 1.1, 0.65, 0.7), (12.2, 8.3, 1.1, 0.65, 0.7))):
+    passivo('Condensatore_%d' % (i+1), x, y, lx, ly, h, (0.65, 0.48, 0.23))
+
+# Output: solo STEP colorato; rieseguire la macro aggiorna lo stesso file.
+doc.recompute()
+cartella = (Path(__file__).resolve().parent if '__file__' in globals() else
+            Path('/home/andrea/Scuola/EFES_Project/CAD/DevBoard/DRV8874'))
+file_step = cartella / 'DRV8874.step'
+ImportGui.export(pezzi, str(file_step))
+Gui.activeDocument().activeView().viewBottom()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('DRV8874: STEP creato in %s\n' % file_step)
+App.Console.PrintMessage('14 pin, passo 2.54 mm, file a 12.70 mm (assunto). Spessori e componenti stimati.\n')

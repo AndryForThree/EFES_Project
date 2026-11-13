@@ -31,7 +31,7 @@ uint16_t UI_SensorDeviation(const Sensor_State *state);
 // Header Dots parameters
 #define HEADER_DOT_ACTIVE_RADIUS	4		// Dimension of the Active Dot
 #define HEADER_DOT_RADIUS			2		// Dimension of the Inactive dots
-#define HEADER_DOT_SPACING			10		// Distance between dot centers (pixels)
+#define HEADER_DOT_SPACING			10		// Distance between dot centers
 #define HEADER_DOT_RIGHT_MARGIN		10		// Distance from the right edge to the last dot center
 #define HEADER_DOT_ACTIVE_COLOR		UI_TITLE_COLOR
 #define HEADER_DOT_INACTIVE_COLOR	UI_INACTIVE_COLOR
@@ -122,6 +122,57 @@ bool UI_DeveloperMode_render(UI_DeveloperMode *developer_mode);
 
 
 // =======================================================================
+// Segmented bar
+// =======================================================================
+
+#define SEGMENTED_BAR_MAX_DECIMAL_PLACES	3
+
+// Appearance and numeric range selected by the page; zero is at the center.
+typedef struct {
+	uint16_t	x, y;				// Top-left corner of the entire item, including labels
+	uint16_t	width, height;		// Total dimensions of the item, including labels
+	uint16_t	segment_gap;		// Space between consecutive segments
+	uint8_t		segments_per_side;	// Number of segments on each side of zero
+	uint16_t	center_gap;			// Space between the zero marker and the nearest segment
+	uint16_t	zero_width;			// Width of the zero marker
+	uint16_t	zero_extension;		// Extension above and below the segments
+	int16_t		full_scale;			// Absolute value represented by a completely filled side
+	uint16_t	value_divisor;		// Input units per displayed unit (10 for values supplied in tenths)
+	uint8_t		decimal_places;		// Fixed number of decimal places, up to SEGMENTED_BAR_MAX_DECIMAL_PLACES
+	const char*	unit;				// Suffix appended to every label; empty string for no unit
+	FontId		label_font;			// Font used for the numeric labels
+	uint16_t	label_min_gap;		// Minimum horizontal space between the edges of consecutive labels
+	uint16_t	label_gap;			// Vertical space between the zero marker and labels
+	uint16_t	color_fill;			// Color of the filled portion of the segments
+	uint16_t	color_track;		// Color of the empty portion of the segments
+	uint16_t	color_zero;			// Color of the zero marker
+	uint16_t	color_label;		// Color of the numeric labels
+	uint16_t	color_background;	// Background color behind the labels
+} UI_SegmentedBarConfig;
+
+// Runtime state of the segmented bar
+typedef struct {
+	const UI_SegmentedBarConfig*	config;			// Configuration owned by the page; must remain available while the item is used
+	uint16_t						center_x;		// Left edge of the zero marker, computed from the total width
+	uint16_t						segment_height;	// Segment height remaining after reserving labels and zero extensions
+	uint16_t						fill_width[2];	// Total fillable pixels on each side, excluding gaps
+	uint16_t						label_step;		// Numeric interval between intermediate labels, in input units
+	uint16_t						label_count;	// Number of labels that fit with the requested minimum gap
+	int16_t							value;			// Stable value captured for the current rendering, limited to the configured range
+	int16_t							drawn_value;	// Value used in the previous completed rendering, to update only changed portions
+	bool							drawn;			// Is the requested rendering complete?
+	uint8_t							step;			// Current rendering phase (tracks, zero marker, labels or fill update)
+	uint16_t						segment;		// Index of the next segment to process, from left to right
+	uint16_t						label;			// Index of the next label to render
+} UI_SegmentedBar;
+
+void UI_SegmentedBar_init(UI_SegmentedBar *bar, const UI_SegmentedBarConfig *config);
+void UI_SegmentedBar_startRendering(UI_SegmentedBar *bar, int32_t value, bool first_draw);
+bool UI_SegmentedBar_render(UI_SegmentedBar *bar);
+
+
+
+// =======================================================================
 // Graph
 // =======================================================================
 
@@ -146,13 +197,13 @@ bool UI_DeveloperMode_render(UI_DeveloperMode *developer_mode);
 
 
 
-// Customization of one signal; instances are defined by the page.
+// Customization of one Graph Signal
 typedef struct {
 	uint16_t	color;
 	const char*	legend;
 } UI_GraphSeriesConfig;
 
-// Appearance and data window selected by the page
+// General configuration of the UI Graph Item
 typedef struct {
 	uint16_t					x, y;				// Position of the Top Left corner of the Graph Item
 	int16_t						width, height;		// Dimension of the Graph item
@@ -179,38 +230,41 @@ typedef struct {
 	uint16_t		count;							// Number of valid samples currently in Buffer
 	uint16_t		write;							// Index of the next position to write
 	uint32_t		last_tick;						// Last handled sample time
-	uint32_t		version;						// 
+	uint32_t		version;						// Counter incremeneted at each new sample (so I know when the data changes)
 } UI_Trace;
 
 // Runtime state and storage belong to the graph item.
 typedef struct {
-	UI_GraphConfig	config;				// General configuration of the Graph
-	uint32_t		sample_period_ms;	// Period between two consecutive samples (computed from the config. informations)
-	UI_Trace		history;			// Data series
+	// UI Graph Item configuration (and parameters directly computed from Config.)
+	UI_GraphConfig	config;						// General configuration of the Graph
+	uint32_t		sample_period_ms;			// Period between two consecutive samples (computed from the config. informations)
+	uint16_t		legend_x[GRAPH_MAX_SERIES];	// Position of the data series Legends
+	uint16_t		legend_y[GRAPH_MAX_SERIES];	// Position of the data series Legends 
+	
+	// Main Data series of the Graph
+	UI_Trace		history;
 
-	UI_GraphSample	snapshot[GRAPH_MAX_SAMPLES];	// 
-	uint16_t		legend_x[GRAPH_MAX_SERIES];		// 
-	uint16_t		legend_y[GRAPH_MAX_SERIES];		// 
-	uint16_t		snapshot_count;
-	uint32_t		snapshot_version;
-	uint32_t		drawn_version;
-	uint32_t		shrink_started_at_ms;
-	bool			shrink_pending;
-	int16_t			minimum;	
-	int16_t			maximum;
-	int16_t			drawn_minimum;
-	int16_t			drawn_maximum;
-	uint8_t			decimal_places;					// Common format selected for the current Y scale
-	bool			drawn;
-	bool			first_draw;
-	uint8_t			step;
-	uint8_t			tick;
+	// Snapshot of all the Data Series to be rendered (I need this save, because data can change while I render)
+	UI_GraphSample	snapshot[GRAPH_MAX_SAMPLES];	
+	uint16_t		snapshot_count;				//	
+	uint32_t		snapshot_version;			//		
+
+	// Run Time parameters of the UI Graph
+	uint32_t		drawn_version;				// Version of Data Series that is drawn in the graph				
+	uint32_t		shrink_started_at_ms;		// Timestamp of when the axis shrink started
+	bool			shrink_pending;				// If = 1, idicates that an axis shirk is needed (and so I check the timestamp to execute that after delay)
+	int16_t			maximum;					// Y-Axis limit to be used in the current rendering
+	int16_t			drawn_maximum;				// Y-Axis limit used in the previous rendering (so if the current one are the same, some rendering can be optimized)
+	uint8_t			decimal_places;				// Common format selected for the current Y scale
+	bool			drawn;						// Is the rendering complete?
+	bool			first_draw;					// Is this the first Grph rendering?
+	uint8_t			step;						// Main rendering step
+	uint8_t			tick;						// Phase inside the rendering step
 } UI_Graph;
 
-// Init once; process keeps sampling even when the page is not visible.
 void UI_Graph_init				(UI_Graph *graph, const UI_GraphConfig *config);
-void UI_Graph_process			(UI_Graph *graph, UI_GraphSample sample, bool usable, uint32_t now);
-void UI_Graph_startRendering	(UI_Graph *graph, bool first_draw);	// Capture a stable snapshot; redraw axes only on first_draw or a scale change.
+void UI_Graph_updateHistory		(UI_Graph *graph, UI_GraphSample sample, bool usable, uint32_t now);
+void UI_Graph_startRendering	(UI_Graph *graph, bool first_draw);	
 bool UI_Graph_render			(UI_Graph *graph);
 
 #endif

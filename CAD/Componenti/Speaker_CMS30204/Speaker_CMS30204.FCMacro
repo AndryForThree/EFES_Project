@@ -1,0 +1,248 @@
+# -*- coding: utf-8 -*-
+"""CMS-30204-18X: riferimento meccanico dettagliato SP / L200.
+Fonti: datasheet cms-30204-18x.pdf pag. 2-3 e fotografie ufficiali Same Sky
+https://www.sameskydevices.com/product/audio/speakers/miniature-(10-mm~40-mm)/cms-30204-18sp
+Quote esplicite: 30x20, 4 complessivi, corpo principale 2.5, magnete diametro
+12.7 mm, tutte +/-0.2. Tolleranza generale +/-0.3 per quote prive di tolleranza specifica;
+non rende verificati i particolari non dimensionati.
+L200: fili 200+/-5, spellatura 1.5, UL1571 30AWG, rigonfiamento locale Max6.
+Origine XY centro corpo, +Y verso terminali/fili. Z=0 fondo magnete nominale,
+fronte griglia a Z=4. Nella L200 la resina arriva a Z=-2 (ingombro totale6).
+Forature, raggi non quotati, spessori dei singoli strati, appoggi, membrana
+visibile e resina ricostruiti da disegno/foto: NON quote di montaggio validate.
+Non e' un modello di fabbricazione degli interni del trasduttore.
+"""
+from pathlib import Path
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+# --- Variante del componente da visualizzare/esportare ---
+variante = 'L200'               # 'SP' = piazzole, 'L200' = fili rosso/nero.
+mostra_fili_completi = True     # False: tratto illustrativo 25 mm, indicato nelle note.
+mostra_ingombri_tolleranza = False  # Guide trasparenti, escluse dallo STEP.
+
+# --- Quote esplicite del datasheet, mm ---
+LARGHEZZA = 20.0
+LUNGHEZZA = 30.0
+SPESSORE_TOTALE = 4.0
+SPESSORE_CORPO = 2.5
+DIAMETRO_MAGNETE = 12.7
+TOLLERANZA_ESPLICITA = 0.2
+TOLLERANZA_GENERALE = 0.3
+LUNGHEZZA_CAVI = 200.0
+TOLLERANZA_CAVI = 5.0
+SPELLATURA = 1.5
+INGOMBRO_LOCALE_MAX = 6.0
+
+V = App.Vector
+
+
+def capsula(larghezza, lunghezza, z, h):
+    r = larghezza/2
+    d = (lunghezza-larghezza)/2
+    return Part.makeBox(larghezza, 2*d, h, V(-r, -d, z)).fuse(
+        Part.makeCylinder(r, h, V(0, -d, z))).fuse(
+        Part.makeCylinder(r, h, V(0, d, z))).removeSplitter()
+
+
+def asola(x, y, larghezza, lunghezza, angolo, z, h):
+    forma = capsula(larghezza, lunghezza, z, h)
+    forma.rotate(V(0, 0, 0), V(0, 0, 1), angolo)
+    forma.translate(V(x, y, 0))
+    return forma
+
+
+def ellissoide(rx, ry, rz, centro):
+    matrice = App.Matrix()
+    matrice.A11, matrice.A22, matrice.A33 = rx, ry, rz
+    forma = Part.makeSphere(1.).transformGeometry(matrice)
+    forma.translate(centro)
+    return forma
+
+
+def crea_speaker(doc, versione='L200', origine=None, fili_completi=True, guide=False):
+    """Restituisce i soli oggetti fisici; le guide NON sono superfici ammesse di serraggio."""
+    assert versione in ('SP', 'L200')
+    origine = origine or V(0, 0, 0)
+    pezzi = []
+    nero = (0.055, 0.055, 0.060)
+    argento = (0.73, 0.72, 0.68)
+    z_retro = SPESSORE_TOTALE-SPESSORE_CORPO
+
+    def aggiungi(nome, forma, colore, nota, materiale, lucido=15):
+        obj = doc.addObject('Part::Feature', nome)
+        obj.Shape = forma.removeSplitter()
+        obj.Placement.Base = origine
+        obj.Label = nome.replace('_', ' ')
+        obj.ViewObject.ShapeColor = colore
+        obj.ViewObject.LineColor = (0.16, 0.16, 0.17)
+        obj.ViewObject.DisplayMode = 'Flat Lines'
+        obj.ViewObject.LineWidth = 1.0
+        obj.ViewObject.AngularDeflection = 10.0
+        obj.ViewObject.Deviation = 0.1
+        obj.ViewObject.ShapeMaterial.Shininess = lucido
+        obj.addProperty('App::PropertyString', 'OrigineGeometria', 'Documentazione')
+        obj.OrigineGeometria = nota
+        obj.addProperty('App::PropertyString', 'MaterialeRiferimento', 'Documentazione')
+        obj.MaterialeRiferimento = materiale
+        pezzi.append(obj)
+        return obj
+
+    # Telaio ABS a capsula: ingombro esterno quotato; pareti e battute stimate.
+    telaio = capsula(LARGHEZZA, LUNGHEZZA, z_retro, SPESSORE_CORPO)
+    telaio = telaio.cut(capsula(18.8, 28.8, z_retro-0.05, SPESSORE_CORPO+0.1))
+    # Alloggiamento della griglia e piccole discontinuita vicino ai terminali.
+    telaio = telaio.cut(capsula(19.2, 29.2, 3.7, 0.4))
+    for x in (-3.5, 3.5):
+        telaio = telaio.cut(Part.makeBox(0.6, 3.5, 0.7, V(x-0.3, 12.0, 1.95)))
+    obj = aggiungi('Telaio_ABS', telaio, nero,
+        'Esterno 30x20, spessore principale 2.5 da datasheet; pareti/battuta griglia da immagini.', 'ABS')
+    obj.addProperty('App::PropertyStringList', 'QuoteDatasheet', 'Documentazione')
+    obj.QuoteDatasheet = ['Lunghezza 30 +/-0.2 mm', 'Larghezza 20 +/-0.2 mm',
+        'Spessore complessivo 4 +/-0.2 mm', 'Corpo principale 2.5 +/-0.2 mm',
+        'Magnete diametro 12.7 +/-0.2 mm', 'Tolleranza generale disegno +/-0.3 mm',
+        'Versione L200: fili 200 +/-5 mm, spellatura 1.5 mm, UL1571 30 AWG',
+        'Versione L200: ingombro locale massimo 6 mm presso saldature',
+        'Bordo serrabile e forza ammissibile NON specificati dal produttore']
+
+    # Griglia metallica: tutti i sette fori visibili nel disegno frontale.
+    # Posizioni/diametri ricavati in scala dal disegno, non quote esplicite.
+    griglia = capsula(19.1, 29.1, 3.78, 0.20)
+    for x, y, r in ((0, 0, 4.), (-5.3, -7.6, 1.75), (5.3, -7.6, 1.75),
+                    (0, -9.3, 1.75), (-5.3, 7.6, 1.75), (5.3, 7.6, 1.75), (0, 9.3, 1.75)):
+        griglia = griglia.cut(Part.makeCylinder(r, 0.4, V(x, y, 3.7)))
+    aggiungi('Griglia_Frontale_Metallica', griglia, argento,
+        'Griglia inclusa; sette aperture da disegno e foto. Spessore 0.20 stimato.',
+        'Metallo argentato, lega non specificata', 45)
+
+    # Membrana PET: solo aspetto visibile, senza inventare bobina o sospensione interna.
+    # Il profilo del diaframma non e' quotato: non va usato per calcolare giochi.
+    membrana = capsula(18.25, 28.25, 2.76, 0.06)
+    membrana = membrana.cut(Part.makeCylinder(4.0, 0.2, V(0, 0, 2.7)))
+    aggiungi('Membrana_PET_Indicativa', membrana, (0.24, 0.24, 0.26),
+        'PET da specifica; posizione/profilo visibile illustrativi. Parte da lasciare libera.', 'PET')
+    # Calotta argentea poco pronunciata, visibile nel foro centrale della foto ufficiale.
+    sfera = Part.makeSphere(14., V(0, 0, -10.7))
+    interno = Part.makeSphere(14., V(0, 0, -10.76))
+    calotta = sfera.cut(interno).common(Part.makeCylinder(4., 0.8, V(0, 0, 2.5)))
+    aggiungi('Calotta_Membrana_Indicativa', calotta, (0.65, 0.66, 0.69),
+        'Ricostruzione visiva della membrana dalla foto; geometria interna non fornita.', 'PET, aspetto argentato', 40)
+
+    # Piastra posteriore nera con tutti i gruppi di aperture visibili nel disegno.
+    retro = capsula(19.4, 29.4, z_retro, 0.28)
+    retro = retro.cut(Part.makeCylinder(DIAMETRO_MAGNETE/2, 0.5, V(0, 0, 1.4)))
+    for x, y, r in ((0, -8., 0.38), (0, 8., 0.38)):
+        retro = retro.cut(Part.makeCylinder(r, 0.5, V(x, y, 1.4)))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for x, y, r in ((3.1, 7.4, 0.38), (5.7, 5.7, 0.58)):
+                retro = retro.cut(Part.makeCylinder(r, 0.5, V(sx*x, sy*y, 1.4)))
+            retro = retro.cut(asola(sx*8.0, sy*6.2, 0.5, 2.4, sx*sy*8., 1.4, 0.5))
+        for y in (-3.0, -1.0, 1.0, 3.0):
+            retro = retro.cut(Part.makeCylinder(0.38, 0.5, V(sx*8., y, 1.4)))
+        retro = retro.cut(asola(sx*5.5, 11.5, 0.9, 2.5, -sx*55., 1.4, 0.5))
+    # Recesso dei contatti sul bordo inferiore.
+    recesso = Part.makeBox(6.2, 4., 0.7, V(-3.1, 12.5, 1.3))
+    retro = retro.cut(recesso)
+    aggiungi('Piastra_Posteriore_Forata', retro, nero,
+        'Fori/asole/recesso ricostruiti dal disegno posteriore; non sono fori di fissaggio.',
+        'Aspetto nero da foto; materiale specifico della piastra non dichiarato')
+
+    # Gruppo magnetico: diametro esterno quotato; finitura e ripartizione stimati.
+    collare = Part.makeCylinder(DIAMETRO_MAGNETE/2, z_retro, V(0, 0, 0))
+    collare = collare.cut(Part.makeCylinder(5.45, z_retro+0.2, V(0, 0, -0.1)))
+    aggiungi('Gruppo_Magnetico_Bordo', collare, nero,
+        'Diametro esterno 12.7 +/-0.2 da datasheet; bordo nero e foro interno da foto.',
+        'Rivestimento nero del gruppo magnetico')
+    aggiungi('Gruppo_Magnetico_Faccia', Part.makeCylinder(5.45, z_retro-0.02, V(0, 0, 0.02)),
+        (0.70, 0.72, 0.73), 'Faccia argentata da foto; diametro della sola faccia non quotato.',
+        'Magnete Nd-Fe-B / faccia metallica, composizione rivestimento non specificata', 50)
+
+    # Piazzole reali della variante SP, presenti anche sotto resina nella L200.
+    base_contatti = capsula(19.4, 29.4, 1.53, 0.20).common(
+        Part.makeBox(6.2, 3., 0.20, V(-3.1, 12.5, 1.53)))
+    aggiungi('Supporto_Terminali', base_contatti, (0.38, 0.30, 0.18),
+        'Recesso e supporto isolante da immagini; dimensioni non quotate.', 'Supporto isolante, colore indicativo')
+    for segno, nome in ((1, 'Piazzola_Positiva'), (-1, 'Piazzola_Negativa')):
+        x0 = 0.35 if segno==1 else -3.05
+        pad = capsula(19.4, 29.4, 1.47, 0.06).common(
+            Part.makeBox(2.7, 2.2, 0.06, V(x0, 12.7, 1.47)))
+        aggiungi(nome, pad, (0.76, 0.75, 0.70),
+            'Polaritá da disegno: + a destra visto dal fronte, - a sinistra; piazzola non quotata.',
+            'Contatto metallico stagnabile', 40)
+
+    if versione == 'L200':
+        # Inviluppo locale conservativo: la sagoma della resina non e' quotata,
+        # ma viene rispettato il limite Max6 dal fronte della griglia.
+        resina = ellissoide(3.05, 2.7, 1.75, V(0, 12.1, -0.25))
+        aggiungi('Resina_Uscita_Fili_Max6', resina, (0.035, 0.035, 0.040),
+            'Sagoma resina illustrativa: fondo Z=-2, fronte nominale Z=4, totale Max6 mm.', 'Resina nera', 8)
+        tratto = LUNGHEZZA_CAVI if fili_completi else 25.
+        # Diametro isolamento non fornito: 0.60 mm illustrativo; rame 30AWG circa0.255.
+        # Quote 200 e spellatura 1.5 si riferiscono al tratto oltre il bordo Y=15.
+        for segno, nome, colore in ((1, 'Filo_Rosso_Positivo', (0.65, 0.015, 0.015)),
+                                    (-1, 'Filo_Nero_Negativo', (0.025, 0.025, 0.030))):
+            x = segno*0.9
+            guaina = Part.makeCylinder(0.30, tratto-SPELLATURA+0.8,
+                                      V(x, 14.2, -0.7), V(0, 1, 0))
+            guaina = guaina.cut(Part.makeCylinder(0.1275, tratto+1., V(x, 14.1, -0.7), V(0, 1, 0)))
+            filo = aggiungi(nome, guaina, colore,
+                'UL1571 30AWG; 200 +/-5 mm reali. Diametro guaina 0.60 stimato; percorso diritto illustrativo.',
+                'Isolamento rosso/nero')
+            filo.addProperty('App::PropertyLength', 'LunghezzaReale', 'Documentazione')
+            filo.LunghezzaReale = LUNGHEZZA_CAVI
+            filo.addProperty('App::PropertyLength', 'TrattoEsternoMostrato', 'Documentazione')
+            filo.TrattoEsternoMostrato = tratto
+            aggiungi(nome+'_Conduttore', Part.makeCylinder(0.1275, tratto+0.8,
+                V(x, 14.2, -0.7), V(0, 1, 0)), (0.69, 0.70, 0.71),
+                'Conduttore 30AWG indicativo, tratto finale scoperto 1.5 mm.', 'Conduttore, aspetto stagnato', 45)
+
+    if guide:
+        # Volume massimo del solo corpo nominale con tolleranze esplicite.
+        # Non rappresenta una geometria minima/materiale garantito per stringere.
+        inviluppo = capsula(LARGHEZZA+2*TOLLERANZA_ESPLICITA,
+                            LUNGHEZZA+2*TOLLERANZA_ESPLICITA, -TOLLERANZA_ESPLICITA,
+                            SPESSORE_TOTALE+2*TOLLERANZA_ESPLICITA)
+        g = doc.addObject('Part::Feature', 'Guida_Inviluppo_Conservativo')
+        g.Shape = inviluppo
+        g.Placement.Base = origine
+        g.Label = 'GUIDA - inviluppo conservativo, non esportato'
+        g.ViewObject.ShapeColor = (0.9, 0.6, 0.15)
+        g.ViewObject.Transparency = 85
+        g.addProperty('App::PropertyString', 'Nota', 'Documentazione')
+        g.Nota = 'Margini conservativi +/-0.2 su ogni estremo: non un inviluppo GD&T garantito, non un bordo serrabile.'
+    return pezzi
+
+
+if not globals().get('SOLO_FUNZIONI', False):
+    doc = App.newDocument('Speaker_CMS30204_'+variante)
+    pezzi = crea_speaker(doc, variante, fili_completi=mostra_fili_completi,
+                        guide=mostra_ingombri_tolleranza)
+    doc.recompute()
+    cartella = (Path(__file__).resolve().parent if '__file__' in globals() else
+                Path('/home/andrea/Scuola/EFES_Project/CAD/Componenti/Speaker_CMS30204'))
+    file_step = cartella/('CMS_30204_18%s.step' % variante)
+    ImportGui.export(pezzi, str(file_step))
+    vista = Gui.activeDocument().activeView()
+    vista.viewAxonometric()
+    vista.fitAll()
+    # Inquadratura sul corpo: i fili da 200 mm proseguono fuori campo.
+    # FitAll permette di vedere anche i cavi completi in qualunque momento.
+    vista.setCameraType('Orthographic')
+    camera = vista.getCameraOrientation()
+    posizione = V(0, 0, 2)-camera.multVec(V(0, 0, -100))
+    # Modifica solo posizione e campo della camera Coin, non i componenti.
+    import re
+    camera_testo = vista.getCamera()
+    camera_testo = re.sub(r'position\s+[-+\d.eE]+\s+[-+\d.eE]+\s+[-+\d.eE]+',
+        'position %.8f %.8f %.8f' % (posizione.x, posizione.y, posizione.z), camera_testo)
+    camera_testo = re.sub(r'height\s+[-+\d.eE]+', 'height 48', camera_testo)
+    vista.setCamera(camera_testo)
+    App.Console.PrintMessage('Speaker CMS-30204-18%s: STEP in %s\n' % (variante, file_step))
+    App.Console.PrintMessage('Quote esterne da datasheet; dettagli senza quota indicati nelle proprieta.\n')
+    App.Console.PrintMessage('Griglia, membrana, telaio, magnete e terminali sono oggetti separati.\n')
+    if variante == 'L200':
+        App.Console.PrintMessage('L200: rigonfiamento locale Max6 mm e cavi 200 +/-5 mm; premi V,F per inquadrare tutto.\n')

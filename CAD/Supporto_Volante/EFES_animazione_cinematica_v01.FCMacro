@@ -1,0 +1,289 @@
+# -*- coding: utf-8 -*-
+"""EFES - Cinematica del documento aperto, indipendente dalla macro CAD.
+
+Uso: eseguire prima EFES_assemblaggio_torre_mozzo_v01.FCMacro, poi questa
+macro sul documento desiderato. Funziona anche su un FCStd gia aperto.
+Non esegue il sorgente CAD, non crea geometrie e non salva/esporta file.
+
+Le pose all'apertura costituiscono lo zero; chiudendo il pannello vengono
+ripristinate esattamente. Cuscinetti, torre, ghiere, piastra e battute restano
+fermi. Il movimento e' prescritto: non simula urti, elasticita o attrito.
+"""
+
+import math
+import time
+import FreeCAD as App
+import FreeCADGui as Gui
+from PySide import QtCore, QtWidgets
+
+# ================= PARAMETRI DELLA SOLA ANIMAZIONE =================
+velocita_iniziale_gradi_s = 60.0
+fotogrammi_al_secondo = 30
+limite_senza_finecorsa = 170.0  # limite della vista se il CAD non contiene i finecorsa
+# L'asse del CAD EFES e' Z, passante per X=0, Y=0.
+
+
+def componenti_mobili_efes(documento):
+    """Riconosce i pezzi dai Name stabili, indipendentemente dalle etichette."""
+    nomi = {
+        'Volante_Tre_Razze', 'Albero_4mm', 'Magnete_9049',
+        'Mozzo_Magnete', 'Cappellotto_Mozzo_Magnete',
+        'Collare_Assiale_Inferiore', 'Collare_Assiale_Superiore',
+    }
+    prefissi_fissaggi = ('Fissaggio_Volante_', 'Fissaggio_Mozzo_Magnete_',
+                        'Fissaggio_Collare_Assiale_')
+    visitati = set()
+
+    def discendenti(oggetto):
+        if oggetto.Name in visitati:
+            return
+        visitati.add(oggetto.Name)
+        if oggetto.isDerivedFrom('Part::Feature'):
+            nomi.add(oggetto.Name)
+        for figlio in getattr(oggetto, 'Group', ()):
+            discendenti(figlio)
+
+    for oggetto in documento.Objects:
+        if oggetto.Name.startswith(prefissi_fissaggi):
+            discendenti(oggetto)
+    return [o for o in documento.Objects
+            if o.Name in nomi and o.isDerivedFrom('Part::Feature')]
+
+
+class CinematicaEFES(QtWidgets.QDockWidget):
+    def __init__(self, documento, mobili, parent):
+        super().__init__('EFES - Cinematica', parent)
+        self.setObjectName('EFES_Cinematica_Dock')
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self.documento = documento
+        self.nome_documento = documento.Name
+        self.mobili = list(mobili)
+        self.nomi_mobili = [o.Name for o in mobili]
+        self.pose_zero = {o.Name: App.Placement(o.Placement) for o in mobili}
+        self.angolo = 0.0
+        self.direzione = 1
+        self.chiuso = False
+        self.documento_in_chiusura = False
+        self.osservatore_registrato = False
+        self.ultimo_tick = None
+
+        gruppo = documento.getObject('Finecorsa_Regolabili')
+        self.limite = float(gruppo.AngoloPerLato) if gruppo is not None else float(limite_senza_finecorsa)
+        if not math.isfinite(self.limite) or not 0 < self.limite < 180:
+            raise ValueError('Limite angolare non valido: usare un valore fra 0 e 180 gradi esclusi.')
+        self.limite_slider = max(1, int(round(self.limite*10)))
+
+        contenuto = QtWidgets.QWidget(self)
+        layout = QtWidgets.QVBoxLayout(contenuto)
+        titolo = QtWidgets.QLabel('Documento: %s\n%d componenti mobili, ferramenta compresa.' %
+                                  (documento.Label, len(mobili)))
+        titolo.setTextFormat(QtCore.Qt.PlainText)
+        titolo.setWordWrap(True)
+        layout.addWidget(titolo)
+        testo_limite = ('Finecorsa letti dal CAD: ±%g°' if gruppo is not None else
+                        'Finecorsa assenti: limite della vista ±%g°') % self.limite
+        layout.addWidget(QtWidgets.QLabel(testo_limite))
+
+        self.cursore = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.cursore.setRange(-self.limite_slider, self.limite_slider)
+        layout.addWidget(self.cursore)
+        riga = QtWidgets.QFormLayout()
+        self.valore_angolo = QtWidgets.QDoubleSpinBox()
+        self.valore_angolo.setRange(-self.limite, self.limite)
+        self.valore_angolo.setDecimals(1)
+        self.valore_angolo.setSingleStep(1.0)
+        self.valore_angolo.setSuffix('°')
+        riga.addRow('Angolo', self.valore_angolo)
+        self.velocita = QtWidgets.QDoubleSpinBox()
+        self.velocita.setRange(1.0, 180.0)
+        self.velocita.setValue(velocita_iniziale_gradi_s)
+        self.velocita.setSuffix(' °/s')
+        riga.addRow('Velocità', self.velocita)
+        layout.addLayout(riga)
+        pulsanti = QtWidgets.QHBoxLayout()
+        self.avvia = QtWidgets.QPushButton('Avvia')
+        self.zero = QtWidgets.QPushButton('Torna a zero')
+        pulsanti.addWidget(self.avvia)
+        pulsanti.addWidget(self.zero)
+        layout.addLayout(pulsanti)
+        self.stato = QtWidgets.QLabel('Pronto. Muovi il cursore oppure premi Avvia.')
+        self.stato.setWordWrap(True)
+        layout.addWidget(self.stato)
+        nota = QtWidgets.QLabel('Moto avanti/indietro entro i limiti.\n'
+                              'Chiudendo il pannello si ripristina lo zero.\n'
+                              'Visualizzazione cinematica; nessuna simulazione delle forze.')
+        nota.setWordWrap(True)
+        layout.addWidget(nota)
+        layout.addStretch()
+        self.setWidget(contenuto)
+
+        self.timer = QtCore.QTimer(self)
+        self.timer.setInterval(max(10, int(round(1000.0/fotogrammi_al_secondo))))
+        self.timer.timeout.connect(self._tick)
+        self.cursore.valueChanged.connect(lambda valore: self.imposta_angolo(valore/10.0))
+        self.valore_angolo.valueChanged.connect(self.imposta_angolo)
+        self.avvia.clicked.connect(self.avvia_pausa)
+        self.zero.clicked.connect(self.torna_zero)
+        App.addDocumentObserver(self)
+        self.osservatore_registrato = True
+
+    def _documento_valido(self):
+        if self.documento_in_chiusura:
+            return False
+        try:
+            return App.getDocument(self.nome_documento) == self.documento
+        except Exception:
+            return False
+
+    def _pronto(self):
+        if self.chiuso:
+            return False
+        if not self._documento_valido():
+            self.close()
+            return False
+        if App.ActiveDocument != self.documento:
+            self.pausa()
+            self.stato.setText('Seleziona il documento %s per continuare.' % self.nome_documento)
+            return False
+        for nome, oggetto in zip(self.nomi_mobili, self.mobili):
+            if self.documento.getObject(nome) != oggetto:
+                self.pausa()
+                self.stato.setText('Componenti modificati: chiudi e riesegui la macro cinematica.')
+                return False
+        return True
+
+    def _ridisegna(self):
+        if self._documento_valido():
+            vista = Gui.getDocument(self.nome_documento).activeView()
+            vista.redraw()
+
+    def _applica(self, angolo):
+        angolo = max(-self.limite, min(self.limite, float(angolo)))
+        rotazione = App.Placement(App.Vector(0,0,0),
+                                  App.Rotation(App.Vector(0,0,1), angolo))
+        for nome, oggetto in zip(self.nomi_mobili, self.mobili):
+            # Sempre dalle pose originali: nessun errore cumulativo fra i frame.
+            oggetto.Placement = rotazione.multiply(self.pose_zero[nome])
+        self.angolo = angolo
+        for widget, valore in ((self.cursore, int(round(angolo*10))),
+                               (self.valore_angolo, angolo)):
+            precedente = widget.blockSignals(True)
+            widget.setValue(valore)
+            widget.blockSignals(precedente)
+        # Part::Feature aggiorna la posa senza rigenerare i solidi/recompute.
+        self._ridisegna()
+
+    def pausa(self):
+        self.timer.stop()
+        self.ultimo_tick = None
+        self.avvia.setText('Avvia')
+
+    def imposta_angolo(self, angolo):
+        self.pausa()
+        if self._pronto():
+            self._applica(angolo)
+            self.stato.setText('Pausa — angolo %+.1f°' % self.angolo)
+
+    def torna_zero(self):
+        self.imposta_angolo(0.0)
+        self.direzione = 1
+
+    def avvia_pausa(self):
+        if self.timer.isActive():
+            self.pausa()
+            self.stato.setText('Pausa — angolo %+.1f°' % self.angolo)
+            return
+        if not self._pronto():
+            return
+        if self.angolo >= self.limite:
+            self.direzione = -1
+        elif self.angolo <= -self.limite:
+            self.direzione = 1
+        self.ultimo_tick = time.monotonic()
+        self.timer.start()
+        self.avvia.setText('Pausa')
+        self.stato.setText('Animazione in corso.')
+
+    def _tick(self):
+        if not self._pronto():
+            return
+        adesso = time.monotonic()
+        dt = max(0.0, min(0.1, adesso-self.ultimo_tick)) if self.ultimo_tick is not None else 0.0
+        self.ultimo_tick = adesso
+        # Onda triangolare: inverte ai due estremi senza superarli.
+        fase = self.angolo+self.limite
+        if self.direzione < 0:
+            fase = 4*self.limite-fase
+        fase = (fase+self.velocita.value()*dt) % (4*self.limite)
+        if fase <= 2*self.limite:
+            angolo, self.direzione = fase-self.limite, 1
+        else:
+            angolo, self.direzione = 3*self.limite-fase, -1
+        self._applica(angolo)
+
+    def slotActivateDocument(self, documento):
+        if not self.chiuso and documento != self.documento:
+            self.pausa()
+            self.stato.setText('Seleziona il documento %s per continuare.' % self.nome_documento)
+
+    def slotDeletedDocument(self, documento):
+        if documento == self.documento and not self.documento_in_chiusura:
+            self.documento_in_chiusura = True
+            self.pausa()
+            # Rimuovere l'osservatore dentro il suo callback invalida
+            # l'iteratore C++ di FreeCAD. Chiudere al prossimo evento Qt.
+            QtCore.QTimer.singleShot(0, self._chiudi_se_aperto)
+
+    def _chiudi_se_aperto(self):
+        if not self.chiuso:
+            self.close()
+
+    def closeEvent(self, evento):
+        if not self.chiuso:
+            self.chiuso = True
+            self.pausa()
+            if self.osservatore_registrato:
+                App.removeDocumentObserver(self)
+                self.osservatore_registrato = False
+            if self._documento_valido():
+                for nome, oggetto in zip(self.nomi_mobili, self.mobili):
+                    if self.documento.getObject(nome) == oggetto:
+                        oggetto.Placement = self.pose_zero[nome]
+                self._ridisegna()
+            if getattr(App, '_efes_cinematica', None) is self:
+                App._efes_cinematica = None
+        super().closeEvent(evento)
+
+
+def apri_cinematica_efes():
+    documento = App.ActiveDocument
+    if documento is None:
+        App.Console.PrintError('EFES: apri il documento CAD oppure esegui prima la macro di assemblaggio.\n')
+        return None
+    mobili = componenti_mobili_efes(documento)
+    if not mobili:
+        App.Console.PrintError('EFES: nel documento attivo non ci sono componenti mobili riconosciuti. '
+                               'Seleziona il documento generato dalla macro CAD EFES.\n')
+        return None
+    precedente = getattr(App, '_efes_cinematica', None)
+    if precedente is not None and not precedente.chiuso:
+        if precedente.documento == documento:
+            precedente.show()
+            precedente.raise_()
+            return precedente
+        precedente.close()
+    pannello = CinematicaEFES(documento, mobili, Gui.getMainWindow())
+    Gui.getMainWindow().addDockWidget(QtCore.Qt.RightDockWidgetArea, pannello)
+    # Riferimento stabile anche quando termina l'esecuzione della macro.
+    App._efes_cinematica = pannello
+    pannello.show()
+    App.Console.PrintMessage('EFES cinematica: %d componenti mobili, limite ±%g°. '
+                             'Alla chiusura del pannello viene ripristinato lo zero.\n' %
+                             (len(mobili), pannello.limite))
+    return pannello
+
+
+try:
+    apri_cinematica_efes()
+except Exception as errore:
+    App.Console.PrintError('EFES cinematica: %s\n' % errore)

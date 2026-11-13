@@ -73,7 +73,9 @@ static int BarFill(const App_View *state)
 {
 	/* Fault is a hardware verdict. Numeric saturation alone never changes color. */
 	if (!state->sensor.channel_a_valid || !state->sensor.channel_b_valid ||
-		state->sensor.plausibility_fault) return SENSOR_DEVIATION_BAR_WIDTH;
+		state->sensor.plausibility_fault) {
+		return SENSOR_DEVIATION_BAR_WIDTH;
+	}
 	uint32_t fill = (uint32_t)UI_SensorDeviation(&state->sensor) * SENSOR_DEVIATION_BAR_WIDTH /
 					state->sensor.deviation_limit_deci_deg;
 	return fill > SENSOR_DEVIATION_BAR_WIDTH ? SENSOR_DEVIATION_BAR_WIDTH : (int)fill;
@@ -110,7 +112,7 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 	uint16_t current_deviation = UI_SensorDeviation(&current->sensor);
 	bool usable = current->sensor.valid && current->sensor.channel_a_valid &&
 		current->sensor.channel_b_valid && !current->sensor.plausibility_fault;
-	UI_Graph_process(&history_graph, (UI_GraphSample){
+	UI_Graph_updateHistory(&history_graph, (UI_GraphSample){
 		.values = { current_deviation > INT16_MAX ? INT16_MAX : (int16_t)current_deviation }
 	}, usable, HAL_GetTick());
 	if (current->page != sensor.page) {
@@ -122,10 +124,14 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 		sensor.rendering = false;
 		return false;
 	}
-	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+	if (ST7789_GetState() != ST7789_STATE_IDLE) {
+		return false;
+	}
 
 	if (!sensor.rendering) {
-		if (sensor.first_frame) PrepareRender();
+		if (sensor.first_frame) {
+			PrepareRender();
+		}
 		sensor.render_view = *current;
 		sensor.render_started_at_ms = HAL_GetTick();
 		sensor.developer_started = false;
@@ -137,7 +143,9 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 	}
 	const App_View *state = &sensor.render_view;
 
-	if (!UI_Header_render(&sensor.header)) return false;
+	if (!UI_Header_render(&sensor.header)) {
+		return false;
+	}
 
 	ST7789_Result result = ST7789_OK;
 	const App_View *old = &sensor.drawn_state;
@@ -175,51 +183,63 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 			}
 			return false;
 		case SENSOR_CHANNEL_A:
-			if (first || state->sensor.channel_a_angle_deci_deg != old->sensor.channel_a_angle_deci_deg)
+			if (first || state->sensor.channel_a_angle_deci_deg != old->sensor.channel_a_angle_deci_deg) {
 				result = WriteAngle(8, state->sensor.channel_a_angle_deci_deg);
+			}
 			break;
 		case SENSOR_CHANNEL_B:
-			if (first || state->sensor.channel_b_angle_deci_deg != old->sensor.channel_b_angle_deci_deg)
+			if (first || state->sensor.channel_b_angle_deci_deg != old->sensor.channel_b_angle_deci_deg) {
 				result = WriteAngle(168, state->sensor.channel_b_angle_deci_deg);
+			}
 			break;
 		case SENSOR_DEVIATION_VALUE:
 			if (value_changed) {
-				if (invalid) sensor.number[0] = '\0';
-				else snprintf(sensor.number, sizeof(sensor.number), "%u.%u",
+				if (invalid) {
+					sensor.number[0] = '\0';
+				} else {
+					snprintf(sensor.number, sizeof(sensor.number), "%u.%u",
 								(unsigned)deviation / 10U, (unsigned)deviation % 10U);
+				}
 				/* Empty numeric field clears the entire digit height before N/A. */
 				result = ST7789_WriteNumberField(178, 91, 120, sensor.number,
 							SENSOR_FONT_VALUE, color, UI_CARD_BACKGROUND);
 			}
 			break;
 		case SENSOR_DEVIATION_NA:
-			if (invalid && value_changed)
+			if (invalid && value_changed) {
 				result = ST7789_WriteTextField(178, 94, 120, "N/A", SENSOR_FONT_NA,
 							ST7789_TEXT_RIGHT, SENSOR_FAULT, UI_CARD_BACKGROUND);
+			}
 			break;
 		case SENSOR_DEVIATION_UNIT:
-			if (first || invalid != old_invalid || color != sensor.drawn_color)
+			if (first || invalid != old_invalid || color != sensor.drawn_color) {
 				result = ST7789_WriteTextField(300, 91, 10, invalid ? "" : "\xB0",
 							SENSOR_FONT_UNIT, ST7789_TEXT_LEFT, color, UI_CARD_BACKGROUND);
+			}
 			break;
 		case SENSOR_DEVIATION_BAR:
-			if (first || fill != sensor.drawn_fill || color != sensor.drawn_color)
+			if (first || fill != sensor.drawn_fill || color != sensor.drawn_color) {
 				result = ST7789_DrawProgressBar(SENSOR_DEVIATION_BAR_X, SENSOR_DEVIATION_BAR_Y,
 							SENSOR_DEVIATION_BAR_WIDTH, SENSOR_DEVIATION_BAR_HEIGHT, fill,
 							color, SENSOR_TRACK, UI_CARD_BACKGROUND);
+			}
 			break;
 		case SENSOR_HISTORY_DOT:
-			if (first || history != sensor.drawn_history)
+			if (first || history != sensor.drawn_history) {
 				result = ST7789_DrawFilledCircle(214, 148, 3, history_color, UI_CARD_BACKGROUND);
+			}
 			break;
 		case SENSOR_HISTORY_TEXT:
-			if (first || history != sensor.drawn_history)
+			if (first || history != sensor.drawn_history) {
 				result = ST7789_WriteTextField(224, 141, 83,
 							history_fault ? "FAULT" : (state->sensor.stale ? "STALE" : "LIVE"),
 							SENSOR_FONT_HISTORY, ST7789_TEXT_RIGHT, history_color, UI_CARD_BACKGROUND);
+			}
 			break;
 		case SENSOR_GRAPH:
-			if (!UI_Graph_render(&history_graph)) return false;
+			if (!UI_Graph_render(&history_graph)) {
+				return false;
+			}
 			break;
 		case SENSOR_FINISH: {
 			if (state->developer_mode) {
@@ -229,7 +249,9 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 						sensor.first_frame || !sensor.drawn_state.developer_mode);
 					sensor.developer_started = true;
 				}
-				if (!UI_DeveloperMode_render(&sensor.developer_mode)) return false;
+				if (!UI_DeveloperMode_render(&sensor.developer_mode)) {
+					return false;
+				}
 			}
 			sensor.drawn_state = *state;
 			sensor.drawn_color = color;
@@ -242,6 +264,8 @@ bool UI_Sensor_Process(const App_View *current, bool draw)
 		}
 	}
 
-	if (result == ST7789_OK) sensor.step++;
+	if (result == ST7789_OK) {
+		sensor.step++;
+	}
 	return false;
 }

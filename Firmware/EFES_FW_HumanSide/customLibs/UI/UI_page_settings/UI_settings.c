@@ -55,7 +55,9 @@ static bool ProcessList(const App_View *view)
 {
 	uint8_t first_item = view->selected_item / SETTINGS_VISIBLE_ITEMS * SETTINGS_VISIBLE_ITEMS;
 	uint8_t index = first_item + settings.row;
-	if (settings.row == SETTINGS_VISIBLE_ITEMS || index >= view->menu->item_count) return true;
+	if (settings.row == SETTINGS_VISIBLE_ITEMS || index >= view->menu->item_count) {
+		return true;
+	}
 
 	const App_MenuItem *item = &view->menu->items[index];
 	bool selected = index == view->selected_item;
@@ -75,15 +77,21 @@ static bool ProcessList(const App_View *view)
 			break;
 		case 2: {
 			const char *label = item->label;
-			if (item->type == APP_ITEM_SUBMENU) label = item->submenu->title;
+			if (item->type == APP_ITEM_SUBMENU) {
+				label = item->submenu->title;
+			}
 			result = ST7789_WriteTextField(24, y + 7, 216, label,
 				FONT_INTER_MEDIUM_12, ST7789_TEXT_LEFT, UI_TEXT_COLOR, background);
 			break;
 		}
 		case 3: {
 			const char *hint = ">";
-			if (item->type == APP_ITEM_PARAMETER) hint = "EDIT";
-			if (item->type == APP_ITEM_ACTION) hint = item->action != NULL ? "RUN" : "";
+			if (item->type == APP_ITEM_PARAMETER) {
+				hint = "EDIT";
+			}
+			if (item->type == APP_ITEM_ACTION) {
+				hint = item->action != NULL ? "RUN" : "";
+			}
 			result = ST7789_WriteTextField(248, y + 9, 48, hint,
 				FONT_INTER_MEDIUM_10, ST7789_TEXT_RIGHT,
 				selected ? UI_ACCENT_COLOR : UI_MUTED_COLOR, background);
@@ -95,7 +103,9 @@ static bool ProcessList(const App_View *view)
 			return false;
 	}
 
-	if (result == ST7789_OK) settings.row_step++;
+	if (result == ST7789_OK) {
+		settings.row_step++;
+	}
 	return false;
 }
 
@@ -125,7 +135,9 @@ static bool FinishRender(const App_View *view)
 				settings.first_frame || !settings.drawn_view.developer_mode);
 			settings.developer_started = true;
 		}
-		if (!UI_DeveloperMode_render(&settings.developer_mode)) return false;
+		if (!UI_DeveloperMode_render(&settings.developer_mode)) {
+			return false;
+		}
 	}
 
 	settings.drawn_view = *view;
@@ -146,10 +158,14 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 		settings.rendering = false;
 		return false;
 	}
-	if (ST7789_GetState() != ST7789_STATE_IDLE) return false;
+	if (ST7789_GetState() != ST7789_STATE_IDLE) {
+		return false;
+	}
 
 	if (!settings.rendering) {
-		if (settings.first_frame) PrepareRender();
+		if (settings.first_frame) {
+			PrepareRender();
+		}
 		settings.render_view = *current;
 		settings.render_started_at_ms = HAL_GetTick();
 		settings.developer_started = false;
@@ -160,7 +176,9 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 	}
 	const App_View *view = &settings.render_view;
 
-	if (!UI_Header_render(&settings.header)) return false;
+	if (!UI_Header_render(&settings.header)) {
+		return false;
+	}
 
 	const App_Menu *menu = view->menu;
 	const App_MenuItem *item = &menu->items[view->selected_item];
@@ -170,7 +188,9 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 
 	switch (settings.step) {
 		case 0:
-			if (!ViewChanged(view)) return FinishRender(view);
+			if (!ViewChanged(view)) {
+				return FinishRender(view);
+			}
 			FormatMenuPath(menu);
 			settings.row = 0;
 			settings.row_step = 0;
@@ -195,7 +215,9 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 			}
 			break;
 		case 4:
-			if (list && !ProcessList(view)) return false;
+			if (list && !ProcessList(view)) {
+				return false;
+			}
 			break;
 		case 5:
 			if (!list) {
@@ -274,16 +296,24 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 			break;
 		case 15: {
 			const char *help = "UP/DOWN: Select     OK: Open";
-			if (closed) help = "UP/DOWN: Page     OK: Open";
-			if (view->menu_mode == APP_MENU_EDIT) help = "UP: Increase   DOWN: Decrease   OK: Save";
-			if (view->menu_mode == APP_MENU_CONFIRM) help = "UP/DOWN: Choose     OK: Confirm";
+			if (closed) {
+				help = "UP/DOWN: Page     OK: Open";
+			}
+			if (view->menu_mode == APP_MENU_EDIT) {
+				help = "UP: Increase   DOWN: Decrease   OK: Save";
+			}
+			if (view->menu_mode == APP_MENU_CONFIRM) {
+				help = "UP/DOWN: Choose     OK: Confirm";
+			}
 			result = ST7789_WriteTextField(12, 207, 296, help, FONT_INTER_MEDIUM_10,
 				ST7789_TEXT_LEFT, UI_TEXT_COLOR, UI_BACKGROUND);
 			break;
 		}
 		case 16: {
 			const char *help = "Hold OK: Back";
-			if (closed) help = "Hold OK: Home";
+			if (closed) {
+				help = "Hold OK: Home";
+			}
 			if (view->menu_mode == APP_MENU_EDIT || view->menu_mode == APP_MENU_CONFIRM) {
 				help = "Hold OK: Cancel";
 			}
@@ -295,6 +325,8 @@ bool UI_Settings_Process(const App_View *current, bool draw)
 			return FinishRender(view);
 	}
 
-	if (result == ST7789_OK) settings.step++;
+	if (result == ST7789_OK) {
+		settings.step++;
+	}
 	return false;
 }

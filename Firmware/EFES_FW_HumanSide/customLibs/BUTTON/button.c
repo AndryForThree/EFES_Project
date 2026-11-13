@@ -260,7 +260,9 @@ void button_timerElapsedISR (void) {
 	// Analyze each button available
 	for (button_id_e buttonID = BUTTON_OK; buttonID < BUTTON_ID_COUNT; buttonID++) {
 		// Check if the current button is iniaialized
-		if (!buttons[buttonID].initialized) continue;
+		if (!buttons[buttonID].initialized) {
+			continue;
+		}
 
 		// Increment the Long Press counter
 		if ((buttons[buttonID].stable_state)					&&					// Button must be in Pressed Stable state

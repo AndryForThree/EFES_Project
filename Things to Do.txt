@@ -11,3 +11,21 @@ IDEA 3
 Per il progetto del mio CORDIC, ha senso fare una ottimizzazione anche con compilazione su FPGA? Oppure basta il Golden Model cha gia ho fatto?
 Cioe dopo aver generato lo sweep di possibili soluzioni, ha senso che le sintetizzo tutte per trovare la migliore?
 
+
+
+
+TO DO LIST
+	Test motore
+		- Comprare batteria per Multimetro (per test DCDC)
+		- Test DCDC, per vedere se riesco a generare 3v3 12V di alimentazione generale
+		- Saldare pin H-Bridge
+		- Capire il circuito H-Bridge
+		- Scrivere SW di test (almeno test di velocita diverse e lettura temperatura)
+
+	Test Servo Sterzo
+		- Trovare un modo per fare i buchi nelle lastre ABS
+		- Trovare un Potenziometro
+		- Scrivere SW di controllo servo sterzo (PID con lettura Potenziometro + controllo motore DRV8874)
+
+	CAN
+		

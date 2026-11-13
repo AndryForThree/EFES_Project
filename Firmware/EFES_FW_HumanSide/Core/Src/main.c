@@ -155,11 +155,15 @@ static void Demo_Process(void)
 	bool angle_due = (uint32_t)(now - demo_angle_at) >= DEMO_ANGLE_PERIOD_MS;
 	bool speed_due = (uint32_t)(now - demo_speed_at) >= DEMO_SPEED_PERIOD_MS;
 	bool status_due = (uint32_t)(now - demo_status_at) >= DEMO_STATUS_PERIOD_MS;
-	if (!angle_due && !speed_due && !status_due) return;
+	if (!angle_due && !speed_due && !status_due) {
+		return;
+	}
 
 	uint32_t phase = (uint32_t)(now - demo_started_at) % DEMO_CYCLE_MS;
 	unsigned segment = 0;
-	while (phase >= demo_route[segment + 1].time_ms) segment++;
+	while (phase >= demo_route[segment + 1].time_ms) {
+		segment++;
+	}
 	uint32_t elapsed = phase - demo_route[segment].time_ms;
 	uint32_t duration = demo_route[segment + 1].time_ms - demo_route[segment].time_ms;
 
@@ -169,9 +173,12 @@ static void Demo_Process(void)
 			demo_route[segment].angle_deci_deg, demo_route[segment + 1].angle_deci_deg,
 			elapsed, duration);
 		int offset = 1 + (phase / 250U) % 4U;
-		if (phase >= 26000U && phase < 28000U)
+		if (phase >= 26000U && phase < 28000U) {
 			offset = 4 + (phase - 26000U) / 200U;
-		if (phase >= 28000U && phase < 32000U) offset = 14;
+		}
+		if (phase >= 28000U && phase < 32000U) {
+			offset = 14;
+		}
 		/* Simulated sensor silence: other modules keep publishing their own data. */
 		if (!(phase >= 20000U && phase < 23000U)) {
 			demo_sensor.channel_a_angle_deci_deg = demo_operating.steering_angle_deci_deg;

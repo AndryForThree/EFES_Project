@@ -1,0 +1,390 @@
+# -*- coding: utf-8 -*-
+"""Prima proposta supporto CMS-30204-18X, montaggio su griglia 10 mm.
+Due pezzi stampabili: Culla_Rialzata e Cornice_Ritenuta.
+Speaker e due guarnizioni sono riferimenti di montaggio, NON pezzi da stampare.
+Z=0 sul piano della lastra ABS; griglia acustica rivolta verso +Z.
+Dal datasheet: corpo 30x20, totale 4, telaio 2.5, magnete diametro 12.7 mm.
+Il bordo disponibile per trattenere il telaio non e' quotato: da verificare
+sul campione. Appoggi morbidi sopra/sotto indipendenti, quote indicate DOPO compressione.
+Base e cornice stampate identiche su tutto il campo previsto; cambiano le pose.
+Assemblare e regolare il pacchetto prima di avvitare la base alla lastra ABS.
+Il rialzo lascia spazio sotto: l'isolamento richiede materiale morbido,
+non e' garantito dai soli montanti rigidi.
+"""
+from pathlib import Path
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+# --- Fissaggio alla lastra: centri su una griglia da 10 mm ---
+passo_griglia = 10.0
+interasse_fissaggi = 40.0       # Quadrato 40x40; multiplo del passo.
+foro_m3 = 3.4
+sede_rondella = 8.0            # Sedi sempre cilindriche, anche lato dado.
+
+# --- Base, raccordi e ferramenta ---
+spessore_lastra_abs = 3.0       # Ipotesi di montaggio; impostare lo spessore reale.
+raggio_raccordi_base = 1.0
+mostra_ferramenta = True
+mostra_lastra_abs = True        # Porzione illustrativa, non da stampare.
+
+# --- Sede speaker e appoggi morbidi ---
+luce_sotto_speaker = 8.0        # Distanza lastra / fondo magnete.
+gioco_per_lato = 0.5           # Contorno sede 31x21 per speaker 30x20.
+# Queste due quote servono solo a rappresentare la spugna GIA COMPRESSA.
+# I pezzi stampati restano identici cambiandole: nella realta regoli i dadi.
+spugna_sotto_in_opera = 1.4    # Intervallo previsto 0.5..2.5 mm.
+spugna_sopra_in_opera = 1.4    # Indipendente dalla spugna sotto, 0.5..2.5 mm.
+
+
+# --- Quote nominali speaker da datasheet ---
+speaker_larghezza = 20.0
+speaker_lunghezza = 30.0
+speaker_spessore = 4.0
+telaio_spessore = 2.5
+magnete_diametro = 12.7
+
+V = App.Vector
+doc = App.newDocument('Supporto_Speaker_CMS30204')
+pezzi = []
+assert abs(interasse_fissaggi/passo_griglia-round(interasse_fissaggi/passo_griglia)) < 1e-6
+assert interasse_fissaggi >= 40 and luce_sotto_speaker >= 6
+assert 0.2 <= gioco_per_lato <= 1.0
+assert spessore_lastra_abs > 0 and 0 < raggio_raccordi_base <= 1.2
+assert 0.5 <= spugna_sotto_in_opera <= 2.5, 'Spugna sotto: intervallo previsto 0.5..2.5 mm in opera.'
+assert 0.5 <= spugna_sopra_in_opera <= 2.5, 'Spugna sopra: intervallo previsto 0.5..2.5 mm in opera.'
+raccordi_eseguiti = []
+
+
+def aggiungi(nome, forma, colore, label=None):
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma.removeSplitter()
+    obj.Label = label or nome.replace('_', ' ')
+    obj.ViewObject.ShapeColor = colore
+    if nome in ('Culla_Rialzata', 'Cornice_Ritenuta'):
+        obj.ViewObject.Transparency = 65
+    obj.ViewObject.LineColor = (0.14, 0.14, 0.14)
+    pezzi.append(obj)
+    return obj
+
+
+def capsula(larghezza, lunghezza, z, h):
+    """Profilo a capsula centrato XY, lunghezza lungo Y."""
+    assert lunghezza > larghezza > 0
+    r = larghezza/2
+    d = (lunghezza-larghezza)/2
+    return Part.makeBox(larghezza, 2*d, h, V(-r, -d, z)).fuse(
+        Part.makeCylinder(r, h, V(0, -d, z))).fuse(
+        Part.makeCylinder(r, h, V(0, d, z))).removeSplitter()
+
+
+def barra(x1, y1, x2, y2, larghezza, z, h):
+    dx, dy = x2-x1, y2-y1
+    lunghezza = math.hypot(dx, dy)
+    forma = Part.makeBox(lunghezza, larghezza, h, V(0, -larghezza/2, z))
+    forma.rotate(V(0, 0, 0), V(0, 0, 1), math.degrees(math.atan2(dy, dx)))
+    forma.translate(V(x1, y1, 0))
+    return forma.fuse(Part.makeCylinder(larghezza/2, h, V(x1, y1, z))).fuse(
+        Part.makeCylinder(larghezza/2, h, V(x2, y2, z)))
+
+
+def raccorda(forma, bordi, raggio, descrizione):
+    """Raccordi espliciti: nessun ritorno silenzioso al pezzo a spigoli vivi."""
+    if not bordi:
+        raise ValueError('Nessuno spigolo trovato per '+descrizione)
+    nuova = forma.makeFillet(raggio, bordi).removeSplitter()
+    if not nuova.isValid() or len(nuova.Solids) != len(forma.Solids):
+        raise ValueError('Raccordo non valido: '+descrizione)
+    raccordi_eseguiti.append('%s: R%.2f mm, %d spigoli' % (descrizione, raggio, len(bordi)))
+    return nuova
+
+
+# Quota costruttiva della sede esistente, fissa e indipendente dalla spugna.
+margine_sede_originale = 0.4
+# Quota dei bordi e dell'apertura acustica. Il magnete resta libero sotto.
+z_telaio = luce_sotto_speaker + speaker_spessore-telaio_spessore
+z_griglia = luce_sotto_speaker + speaker_spessore
+z_appoggio = z_telaio-margine_sede_originale
+z_fondo = z_appoggio-1.2
+z_cornice = z_griglia+margine_sede_originale
+# Base e arresto inferiore fissi; variano solo la posa dello speaker e
+# della cornice, secondo gli spessori compressi dei due appoggi indipendenti.
+z_speaker_riferimento = z_appoggio+spugna_sotto_in_opera-(speaker_spessore-telaio_spessore)
+z_griglia_riferimento = z_speaker_riferimento+speaker_spessore
+z_cornice_mobile = z_griglia_riferimento+spugna_sopra_in_opera
+gioco_chiusura_cornice = z_cornice_mobile-z_cornice
+# Due M3x16 rivolte verso l'alto coprono l'intero intervallo 0.5..2.5 per lato.
+# La lunghezza della vite NON cambia con la posa illustrata.
+larghezza_esterna = speaker_larghezza+6.0
+lunghezza_esterna = speaker_lunghezza+6.0
+# Bordino della cornice: 1.5 mm di parete, gioco speaker 0.5 mm per lato.
+# Lunghezza 3.5 = spugna superiore massima 2.5 + 1 mm di guida sul corpo.
+guida_profondita = 3.5
+guida_larghezza_interna = speaker_larghezza+2*gioco_per_lato
+guida_lunghezza_interna = speaker_lunghezza+2*gioco_per_lato
+guida_larghezza_esterna = guida_larghezza_interna+3.0
+guida_lunghezza_esterna = guida_lunghezza_interna+3.0
+# Tasca di scorrimento nella culla: 0.5 mm per lato rispetto al bordino.
+guida_tasca_esterna_x = guida_larghezza_esterna+1.0
+guida_tasca_esterna_y = guida_lunghezza_esterna+1.0
+z_fondo_tasca_guida = z_appoggio-0.3
+
+# Presa nominale di 1 mm sul bordo del telaio; area centrale aperta.
+apertura_x = speaker_larghezza-2.0
+apertura_y = speaker_lunghezza-2.0
+mezzo_interasse = interasse_fissaggi/2
+centri_base = [(sx*mezzo_interasse, sy*mezzo_interasse) for sx in (-1, 1) for sy in (-1, 1)]
+centri_cornice = [(-16., 0.), (16., 0.)]
+# Passaggio fili verso +Y: accesso a piazzole o cavetti della variante L200.
+passaggio_fili = Part.makeBox(5., 12., 20., V(-2.5, 12., z_fondo-1.))
+
+# Appoggio inferiore continuo: si estende verso l'interno nelle zone piene
+# posteriori. Apertura centrale larga per magnete e gruppi di ventilazione;
+# prolungamento verso +Y per asole inferiori, piazzole e resina dei fili.
+# Limiti ricavati dal riferimento dettagliato, non superfici certificate.
+z_taglio = z_fondo-0.1
+r = 1.5
+sx, sy = apertura_x/2, (speaker_lunghezza-12.)/2
+apertura_inferiore = Part.makeBox(2*sx-2*r, 2*sy, 20., V(-sx+r, -sy, z_taglio))
+apertura_inferiore = apertura_inferiore.fuse(
+    Part.makeBox(2*sx, 2*sy-2*r, 20., V(-sx, -sy+r, z_taglio)))
+for x in (-sx+r, sx-r):
+    for y in (-sy+r, sy-r):
+        apertura_inferiore = apertura_inferiore.fuse(Part.makeCylinder(r, 20., V(x, y, z_taglio)))
+profilo_cavi = [(-7.4, 7.5), (7.4, 7.5), (7.4, 13.0), (3.6, 16.0),
+                (-3.6, 16.0), (-7.4, 13.0), (-7.4, 7.5)]
+uscita_inferiore = Part.Face(Part.makePolygon([V(x, y, z_taglio) for x, y in profilo_cavi])).extrude(V(0, 0, 20.))
+apertura_inferiore = apertura_inferiore.fuse(uscita_inferiore).removeSplitter()
+
+# Anello con mensola interna; cavita sufficientemente larga per il corpo.
+culla = capsula(larghezza_esterna, lunghezza_esterna, z_fondo, z_cornice-z_fondo)
+culla = culla.cut(apertura_inferiore)
+culla = culla.cut(capsula(speaker_larghezza+2*gioco_per_lato,
+    speaker_lunghezza+2*gioco_per_lato, z_appoggio, 20.))
+culla = culla.cut(passaggio_fili)
+
+# Base continua a quattro attacchi: bracci larghi 8 mm, piedi maggiorati
+# sotto i montanti. Quote della sede speaker e griglia 40x40 conservate.
+base = None
+for x, y in centri_base:
+    px, py = math.copysign(10., x), math.copysign(10., y)
+    ramo = barra(x, y, px, py, 8., 0., 3.5)
+    ramo = ramo.fuse(Part.makeCylinder(6., 3.5, V(x, y, 0)))
+    ramo = ramo.fuse(Part.makeCylinder(4.5, 3.5, V(px, py, 0)))
+    base = ramo if base is None else base.fuse(ramo)
+base = base.removeSplitter()
+bordi = [e for e in base.Edges if e.BoundBox.ZLength < 1e-6
+         and abs(e.CenterOfMass.z-3.5) < 1e-6]
+base = raccorda(base, bordi, 0.4*raggio_raccordi_base, 'Bordi superiori base')
+for x, y in centri_base:
+    px, py = math.copysign(10., x), math.copysign(10., y)
+    base = base.fuse(Part.makeCylinder(3., z_fondo+0.6, V(px, py, 0)))
+base = base.removeSplitter()
+bordi = [e for e in base.Edges if e.BoundBox.ZLength < 1e-6
+         and abs(e.CenterOfMass.z-3.5) < 1e-6
+         and hasattr(e.Curve, 'Radius') and abs(e.Curve.Radius-3.) < 1e-6]
+base = raccorda(base, bordi, raggio_raccordi_base, 'Piedi montanti')
+culla = culla.fuse(base).removeSplitter()
+bordi = [e for e in culla.Edges if e.BoundBox.ZLength < 1e-6
+         and abs(e.CenterOfMass.z-z_fondo) < 1e-6
+         and hasattr(e.Curve, 'Radius') and abs(e.Curve.Radius-3.) < 1e-6]
+culla = raccorda(culla, bordi, 0.5*raggio_raccordi_base, 'Montanti sotto culla')
+for x, y in centri_base:
+    culla = culla.cut(Part.makeCylinder(foro_m3/2, 4., V(x, y, -0.1)))
+    culla = culla.cut(Part.makeCylinder(sede_rondella/2, 1.3, V(x, y, 2.3)))
+
+# Orecchie per due viti M3 della cornice. Sedi inferiori aperte/accessibili.
+for x, y in centri_cornice:
+    culla = culla.fuse(Part.makeCylinder(6., z_cornice-z_fondo, V(x, y, z_fondo)))
+    culla = culla.cut(Part.makeCylinder(foro_m3/2, 20., V(x, y, z_fondo-0.1)))
+    culla = culla.cut(Part.makeCylinder(sede_rondella/2, 1.0, V(x, y, z_fondo-0.1)))
+# Rinforzo esterno solo attorno alla tasca: conserva 1.5 mm di parete
+# senza cambiare i raccordi esistenti tra culla e montanti.
+rinforzo_tasca = capsula(larghezza_esterna+2.0, lunghezza_esterna+2.0,
+                         z_fondo_tasca_guida, z_cornice-z_fondo_tasca_guida)
+rinforzo_tasca = rinforzo_tasca.cut(capsula(larghezza_esterna-0.4, lunghezza_esterna-0.4,
+    z_fondo_tasca_guida-0.1, z_cornice-z_fondo_tasca_guida+0.2))
+rinforzo_tasca = rinforzo_tasca.cut(passaggio_fili)
+culla = culla.fuse(rinforzo_tasca).removeSplitter()
+
+# Tasca anulare, dopo le orecchie: non lascia materiale in conflitto con la guida.
+# Il fondo residuo resta 0.9 mm; l'appoggio sotto lo speaker rimane continuo.
+tasca_guida = capsula(guida_tasca_esterna_x, guida_tasca_esterna_y, z_fondo_tasca_guida, 20.)
+tasca_guida = tasca_guida.cut(capsula(speaker_larghezza, speaker_lunghezza,
+                                     z_fondo_tasca_guida-0.1, 20.2))
+culla = culla.cut(tasca_guida).removeSplitter()
+obj_culla = aggiungi('Culla_Rialzata', culla, (0.23, 0.42, 0.60), 'DA STAMPARE - Culla rialzata')
+obj_culla.addProperty('App::PropertyStringList', 'RaccordiEseguiti', 'Montaggio')
+obj_culla.RaccordiEseguiti = raccordi_eseguiti
+obj_culla.addProperty('App::PropertyStringList', 'NoteMontaggio', 'Montaggio')
+obj_culla.NoteMontaggio = ['4 fissaggi M3 su quadrato %.0fx%.0f mm' % (interasse_fissaggi, interasse_fissaggi),
+    'Fori M3 %.1f mm; sedi rondella cilindriche diametro %.1f mm' % (foro_m3, sede_rondella),
+    'Cornice: 2 M3x16 dal basso, rondelle e dadi DIN985 superiori; stessa ferramenta per tutto l intervallo',
+    'Viti lastra: scelta automatica secondo spessore ABS %.1f mm, rondelle e dadi DIN985' % spessore_lastra_abs,
+    'Appoggi morbidi separati, da ricavare in gomma/foam',
+    'Presa sul bordo speaker da verificare sul componente reale',
+    'Cornice flottante: spugna sopra e sotto indipendente, 0.5..2.5 mm compressi per lato; gioco complessivo 0.2..4.2 mm',
+    'Cornice: inserire le M3x16 dal basso e regolare i dadi superiori; assemblare lo speaker prima di fissare la base sulla lastra']
+
+# Cornice flottante: le viti trattengono il pacco morbido anche con le
+# orecchie separate. La culla resta un arresto a fine corsa, non un obiettivo
+# di serraggio: fermarsi quando lo speaker e stabile senza deformare la griglia.
+cornice = capsula(larghezza_esterna, lunghezza_esterna, z_cornice_mobile, 2.5)
+for x, y in centri_cornice:
+    cornice = cornice.fuse(Part.makeCylinder(6., 2.5, V(x, y, z_cornice_mobile)))
+cornice = cornice.cut(capsula(apertura_x, apertura_y, z_cornice_mobile-0.1, 3.))
+cornice = cornice.cut(passaggio_fili)
+for x, y in centri_cornice:
+    cornice = cornice.cut(Part.makeCylinder(foro_m3/2, 3., V(x, y, z_cornice_mobile-0.1)))
+    cornice = cornice.cut(Part.makeCylinder(sede_rondella/2, 1.1, V(x, y, z_cornice_mobile+1.5)))
+# Guida che abbraccia il telaio esterno, lasciando libera la griglia.
+z_bordo_guida = z_cornice_mobile-guida_profondita
+bordino = capsula(guida_larghezza_esterna, guida_lunghezza_esterna, z_bordo_guida, guida_profondita+0.1)
+bordino = bordino.cut(capsula(guida_larghezza_interna, guida_lunghezza_interna,
+                              z_bordo_guida-0.1, guida_profondita+0.3))
+# Apertura sul lato fili: non intercetta ne guaina ne rigonfiamento delle saldature.
+bordino = bordino.cut(Part.makeBox(7., 12., guida_profondita+0.4,
+                                 V(-3.5, 12., z_bordo_guida-0.1)))
+bordi = [e for e in bordino.Edges if e.BoundBox.ZLength < 1e-6
+         and abs(e.CenterOfMass.z-z_bordo_guida) < 1e-6]
+bordino = raccorda(bordino, bordi, 0.2, 'Invito bordo guida superiore')
+cornice = cornice.fuse(bordino).removeSplitter()
+obj_cornice = aggiungi('Cornice_Ritenuta', cornice, (0.92, 0.57, 0.15), 'DA STAMPARE - Cornice flottante')
+obj_cornice.addProperty('App::PropertyLength', 'GuidaSottoCornice', 'Montaggio')
+obj_cornice.GuidaSottoCornice = guida_profondita
+obj_cornice.addProperty('App::PropertyLength', 'GiocoLateraleSpeaker', 'Montaggio')
+obj_cornice.GiocoLateraleSpeaker = gioco_per_lato
+obj_cornice.addProperty('App::PropertyLength', 'GiocoOrecchie', 'Montaggio')
+obj_cornice.GiocoOrecchie = gioco_chiusura_cornice
+obj_cornice.addProperty('App::PropertyString', 'Serraggio', 'Montaggio')
+obj_cornice.Serraggio = 'Regolare alternativamente i dadi superiori finche lo speaker e fermo; non forzare il contatto delle orecchie. Assemblare prima di avvitare la base alla lastra.'
+
+# Due anelli morbidi, mostrati solo come riferimento di montaggio.
+for nome, z in (('Guarnizione_Inferiore', z_appoggio), ('Guarnizione_Superiore', z_griglia_riferimento)):
+    altezza_morbida = spugna_sotto_in_opera if nome == 'Guarnizione_Inferiore' else spugna_sopra_in_opera
+    guarnizione = capsula(speaker_larghezza, speaker_lunghezza, z, altezza_morbida)
+    if nome == 'Guarnizione_Inferiore':
+        guarnizione = guarnizione.cut(apertura_inferiore)
+    else:
+        guarnizione = guarnizione.cut(capsula(apertura_x, apertura_y, z-0.1, altezza_morbida+0.2))
+    guarnizione = guarnizione.cut(passaggio_fili)
+    aggiungi(nome, guarnizione, (0.12, 0.12, 0.12), 'RIFERIMENTO - '+nome.replace('_', ' '))
+
+# Speaker dettagliato dalla stessa sorgente del modello standalone.
+# Gli oggetti fisici restano separati, con colori e note sulle quote stimate.
+cartella = (Path(__file__).resolve().parent if '__file__' in globals() else
+            Path('/home/andrea/Scuola/EFES_Project/CAD/Supporto_Speaker_CMS30204'))
+sorgente_speaker = cartella.parent/'Componenti'/'Speaker_CMS30204'/'Speaker_CMS30204.FCMacro'
+modello_speaker = {'SOLO_FUNZIONI': True, '__file__': str(sorgente_speaker)}
+exec(compile(sorgente_speaker.read_text(encoding='utf-8'), str(sorgente_speaker), 'exec'), modello_speaker)
+# Conserva le quote nominali gia presenti in questa macro.
+modello_speaker.update(LARGHEZZA=speaker_larghezza, LUNGHEZZA=speaker_lunghezza,
+    SPESSORE_TOTALE=speaker_spessore, SPESSORE_CORPO=telaio_spessore,
+    DIAMETRO_MAGNETE=magnete_diametro)
+riferimenti_speaker = modello_speaker['crea_speaker'](
+    doc, versione='L200', origine=V(0, 0, z_speaker_riferimento), fili_completi=False)
+for obj in riferimenti_speaker:
+    obj.Label = 'RIFERIMENTO - '+obj.Label
+pezzi.extend(riferimenti_speaker)
+
+# Ferramenta commerciale: filetti lisci, ingombri nominali come sul supporto magnete.
+# Sedi nella plastica sempre cilindriche; l'esagono e' solo nel dado reale.
+def esagono(chiave, z, h):
+    r = chiave/math.sqrt(3.)
+    punti = [V(r*math.cos(math.radians(30+60*i)), r*math.sin(math.radians(30+60*i)), z) for i in range(6)]
+    return Part.Face(Part.makePolygon(punti+[punti[0]])).extrude(V(0, 0, h))
+
+
+def ferramenta_m3(lunghezza, pacco):
+    vite = Part.makeCylinder(1.5, lunghezza, V(0, 0, -0.5)).fuse(
+        Part.makeCylinder(2.75, 3., V(0, 0, -3.5)))
+    bordi = [e for e in vite.Edges if e.BoundBox.ZLength < 1e-6 and abs(e.CenterOfMass.z+3.5) < 1e-6]
+    vite = vite.makeFillet(0.15, bordi).cut(esagono(2.5, -3.6, 1.4)).removeSplitter()
+    rondella = Part.makeCylinder(3.5, 0.5, V(0, 0, -0.5)).cut(
+        Part.makeCylinder(1.6, 0.7, V(0, 0, -0.6)))
+    rondella_dado = rondella.copy()
+    rondella_dado.translate(V(0, 0, pacco+0.5))
+    z_dado = pacco+0.5
+    dado = esagono(5.5, z_dado, 2.4).fuse(Part.makeCylinder(2.75, 1.6, V(0, 0, z_dado+2.4)))
+    dado = dado.cut(Part.makeCylinder(1.5, 4.2, V(0, 0, z_dado-0.1)))
+    return [('Vite', vite), ('Rondella_Testa', rondella), ('Rondella_Dado', rondella_dado), ('Dado', dado)]
+
+
+# Piccola porzione di lastra per rendere leggibile il montaggio delle quattro viti.
+if mostra_lastra_abs:
+    lato = interasse_fissaggi+16.
+    lastra = Part.makeBox(lato, lato, spessore_lastra_abs,
+                         V(-lato/2, -lato/2, -spessore_lastra_abs))
+    for x, y in centri_base:
+        lastra = lastra.cut(Part.makeCylinder(foro_m3/2, spessore_lastra_abs+0.2,
+                                              V(x, y, -spessore_lastra_abs-0.1)))
+    obj_lastra = aggiungi('Lastra_ABS_Riferimento', lastra, (0.45, 0.46, 0.48),
+                          'RIFERIMENTO - Lastra ABS, spessore ipotizzato %.1f mm' % spessore_lastra_abs)
+    obj_lastra.ViewObject.Transparency = 85
+
+if mostra_ferramenta:
+    gruppo = doc.addObject('App::DocumentObjectGroup', 'Ferramenta_M3')
+    gruppo.Label = 'FERRAMENTA - viti, rondelle e dadi commerciali'
+    gruppo.addProperty('App::PropertyString', 'Standard', 'Ferramenta')
+    gruppo.Standard = 'M3x0.5 ISO4762; dadi DIN985 AF5.5 H4; rondelle ISO7089 diametro 7, foro 3.2, spessore 0.5 mm'
+    gruppo.addProperty('App::PropertyString', 'Criterio', 'Ferramenta')
+    gruppo.Criterio = 'Due rondelle 0.5 mm, dado alto 4 mm, almeno 1 mm (due filetti) oltre dado. Filetti rappresentati lisci.'
+    fissaggi = [('Base_%d' % (i+1), x, y, 2.3, -spessore_lastra_abs, -1)
+                for i, (x, y) in enumerate(centri_base)]
+    fissaggi += [('Cornice_%d' % (i+1), x, y, z_fondo+0.9, z_cornice_mobile+1.5, 1)
+                  for i, (x, y) in enumerate(centri_cornice)]
+    distinta, verifiche = {}, []
+    ferramenta_oggetti = []
+    for nome, x, y, z_testa, z_dado, verso in fissaggi:
+        pacco = abs(z_testa-z_dado)
+        lunghezza = (16 if nome.startswith('Cornice') else
+            next((l for l in (8, 10, 12, 14, 16, 20, 25, 30, 35, 40) if l >= pacco+6.-1e-8), None))
+        if lunghezza is None:
+            raise ValueError('Ferramenta: pacco troppo alto per le lunghezze previste')
+        if lunghezza-pacco-5. < 1.-1e-8:
+            raise ValueError('Ferramenta: presa insufficiente del dado per '+nome)
+        fissaggio = doc.addObject('App::DocumentObjectGroup', 'Fissaggio_'+nome)
+        fissaggio.Label = '%s - M3x%d' % (nome.replace('_', ' '), lunghezza)
+        gruppo.addObject(fissaggio)
+        for prop, val in (('LunghezzaVite', lunghezza), ('PaccoSerrato', pacco),
+                          ('SporgenzaOltreDado', lunghezza-pacco-5.)):
+            fissaggio.addProperty('App::PropertyLength', prop, 'Verifica')
+            setattr(fissaggio, prop, val)
+        posa = App.Placement(V(x, y, z_testa), App.Rotation(V(0, 0, 1), V(0, 0, verso)))
+        for tipo, forma in ferramenta_m3(lunghezza, pacco):
+            forma.Placement = posa.multiply(forma.Placement)
+            label = ('VITE M3x%d ISO4762' % lunghezza if tipo=='Vite' else
+                     'DADO M3 DIN985' if tipo=='Dado' else 'RONDELLA M3 ISO7089 diametro 7')
+            obj = aggiungi(tipo+'_'+nome, forma, (0.68, 0.71, 0.74), label+' - '+nome)
+            obj.addProperty('App::PropertyBool', 'ComponenteCommerciale', 'Ferramenta')
+            obj.ComponenteCommerciale = True
+            fissaggio.addObject(obj)
+            ferramenta_oggetti.append(obj)
+        distinta[lunghezza] = distinta.get(lunghezza, 0)+1
+        verifiche.append('%s: M3x%d, sporgenza oltre dado %.2f mm' % (nome, lunghezza, lunghezza-pacco-5.))
+    gruppo.addProperty('App::PropertyStringList', 'Distinta', 'Ferramenta')
+    gruppo.Distinta = ['%d viti M3x%d ISO4762' % (n, l) for l, n in sorted(distinta.items())]+[
+        '%d dadi M3 DIN985' % len(fissaggi), '%d rondelle M3 ISO7089 diametro 7' % (2*len(fissaggi))]
+    gruppo.addProperty('App::PropertyStringList', 'Verifiche', 'Ferramenta')
+    gruppo.Verifiche = verifiche
+    App.Console.PrintMessage('Distinta ferramenta (ABS %.1f mm): %s\n' % (spessore_lastra_abs, ', '.join(gruppo.Distinta)))
+for esito in raccordi_eseguiti:
+    App.Console.PrintMessage('Raccordo applicato: '+esito+'\n')
+
+# STEP di assieme per visualizzare il montaggio; oggetti separati nel documento.
+doc.recompute()
+file_step = cartella/'Supporto_Speaker_CMS30204.step'
+ImportGui.export(pezzi, str(file_step))
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('Supporto speaker: STEP assieme in %s\n' % file_step)
+App.Console.PrintMessage('Da stampare: solo Culla_Rialzata e Cornice_Ritenuta. Speaker e guarnizioni sono riferimenti.\n')
+App.Console.PrintMessage('Fori su griglia %.0f mm: quadrato %.0fx%.0f. Fondo magnete a %.1f mm dalla lastra.\n' %
+    (passo_griglia, interasse_fissaggi, interasse_fissaggi, z_speaker_riferimento))
+App.Console.PrintMessage('Speaker dettagliato L200 caricato: griglia metallica, telaio ABS, membrana, retro, magnete e terminali.\n')
+App.Console.PrintMessage('Cavi mostrati per 25 mm; lunghezza reale 200 mm. Supporto ancora preliminare: appoggi da verificare.\n')
+App.Console.PrintMessage('Cornice flottante: gioco %.1f mm; spugna sotto %.1f e sopra %.1f mm in opera.\n' % (gioco_chiusura_cornice, spugna_sotto_in_opera, spugna_sopra_in_opera))
+App.Console.PrintMessage('Regolazione prevista: 0.5..2.5 mm compressi per ciascun lato, base invariata. Cornice: due M3x16 dal basso, dadi sopra.\n')
+App.Console.PrintMessage('Guida superiore %.1f mm: almeno 1 mm nominale di sovrapposizione sul telaio con spugna superiore 2.5 mm; gioco laterale %.1f mm per lato.\n' % (guida_profondita, gioco_per_lato))
