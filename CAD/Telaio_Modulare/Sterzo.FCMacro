@@ -1,0 +1,268 @@
+# Sterzo dal simulatore e telaio rettangolare EiTech su griglia.
+from pathlib import Path
+import importlib.util
+import json
+import math
+import uuid
+from PySide import QtWidgets
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+
+CARTELLA = Path(__file__).resolve().parent
+FILE_STERZO = CARTELLA / 'sterzo_cad.json'
+
+# Quote di montaggio PROVVISORIE: misurare i propri pezzi EiTech.
+SPESSORE_ASTE = 1.0
+DIAMETRO_FORI = 3.5
+PASSO_FORI = 10.0
+DIAMETRO_ASSI_RUOTE = 4.0
+MOSTRA_MINUTERIA = True
+LUNGHEZZE_VITI = (12, 16, 20, 30, 40)  # M3x40 per il giunto rialzato sul tirante.
+
+# Telaio piano: 20 fori = 190 mm fra i centri estremi con passo 10 mm.
+MOSTRA_TELAIO = True
+FORI_LONGHERONI = 20
+RIENTRO_LONGHERONI_FORI = 1  # 1 o 2 fori verso l'interno rispetto ai perni A.
+
+# Trasmissione: quote EiTech stimate, modificabili dopo confronto con i pezzi reali.
+MOSTRA_TRASMISSIONE = True
+SOVRALZO_COMANDO = 30.0  # Rialzo del disco sul tirante; lunghezza distanziale T derivata dagli spessori.
+DIAMETRO_ASSE_TRASMISSIONE = 4.0
+RAGGIO_DISCO_FORATO = 25.0  # EiTech 01161: diametro esterno ufficiale 50 mm.
+SHIFT_ANGOLARI_FORI = 0  # Scorrimento trasversale sui fori, mantenendo i 4 attacchi al telaio.
+# Il verso del motore e' automatico: dal punto M verso il centro del telaio.
+
+
+
+spec = importlib.util.spec_from_file_location('pezzi_sterzo', CARTELLA/'libreria_pezzi.py')
+pezzi = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(pezzi)
+spec_telaio = importlib.util.spec_from_file_location('regole_telaio', CARTELLA/'telaio_sterzo.py')
+regole_telaio = importlib.util.module_from_spec(spec_telaio)
+spec_telaio.loader.exec_module(regole_telaio)
+spec_drive = importlib.util.spec_from_file_location('trasmissione', CARTELLA/'trasmissione_sterzo.py')
+trasmissione = importlib.util.module_from_spec(spec_drive)
+spec_drive.loader.exec_module(trasmissione)
+spec_moto = importlib.util.spec_from_file_location('cinematica_sterzo', CARTELLA/'cinematica_sterzo.py')
+cinematica = importlib.util.module_from_spec(spec_moto)
+spec_moto.loader.exec_module(cinematica)
+V = App.Vector
+argento = (0.68, 0.71, 0.75)
+blu = (0.16, 0.35, 0.65)
+
+# Validare e costruire prima di sostituire gli oggetti del documento.
+data = json.loads(FILE_STERZO.read_text(encoding='utf-8'))
+if (data.get('format') != 'EFES_steering_CAD' or data.get('version') != 2
+        or data.get('units') != {'length': 'mm', 'angle': 'rad'}
+        or data.get('coordinate_origin') != 'A_SX'):
+    raise ValueError('Usare il JSON v2: riesportare con «Scarica meccanismo FreeCAD» nel simulatore.')
+cinematica.valida_esportazione(data)
+P = data['points']
+for name in ('A_SX', 'A_DX', 'B_SX', 'B_DX', 'C_SX', 'C_DX', 'T', 'M', 'Q'):
+    if len(P[name]) != 2 or not all(math.isfinite(x) for x in P[name]):
+        raise ValueError('Punto non valido: '+name)
+w = data['wheel']
+s = SPESSORE_ASTE
+larghezza = data['link_width']
+if (not all(math.isfinite(x) and x > 0 for x in
+            (s, DIAMETRO_FORI, PASSO_FORI, DIAMETRO_ASSI_RUOTE, larghezza, w['diameter'], w['width']))
+        or DIAMETRO_FORI >= larghezza
+        or not all(math.isfinite(w[k]) for k in ('heading_left', 'heading_right'))):
+    raise ValueError('Quote di montaggio non valide.')
+z = w['diameter']/2  # Ruote appoggiate al piano Z=0.
+rialzo = SOVRALZO_COMANDO if MOSTRA_TRASMISSIONE else 0.0
+if not math.isfinite(rialzo) or rialzo < 0:
+    raise ValueError('Sovralzo comando: quota positiva o nulla.')
+za = z+2.5
+zt = za+s+0.5        # Rondella tra bracci e tirante.
+zd = zt+rialzo      # Disco rialzato rispetto al tirante.
+zr = zd+s+0.5+(s if MOSTRA_TRASMISSIONE else 0)  # Biella sopra disco + piattina e rondella.
+forme = []
+non_standard = []
+
+
+def aggiungi(nome, forma, colore, nota=''):
+    if forma.isNull() or not forma.isValid():
+        raise ValueError('Geometria non valida: '+nome)
+    forme.append((nome, forma, colore, nota))
+
+
+def asta(nome, a, b, quota, extra=()):
+    dx, dy = b[0]-a[0], b[1]-a[1]
+    lunghezza = math.hypot(dx, dy)
+    forma = pezzi.biella(lunghezza, larghezza, s, DIAMETRO_FORI, PASSO_FORI, extra)
+    forma.rotate(V(), V(0, 0, 1), math.degrees(math.atan2(dy, dx)))
+    forma.translate(V(*a, quota))
+    regolare = abs(round(lunghezza/PASSO_FORI)*PASSO_FORI-lunghezza) < 1e-6
+    nota = 'Interasse %.3f mm. ' % lunghezza
+    nota += 'Foratura a passo 10 mm; modello semplificato.' if regolare else 'Geometria ideale: verificare disponibilita del pezzo EiTech.'
+    if not regolare:
+        non_standard.append(nome)
+    aggiungi(nome, forma, argento if regolare else blu, nota)
+
+
+for lato, heading in (('SX', w['heading_left']), ('DX', w['heading_right'])):
+    a, b, c = P['A_'+lato], P['B_'+lato], P['C_'+lato]
+    asta('Braccio_'+lato, a, b, za)
+    # Collegamento al portaruota: ingombro semplificato, non un pezzo EiTech certificato.
+    dx, dy = c[0]-a[0], c[1]-a[1]
+    distanza = math.hypot(dx, dy)
+    tratto = distanza-w['width']/2
+    if tratto <= 0:
+        raise ValueError('Ruota sovrapposta al perno di sterzo '+lato)
+    direzione = V(dx/distanza, dy/distanza, 0)
+    # Portaruota sotto il braccio, con foro per il proprio asse orizzontale.
+    lunghezza_supporto = max(0.1, tratto-larghezza/2)
+    supporto = Part.makeBox(lunghezza_supporto, larghezza, 5, V(0, -larghezza/2, -2.5))
+    supporto = supporto.fuse(Part.makeCylinder(larghezza/2, 5, V(0, 0, -2.5)))
+    supporto = supporto.fuse(Part.makeCylinder(larghezza/2, 5, V(lunghezza_supporto, 0, -2.5)))
+    supporto.rotate(V(), V(0, 0, 1), math.degrees(math.atan2(dy, dx)))
+    supporto.translate(V(*a, z))
+    supporto = supporto.cut(Part.makeCylinder(DIAMETRO_FORI/2, 7, V(*a, z-3.5)))
+    inizio_asse = V(*a, z)+direzione*(larghezza/2)
+    asse = Part.makeCylinder(DIAMETRO_ASSI_RUOTE/2, distanza-larghezza/2, inizio_asse, direzione)
+    supporto = supporto.cut(Part.makeCylinder(DIAMETRO_ASSI_RUOTE/2+0.1,
+                                             distanza, inizio_asse, direzione))
+    aggiungi('Portaruota_'+lato, supporto, blu, 'Ingombro provvisorio del portaruota, da misurare.')
+    aggiungi('Asse_ruota_'+lato, asse, argento)
+    asse_ruota = V(math.cos(heading), math.sin(heading), 0)
+    centro = V(*c, z)
+    ruota = Part.makeCylinder(w['diameter']/2, w['width'], centro-asse_ruota*w['width']/2, asse_ruota)
+    foro = Part.makeCylinder(DIAMETRO_ASSI_RUOTE/2, w['width'], centro-asse_ruota*w['width']/2, asse_ruota)
+    aggiungi('Pneumatico_'+lato, ruota.cut(Part.makeCylinder(w['diameter']*0.25, w['width'],
+              centro-asse_ruota*w['width']/2, asse_ruota)), (0.07, 0.075, 0.08))
+    mozzo = Part.makeCylinder(w['diameter']*0.25, w['width'], centro-asse_ruota*w['width']/2, asse_ruota).cut(foro)
+    aggiungi('Mozzo_ruota_'+lato, mozzo, (0.24, 0.25, 0.27))
+
+lunghezza_t = math.dist(P['B_SX'], P['T'])
+asta('Tirante', P['B_SX'], P['B_DX'], zt, (lunghezza_t,))
+if not MOSTRA_TRASMISSIONE:
+    asta('Manovella_motore', P['M'], P['Q'], zt)
+asta('Biella_motore', P['Q'], P['T'], zr)
+
+# Perni A e uscita M: ingombri provvisori; supporti e fissaggi verticali verranno dopo.
+for nome in (('A_SX', 'A_DX') if MOSTRA_TRASMISSIONE else ('A_SX', 'A_DX', 'M')):
+    quota = zt if nome == 'M' else za
+    perno = Part.makeCylinder(DIAMETRO_FORI/2-0.1, 12, V(*P[nome], quota-8))
+    aggiungi('Perno_'+nome, perno, argento, 'Riferimento di montaggio: supporto fisso non ancora modellato.')
+
+# I livelli servono soltanto a impilare le piastrine: nessuna struttura verticale.
+piano = None
+quote_giunti = [('B_SX', P['B_SX'], za, zt+s, True),
+                ('B_DX', P['B_DX'], za, zt+s, True),
+                ('T', P['T'], zt, zr+s, True), ('Q', P['Q'], zd, zr+s, True)]
+if MOSTRA_TELAIO:
+    piano = regole_telaio.piano_telaio(P, PASSO_FORI, FORI_LONGHERONI, RIENTRO_LONGHERONI_FORI)
+    # Sotto i portaruota gia presenti (5 mm), senza intersecarli.
+    base_telaio = z+2.5-5-0.5-3*s
+    istanze = {p['nome']: p for p in piano['pezzi']}
+    for p in piano['pezzi']:
+        forma, _, colore = pezzi.piattina_forata(dict(numero_fori=p['numero_fori'],
+            larghezza=larghezza, spessore=s, diametro_fori=DIAMETRO_FORI), PASSO_FORI)
+        forma.rotate(V(), V(0, 0, 1), p['angolo'])
+        forma.translate(V(*p['origine'], base_telaio+p['livello']*s))
+        aggiungi('Telaio_'+p['nome'], forma, colore,
+                 '%d fori, passo %.2f mm. Piastrina piana; montaggio verticale provvisorio.' %
+                 (p['numero_fori'], PASSO_FORI))
+    for g in piano['giunti']:
+        centri = [regole_telaio.centro_foro(istanze[nome], foro, PASSO_FORI) for nome, foro in g['fori']]
+        if any(math.dist(centri[0], c) > 1e-6 for c in centri[1:]):
+            raise ValueError('Fori non coincidenti nel telaio: '+g['nome'])
+        quote = [base_telaio+istanze[nome]['livello']*s for nome, _ in g['fori']]
+        basso, alto = min(quote), max(quote)+s
+        # La diagonale scavalca lo spessore del longherone al suo attacco sulla traversa.
+        if max(quote)-min(quote) > s+1e-6:
+            h = max(quote)-min(quote)-s
+            forma, _, colore = pezzi.distanziale(dict(altezza=h, diametro=7, diametro_foro=DIAMETRO_FORI), PASSO_FORI)
+            forma.translate(V(*centri[0], basso+s))
+            aggiungi('Telaio_Distanziale_'+g['nome'], forma, colore,
+                     'Spessore di compensazione %.2f mm fra diagonale e traversa.' % h)
+        quote_giunti.append(('Telaio_'+g['nome'], centri[0], basso, alto, False))
+
+if rialzo:
+    altezza_distanziale_T = zr-(zt+s+0.5)
+    distanziale, _, colore = pezzi.distanziale(dict(altezza=altezza_distanziale_T, diametro=6,
+        diametro_foro=DIAMETRO_FORI), PASSO_FORI)
+    distanziale.translate(V(*P['T'], zt+s+0.5))
+    aggiungi('Distanziale_giunto_mobile_T', distanziale, colore,
+             'Rialzo fra tirante e biella motore nel solo giunto mobile T.')
+
+dati_trasmissione = None
+if MOSTRA_TRASMISSIONE:
+    piano_supporto = piano or regole_telaio.piano_telaio(P, PASSO_FORI, FORI_LONGHERONI, RIENTRO_LONGHERONI_FORI)
+    attacchi_motore = regole_telaio.supporto_motore(piano_supporto, P['M'], PASSO_FORI, SHIFT_ANGOLARI_FORI)
+    dati_trasmissione = trasmissione.genera(P, zd, z+2.5-5-0.5, dict(passo=PASSO_FORI, spessore=s,
+        foro=DIAMETRO_FORI, diametro_asse=DIAMETRO_ASSE_TRASMISSIONE, larghezza_asta=larghezza,
+        raggio_disco=RAGGIO_DISCO_FORATO, angolo_motore=attacchi_motore['angolo_motore'],
+        supporto_telaio=attacchi_motore),
+        pezzi, aggiungi, MOSTRA_MINUTERIA)
+
+bom = {}
+numero_rondelle = 0
+if MOSTRA_MINUTERIA:
+    minuteria = pezzi.minuteria_m3(LUNGHEZZE_VITI)
+    for nome, centro, basso, alto, mobile in quote_giunti:
+        richiesto = alto-basso+1+4+1  # 2 rondelle esterne, dado autobloccante, 2 filetti.
+        lunghezza = next((l for l in LUNGHEZZE_VITI if l >= richiesto), None)
+        if lunghezza is None:
+            raise ValueError('Nessuna vite abbastanza lunga al giunto '+nome)
+        bom[lunghezza] = bom.get(lunghezza, 0)+1
+        componenti = [('Vite_M3x%d' % lunghezza, alto+0.5),
+                      ('Rondella_M3', alto), ('Rondella_M3', basso-0.5),
+                      ('Dado_M3_Autobloccante', basso-4.5),
+                      ('Inserto_Nylon_M3', basso-4.5+2.4)]
+        if mobile:
+            componenti.append(('Rondella_M3', basso+s+(s if nome == 'Q' and MOSTRA_TRASMISSIONE else 0)))
+        numero_rondelle += 3 if mobile else 2
+        for i, (tipo, quota) in enumerate(componenti):
+            forma, colore = minuteria[tipo]
+            forma = forma.copy()
+            forma.translate(V(*centro, quota))
+            aggiungi('%s_%s_%d' % (nome, tipo, i), forma, colore)
+
+doc = App.listDocuments().get('Meccanismo_Sterzo') or App.newDocument('Meccanismo_Sterzo')
+App.setActiveDocument(doc.Name)
+precedente = Gui.getMainWindow().findChild(QtWidgets.QDockWidget, 'EFES_Sterzo_Movimento')
+if precedente is not None:
+    precedente.close()
+for obj in list(doc.Objects):
+    if getattr(obj, 'GeneratoSterzo', False):
+        doc.removeObject(obj.Name)
+interassi = {nome: math.dist(P[a], P[b]) for nome, a, b in (
+    ('Braccio_SX', 'A_SX', 'B_SX'), ('Braccio_DX', 'A_DX', 'B_DX'),
+    ('Tirante', 'B_SX', 'B_DX'), ('Manovella_motore', 'M', 'Q'), ('Biella_motore', 'Q', 'T'))}
+for nome, forma, colore, nota in forme:
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma
+    obj.addProperty('App::PropertyBool', 'GeneratoSterzo').GeneratoSterzo = True
+    obj.addProperty('App::PropertyString', 'Nota').Nota = nota
+    obj.addProperty('App::PropertyString', 'GruppoCinematico').GruppoCinematico = cinematica.gruppo_mobile(nome)
+    if nome in interassi:
+        obj.addProperty('App::PropertyLength', 'Interasse', 'Geometria simulatore').Interasse = interassi[nome]
+    if nome == ('Asse_verticale_D4' if MOSTRA_TRASMISSIONE else 'Perno_M'):
+        obj.Label = 'Asse verticale M - D4' if MOSTRA_TRASMISSIONE else 'Asse motore M (supporto da definire)'
+        obj.addProperty('App::PropertyVector', 'CentroAsse', 'Geometria simulatore').CentroAsse = V(*P['M'], zd)
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (0.12, 0.12, 0.14)
+meta = doc.addObject('App::FeaturePython', 'Dati_Sterzo')
+meta.addProperty('App::PropertyBool', 'GeneratoSterzo').GeneratoSterzo = True
+meta.addProperty('App::PropertyString', 'Revisione').Revisione = uuid.uuid4().hex
+meta.addProperty('App::PropertyString', 'DatiJSON').DatiJSON = json.dumps(dict(export=data, trasmissione=dati_trasmissione))
+doc.recompute()
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('Sterzo: posa centrale da %s. Coordinate X destra, Y retro, Z alto.\n' % FILE_STERZO)
+App.Console.PrintMessage('Montaggio verticale e portaruota provvisori; quote EiTech da misurare.\n')
+App.Console.PrintMessage('Asse motore M: X %.3f, Y %.3f mm; manovella %.3f mm; biella %.3f mm.\n' %
+                         (*P['M'], interassi['Manovella_motore'], interassi['Biella_motore']))
+if piano:
+    App.Console.PrintMessage('Telaio: interasse traverse %.1f mm, larghezza fra longheroni %.1f mm, profondita %.1f mm.\n' %
+                             (piano['interasse'], piano['larghezza'], piano['profondita']))
+    App.Console.PrintMessage('Pezzi: 2 traverse da %d fori, 2 longheroni da %d fori, 4 diagonali da 7 fori (attacchi 2 e 7).\n' %
+                             (round(piano['interasse']/PASSO_FORI)+1, FORI_LONGHERONI))
+if non_standard:
+    App.Console.PrintWarning('Interassi fuori griglia 10 mm, verificare i pezzi reali: %s.\n' % ', '.join(non_standard))
+if bom:
+    App.Console.PrintMessage('Giunti sterzo e telaio: %s; %d rondelle M3; %d dadi autobloccanti M3.\n' % (
+        ', '.join('%d viti M3x%d' % (n, l) for l, n in sorted(bom.items())), numero_rondelle, sum(bom.values())))

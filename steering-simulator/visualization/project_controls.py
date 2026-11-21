@@ -6,6 +6,7 @@ import unicodedata
 import uuid
 import streamlit as st
 from steering.project import Project,MODEL_VERSION,SETTING_KEYS,dumps,loads
+from steering.export import freecad_json
 from steering.parameters import to_json
 from steering.kinematics import select_pose,solve
 from steering.singularities import diagnose
@@ -110,6 +111,15 @@ def save_dialog():
                                'application/json',on_click='ignore')
     except (ValueError,TypeError) as exc:
         st.error(f'Impossibile salvare: {exc}')
+    with st.expander('Meccanismo FreeCAD'):
+        st.caption('Esporta la configurazione attiva e le pose del settore motore continuo. Salva il file nella cartella '
+                   'CAD/Telaio_Modulare come sterzo_cad.json, poi esegui Sterzo.FCMacro e Sterzo_Movimento.FCMacro.')
+        try:
+            st.download_button('Scarica meccanismo FreeCAD',freecad_json(st.session_state.configuration),
+                               'sterzo_cad.json','application/json',on_click='ignore')
+        except ValueError as exc:
+            st.warning(str(exc))
+
 
 
 @st.dialog('Esporta report',width='large')

@@ -11,13 +11,16 @@ Novita':
 - ghiere opzionali, sedi 624ZZ e fori PCB; lamature rondelle standard Ø8.
 
 Quote preliminari: verificare accoppiamenti, rigidita' e stampabilita'.
-La macro crea un documento FreeCAD con componenti separati; non salva e non esporta file.
+La macro crea un documento FreeCAD con componenti separati ed esporta due STEP:
+uno accanto alla macro e uno nella cartella 3D del PCB configurata sotto.
 """
 
 import math
+from pathlib import Path
 import FreeCAD as App
 import FreeCADGui as Gui
 import Part
+import ImportGui
 
 V = App.Vector
 
@@ -26,6 +29,12 @@ V = App.Vector
 # I pezzi commerciali restano: albero Ø4, cuscinetti 624ZZ, magnete Ø6, viti M3.
 # Razze, rinforzi, morsetti e lunghezza albero si dimensionano automaticamente.
 # Le proprieta' nel documento FreeCAD sono informative: si modifica qui.
+
+# --- ESPORTAZIONE STEP - nomi senza estensione; sovrascritti a ogni esecuzione ---
+cartella_step_pcb = '/home/andrea/Scuola/EFES_Project/PCB/CustomLibs/3D'
+nome_step_locale = 'Supporto_Volante'
+nome_step_pcb = 'Supporto_Volante'
+# Esporta tutti i componenti generati, compresa la ferramenta se abilitata.
 
 # --- TORRE - ingombri e quote rispetto al PCB (Z = 0) ---
 diametro_cerchio_top = 32.0  # interasse delle gambe in alto
@@ -1776,6 +1785,18 @@ if mostra_ferramenta:
 
 # Vista assonometrica e fine esecuzione.
 doc.recompute()
+cartella = Path(__file__).resolve().parent if '__file__' in globals() else Path(
+    '/home/andrea/Scuola/EFES_Project/CAD/Supporto_Volante')
+cartella_pcb = Path(cartella_step_pcb).expanduser()
+cartella_pcb.mkdir(parents=True, exist_ok=True)
+file_step_locale = cartella/(nome_step_locale+'.step')
+file_step_pcb = cartella_pcb/(nome_step_pcb+'.step')
+parti_export = [obj for obj in doc.Objects
+                if obj.TypeId == 'Part::Feature' and not obj.Shape.isNull()]
+for file_step in dict.fromkeys((file_step_locale, file_step_pcb)):
+    ImportGui.export(parti_export,str(file_step))
+App.Console.PrintMessage('STEP locale aggiornato: %s\n' % file_step_locale)
+App.Console.PrintMessage('STEP PCB aggiornato: %s\n' % file_step_pcb)
 Gui.activeDocument().activeView().viewAxonometric()
 Gui.activeDocument().activeView().fitAll()
 

@@ -7,7 +7,7 @@
 		(at 8 2.5 0)
 		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "62ac37aa-0685-4f7a-aecd-7abdda1a286d")
+		(uuid "07242e95-c426-432f-9645-1dd60f4cc6dc")
 		(effects
 			(font
 				(size 1 1)
@@ -19,7 +19,7 @@
 		(at 6.35 -16.5 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "d199c1e3-a99a-4ff9-a095-657dc187e223")
+		(uuid "e2967d53-a7fe-4844-9510-782b6b33d836")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "35f22939-623d-426f-9a7b-e8ab3dde023c")
+		(uuid "48a50514-95fc-46df-8489-8056724b945c")
 		(effects
 			(font
 				(size 1 1)
@@ -45,7 +45,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "16c8a3e5-d260-43df-a8c1-730f7cd88d0c")
+		(uuid "5fa4724f-b847-41cc-b100-5ef6361b24a9")
 		(effects
 			(font
 				(size 1 1)
@@ -55,46 +55,16 @@
 	)
 	(attr through_hole)
 	(duplicate_pad_numbers_are_jumpers no)
-	(fp_line
-		(start -1.15 -1.6)
-		(end -1.15 -13)
-		(stroke
-			(width 0.15)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "030a43e4-17a5-49ee-b3a9-f3af96801c09")
-	)
-	(fp_line
-		(start 13.85 -13)
-		(end -1.15 -13)
-		(stroke
-			(width 0.15)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "0b70244b-fd81-4566-871b-5fb64ace49ba")
-	)
-	(fp_line
-		(start 13.85 -1.6)
-		(end 13.85 -13)
-		(stroke
-			(width 0.15)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "ca174f2b-5363-4c30-828d-3c8db8252e58")
-	)
 	(fp_rect
-		(start -1.65 -13.5)
-		(end 14.35 2)
+		(start -1.77 -1.77)
+		(end 14.47 1.77)
 		(stroke
-			(width 0.1)
+			(width 0.05)
 			(type solid)
 		)
 		(fill no)
 		(layer "F.CrtYd")
-		(uuid "a83c719c-761d-4bdc-b93b-985311696f57")
+		(uuid "c0a54102-ec55-4669-b913-85d19ba436ba")
 	)
 	(fp_rect
 		(start -1.15 -13)
@@ -105,13 +75,13 @@
 		)
 		(fill no)
 		(layer "F.Fab")
-		(uuid "63f8f1ec-a31e-43f5-bad5-824d5d3de842")
+		(uuid "7396f281-f2d3-414e-8e73-c5e7d0ccff8e")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 6.35 -15 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "d6ae0419-4305-45eb-9bf3-ffdd55e154fd")
+		(uuid "b8509ff0-e485-4fb8-8efd-4a72ffb49438")
 		(effects
 			(font
 				(size 1 1)
@@ -121,59 +91,59 @@
 	)
 	(pad "1" thru_hole rect
 		(at 0 0)
-		(size 2.1 2.1)
-		(drill 1.15)
+		(size 1.75 2.1)
+		(drill 1.05)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
-		(uuid "53d05085-fd43-4e9c-b46f-d026c207cd22")
+		(uuid "42d27ae7-6625-470d-811b-5ece3ebd6664")
 	)
 	(pad "2" thru_hole circle
 		(at 2.54 0)
-		(size 2.1 2.1)
-		(drill 1.15)
+		(size 1.75 1.75)
+		(drill 1.05)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(thermal_bridge_angle 90)
-		(uuid "3d713142-df71-4311-a505-2760ec7eb0ad")
+		(uuid "0bcbf11f-01af-476f-95d9-941fea33ac53")
 	)
 	(pad "3" thru_hole circle
 		(at 5.08 0)
-		(size 2.1 2.1)
-		(drill 1.15)
+		(size 1.75 1.75)
+		(drill 1.05)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(thermal_bridge_angle 90)
-		(uuid "6741471a-0f9c-4e71-8da0-ab9ffce84cb7")
+		(uuid "30c1adc4-94cd-46b0-83d4-5db00eb2aef9")
 	)
 	(pad "4" thru_hole circle
 		(at 7.62 0)
-		(size 2.1 2.1)
-		(drill 1.15)
+		(size 1.75 1.75)
+		(drill 1.05)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(thermal_bridge_angle 90)
-		(uuid "100cc4b7-0f7e-491f-be1d-f9658efe0d5c")
+		(uuid "b9304b31-de2e-4610-8736-175f34034344")
 	)
 	(pad "5" thru_hole circle
 		(at 10.16 0)
-		(size 2.1 2.1)
-		(drill 1.15)
+		(size 1.75 1.75)
+		(drill 1.05)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(thermal_bridge_angle 90)
-		(uuid "f29fd66a-bd63-406c-bb62-3e774bbf4260")
+		(uuid "df815076-74fa-4ff6-95fd-2492a9263e83")
 	)
 	(pad "6" thru_hole circle
 		(at 12.7 0)
-		(size 2.1 2.1)
-		(drill 1.15)
+		(size 1.75 1.75)
+		(drill 1.05)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
 		(thermal_bridge_angle 90)
-		(uuid "b9036a36-8147-4731-bd49-736b9e8c5662")
+		(uuid "709956d8-aae7-413d-8c5e-e5870670d381")
 	)
 	(embedded_fonts no)
-	(model "${KIPRJMOD}/CustomLibs/3D/CONN_Socket_2.54mm_1x06.stp"
+	(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_1x06_P2.54mm_Vertical.step"
 		(offset
 			(xyz 0 0 0)
 		)
@@ -181,12 +151,12 @@
 			(xyz 1 1 1)
 		)
 		(rotate
-			(xyz 0 0 0)
+			(xyz -0 -0 -90)
 		)
 	)
-	(model "${KIPRJMOD}/CustomLibs/3D/FLASH_W25Q32_DevBoard.step"
+	(model "${MY_3D_MODELS}/FLASH_W25Q32_DevBoard.step"
 		(offset
-			(xyz 0 0 11)
+			(xyz 0 0 13)
 		)
 		(scale
 			(xyz 1 1 1)

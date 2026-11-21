@@ -18,9 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "comp.h"
+#include "dac.h"
 #include "dma.h"
+#include "fdcan.h"
 #include "spi.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -263,6 +268,16 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM7_Init();
   MX_TIM6_Init();
+  MX_DAC1_Init();
+  MX_FDCAN1_Init();
+  MX_SPI2_Init();
+  MX_SPI3_Init();
+  MX_USART1_UART_Init();
+  MX_ADC2_Init();
+  MX_COMP4_Init();
+  MX_DAC3_Init();
+  MX_TIM16_Init();
+  MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
   if (ST7789_Init() != ST7789_OK) {
     Error_Handler();

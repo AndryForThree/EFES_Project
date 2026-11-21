@@ -1,0 +1,242 @@
+# -*- coding: utf-8 -*-
+"""Legge assieme.json e aggiorna il documento Telaio_Meccanico.
+Geometrie in libreria_pezzi.py; tipi generici, nomi liberi solo nel JSON.
+Un collegamento posiziona il pezzo; due fori ne ricavano l'angolo nel piano
+se rotazione non e' specificata. Gli ulteriori collegamenti sono verificati.
+Solo montaggio statico: nessun risolutore cinematico o esportazione automatica.
+"""
+from pathlib import Path
+import importlib.util
+import json
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+
+CARTELLA = Path(__file__).resolve().parent
+FILE_ASSIEME = CARTELLA/'assieme.json'
+LUNGHEZZE_VITI = (12, 16, 20, 30)  # Lunghezza nominale sotto testa, mm.
+MOSTRA_MINUTERIA = True
+TOLLERANZA = 0.01  # mm, solo coerenza dei collegamenti; non tolleranza di stampa.
+V = App.Vector
+Z = V(0, 0, 1)
+CAPOVOLGI = App.Rotation(V(1, 0, 0), 180)
+
+# Ricarica la libreria a ogni esecuzione, anche dopo modifiche al suo sorgente.
+spec = importlib.util.spec_from_file_location('libreria_telaio', CARTELLA/'libreria_pezzi.py')
+libreria = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(libreria)
+config = json.loads(FILE_ASSIEME.read_text(encoding='utf-8'))
+passo = float(config.get('passo_griglia', 10))
+if passo <= 0:
+    raise ValueError('passo_griglia deve essere positivo.')
+
+# Prima si prepara e verifica tutto; un errore nel JSON lascia intatto il CAD precedente.
+pezzi, geometrie = {}, {}
+for p in config['pezzi']:
+    nome, tipo = p['nome'], p['tipo']
+    if nome in pezzi:
+        raise ValueError('Nome istanza duplicato: '+nome)
+    if tipo not in libreria.TIPI:
+        raise ValueError('Tipo sconosciuto: '+tipo)
+    parametri = p.get('parametri', {})
+    chiave = (tipo, json.dumps(parametri, sort_keys=True))
+    if chiave not in geometrie:
+        geometrie[chiave] = libreria.TIPI[tipo](parametri, passo)
+        if not geometrie[chiave][0].isValid():
+            raise ValueError('Geometria non valida per '+nome)
+    pezzi[nome] = {'chiave': chiave, 'attacchi': geometrie[chiave][1]}
+
+riferimento = config['riferimento']
+if riferimento not in pezzi:
+    raise ValueError('Pezzo di riferimento inesistente: '+riferimento)
+pose = {riferimento: App.Placement()}  # Primo foro all'origine, asse lungo X, sopra verso Z.
+collegamenti = config['collegamenti']
+per_pezzo = {nome: [] for nome in pezzi}
+for c in collegamenti:
+    for nome, foro in ((c['pezzo'], c['attacco']), (c['su'], c['attacco_su'])):
+        if nome not in pezzi or foro not in pezzi[nome]['attacchi']:
+            raise ValueError('Attacco inesistente: %s / %s' % (nome, foro))
+    if c['pezzo'] == c['su']:
+        raise ValueError('Un pezzo non puo collegarsi a se stesso: '+c['pezzo'])
+    per_pezzo[c['pezzo']].append(c)
+
+
+def facce(c):
+    lato = c.get('lato', 'sopra')
+    lato_pezzo = c.get('lato_pezzo', 'sotto' if lato == 'sopra' else 'sopra')
+    if lato not in ('sopra', 'sotto') or lato_pezzo not in ('sopra', 'sotto'):
+        raise ValueError('Lati ammessi: sopra, sotto.')
+    locale = pezzi[c['pezzo']]['attacchi'][c['attacco']][lato_pezzo]
+    su = pezzi[c['su']]['attacchi'][c['attacco_su']][lato]
+    destinazione = pose[c['su']].multiply(su)
+    destinazione.Base = destinazione.Base + destinazione.Rotation.multVec(Z)*float(c.get('distanza', 0))
+    return locale, destinazione
+
+
+# Si procede dal riferimento lungo i collegamenti; nessun ordine imposto alla lista pezzi.
+while len(pose) < len(pezzi):
+    avanzamento = False
+    for nome, vincoli in per_pezzo.items():
+        if nome in pose or not vincoli or any(c['su'] not in pose for c in vincoli):
+            continue
+        primo = vincoli[0]
+        locale, destinazione = facce(primo)
+        rotazione = destinazione.Rotation.multiply(App.Rotation(Z, float(primo.get('rotazione', 0))))
+        rotazione = rotazione.multiply(CAPOVOLGI).multiply(locale.Rotation.inverted())
+        # Due fori determinano l'angolo di una piattina, senza scrivere coordinate o gradi.
+        if len(vincoli) > 1 and 'rotazione' not in primo:
+            altro_locale, altra_destinazione = facce(vincoli[1])
+            a = rotazione.multVec(altro_locale.Base-locale.Base)
+            b = altra_destinazione.Base-destinazione.Base
+            normale = destinazione.Rotation.multVec(Z)
+            if min(a.Length, b.Length) < TOLLERANZA:
+                raise ValueError(nome+': servono due fori distinti per ricavare la rotazione.')
+            if abs(a.Length-b.Length) > TOLLERANZA:
+                raise ValueError('%s: distanza tra i fori incompatibile (pezzo %.3f, attacchi %.3f mm).' % (nome, a.Length, b.Length))
+            if abs(a.dot(normale)) > TOLLERANZA or abs(b.dot(normale)) > TOLLERANZA:
+                raise ValueError(nome+': i due attacchi devono stare sullo stesso piano.')
+            angolo = math.degrees(math.atan2(normale.dot(a.cross(b)), a.dot(b)))
+            rotazione = App.Rotation(normale, angolo).multiply(rotazione)
+        pose[nome] = App.Placement(destinazione.Base-rotazione.multVec(locale.Base), rotazione)
+        avanzamento = True
+    if not avanzamento:
+        mancanti = ', '.join(nome for nome in pezzi if nome not in pose)
+        raise ValueError('Pezzi senza percorso dal riferimento, o dipendenze circolari: '+mancanti)
+
+# Controlla anche le chiusure del telaio e le normali delle facce di appoggio.
+for c in collegamenti:
+    locale, destinazione = facce(c)
+    reale = pose[c['pezzo']].multiply(locale)
+    errore = (reale.Base-destinazione.Base).Length
+    normali = reale.Rotation.multVec(Z).dot(destinazione.Rotation.multVec(Z))
+    if errore > TOLLERANZA or normali > -0.99999:
+        raise ValueError('%s/%s su %s/%s: scarto %.3f mm o facce non contrapposte.' % (
+            c['pezzo'], c['attacco'], c['su'], c['attacco_su'], errore))
+
+# Un solo bullone per ciascuna catena di fori collegati, anche con distanziali.
+# Un foro attraversato su due facce e' lo stesso nodo: non si duplicano le viti.
+gruppi_fori = []
+for c in collegamenti:
+    nodi = {(c['pezzo'], c['attacco']), (c['su'], c['attacco_su'])}
+    uniti = [g for g in gruppi_fori if g & nodi]
+    for g in uniti:
+        nodi |= g
+        gruppi_fori.remove(g)
+    gruppi_fori.append(nodi)
+
+giunti = []
+m3 = libreria.M3
+for nodi in gruppi_fori:
+    facce_fori = []
+    for nome, foro in sorted(nodi):
+        a = pezzi[nome]['attacchi'][foro]
+        if a['diametro'] < m3['diametro']+0.1:
+            raise ValueError('%s/%s: foro troppo piccolo per M3.' % (nome, foro))
+        facce_fori.extend(pose[nome].multiply(a[lato]) for lato in ('sotto', 'sopra'))
+    asse = facce_fori[0].Rotation.multVec(Z)
+    # Verso ripetibile: testa dal lato positivo dell'asse dominante.
+    dominante = max((asse.x, asse.y, asse.z), key=abs)
+    if dominante < 0:
+        asse = -asse
+    origine = facce_fori[0].Base
+    quote = []
+    for f in facce_fori:
+        delta = f.Base-origine
+        if delta.cross(asse).Length > TOLLERANZA or abs(f.Rotation.multVec(Z).dot(asse)) < .99999:
+            raise ValueError('I fori di un giunto devono essere coassiali: '+str(sorted(nodi)))
+        quote.append(delta.dot(asse))
+    minimo, massimo = min(quote), max(quote)
+    pacco = massimo-minimo
+    # Due rondelle, tutto il dado e almeno due passi di filetto oltre il dado.
+    necessaria = pacco+2*m3['rondella_h']+m3['dado_h']+2*m3['passo']
+    lunghezza = next((l for l in sorted(LUNGHEZZE_VITI) if l >= necessaria-1e-6), None)
+    if lunghezza is None:
+        raise ValueError('Giunto %s: vite necessaria almeno %.2f mm, oltre le lunghezze disponibili.' % (sorted(nodi), necessaria))
+    giunti.append({'nodi': sorted(nodi), 'pacco': pacco, 'lunghezza': lunghezza,
+                   'posa': App.Placement(origine+asse*minimo, App.Rotation(Z, asse))})
+forme_minuteria = libreria.minuteria_m3(sorted({g['lunghezza'] for g in giunti}))
+if any(not f.isValid() for f, colore in forme_minuteria.values()):
+    raise ValueError('Geometria minuteria non valida.')
+
+# Ricrea soltanto gli oggetti generati da questa macro; gli altri documenti non cambiano.
+doc = App.getDocument('Telaio_Meccanico') if 'Telaio_Meccanico' in App.listDocuments() else App.newDocument('Telaio_Meccanico')
+App.setActiveDocument(doc.Name)
+for obj in reversed(doc.Objects):
+    if 'GeneratoTelaio' in obj.PropertiesList and obj.GeneratoTelaio:
+        doc.removeObject(obj.Name)
+
+
+def nuovo(tipo, nome):
+    obj = doc.addObject(tipo, nome)
+    obj.addProperty('App::PropertyBool', 'GeneratoTelaio')
+    obj.GeneratoTelaio = True
+    return obj
+
+
+catalogo = nuovo('App::DocumentObjectGroup', 'Libreria')
+assieme = nuovo('App::DocumentObjectGroup', 'Assieme')
+sorgenti = {}
+for chiave, (forma, attacchi, colore) in geometrie.items():
+    obj = nuovo('Part::Feature', 'Tipo')
+    obj.Label = chiave[0]+' '+chiave[1]
+    obj.Shape = forma
+    obj.ViewObject.ShapeColor = colore
+    catalogo.addObject(obj)
+    obj.ViewObject.Visibility = False
+    sorgenti[chiave] = obj
+for nome, p in pezzi.items():
+    obj = nuovo('App::Link', 'Pezzo')
+    obj.setLink(sorgenti[p['chiave']])
+    obj.Label = nome
+    obj.LinkPlacement = pose[nome]
+    obj.addProperty('App::PropertyStringList', 'Attacchi', 'Montaggio')
+    obj.Attacchi = list(p['attacchi'])
+    assieme.addObject(obj)
+    obj.ViewObject.Visibility = True
+# Fonti condivise anche per la minuteria: ogni giunto contiene solo istanze.
+fonti_minuteria = {}
+for nome, (forma, colore) in forme_minuteria.items():
+    obj = nuovo('Part::Feature', 'TipoMinuteria')
+    obj.Label = nome
+    obj.Shape = forma
+    obj.ViewObject.ShapeColor = colore
+    catalogo.addObject(obj)
+    obj.ViewObject.Visibility = False
+    fonti_minuteria[nome] = obj
+ferramenta = nuovo('App::DocumentObjectGroup', 'Ferramenta')
+for i, g in enumerate(giunti, 1):
+    gruppo = nuovo('App::DocumentObjectGroup', 'Giunto')
+    gruppo.Label = 'Giunto %02d - M3x%d' % (i, g['lunghezza'])
+    gruppo.addProperty('App::PropertyStringList', 'Fori', 'Montaggio')
+    gruppo.Fori = [nome+'/'+foro for nome, foro in g['nodi']]
+    gruppo.addProperty('App::PropertyLength', 'SpessorePacco', 'Montaggio')
+    gruppo.SpessorePacco = g['pacco']
+    ferramenta.addObject(gruppo)
+    h = m3['rondella_h']
+    z_dado = -h-m3['dado_h']
+    componenti = [('Vite_M3x%d' % g['lunghezza'], g['pacco']+h),
+                  ('Rondella_M3', g['pacco']), ('Rondella_M3', -h),
+                  ('Dado_M3_Autobloccante', z_dado), ('Inserto_Nylon_M3', z_dado+2.4)]
+    for nome, quota in componenti:
+        obj = nuovo('App::Link', 'Minuteria')
+        obj.setLink(fonti_minuteria[nome])
+        obj.Label = nome.replace('_', ' ')
+        obj.LinkPlacement = g['posa'].multiply(App.Placement(V(0, 0, quota), App.Rotation()))
+        gruppo.addObject(obj)
+        obj.ViewObject.Visibility = True
+ferramenta.ViewObject.Visibility = MOSTRA_MINUTERIA
+ferramenta.addProperty('App::PropertyStringList', 'Distinta', 'Montaggio')
+conteggi = {l: sum(g['lunghezza'] == l for g in giunti) for l in sorted({g['lunghezza'] for g in giunti})}
+ferramenta.Distinta = ['%d viti M3x%d' % (n, l) for l, n in conteggi.items()]+[
+    '%d rondelle M3' % (2*len(giunti)), '%d dadi M3 autobloccanti' % len(giunti)]
+catalogo.ViewObject.Visibility = False
+assieme.addProperty('App::PropertyString', 'FileConfigurazione', 'Montaggio')
+assieme.FileConfigurazione = str(FILE_ASSIEME)
+doc.recompute()
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('Telaio aggiornato: %d istanze, %d geometrie, %d collegamenti verificati.\n' % (
+    len(pezzi), len(geometrie), len(collegamenti)))
+App.Console.PrintMessage('Modifica assieme.json e rilancia la macro. L\'esempio non e\' un rilievo delle foto.\n')
+
+App.Console.PrintMessage('Minuteria: '+', '.join(ferramenta.Distinta)+'\n')

@@ -1,0 +1,1 @@
+(sym_lib_table (lib (name "EFES") (type "KiCad") (uri "${KIPRJMOD}/EFES.kicad_sym") (options "") (descr "EFES system-level connection blocks")))

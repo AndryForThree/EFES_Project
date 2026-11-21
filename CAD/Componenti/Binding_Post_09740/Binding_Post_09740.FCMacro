@@ -1,0 +1,130 @@
+# -*- coding: utf-8 -*-
+"""SparkFun 09740 / PRT-09740: modello di riferimento della versione lunga.
+Costruzione dalla foto del componente nero fornita dall'utente.
+Misure trasferite dall'esemplare ROSSO PRT-09739 smontato da Core Electronics:
+https://forum.core-electronics.com.au/t/binding-post-red-prt-09739/9882/2
+Manopola lunga 17, boccola completa 17.06, tratto filettato 12.2,
+filetto esterno diametro 7.54 con due facce a distanza 6.35,
+flangia diametro 10.92; due dadi piccoli h2.45; dado grande h2.5.
+Filetto piccolo 4-40 UNC (diametro nominale 2.845), NON M3.
+Lunghezza totale 44 mm indicativa da catalogo commerciale, con cap aperto.
+Diametro manopola, apertura cap, fori interni/trasversali, esagoni e scanalature
+stimati. Filetti esterni illustrativi, non eliche di fabbricazione.
+Non e' un disegno certificato della partita di 09740 che verra' consegnata.
+Origine centro appoggio anteriore sul pannello, Z=0; +Z verso banana.
+Pannello di riferimento 2 mm non esportato ne modellato.
+La macro sovrascrive automaticamente il suo STEP a colori per KiCad.
+"""
+from pathlib import Path
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+V = App.Vector
+doc = App.newDocument('SparkFun_09740')
+pezzi = []
+NERO = (.025,.028,.035)
+NERO_COLLARE = (.06,.065,.075)
+NICHEL = (.76,.78,.81)
+METALLO = (.64,.67,.70)
+
+
+def aggiungi(nome, forma, colore, nota):
+    forma = forma.removeSplitter()
+    if not forma.isValid() or len(forma.Solids) != 1:
+        raise ValueError('Geometria non valida: '+nome)
+    obj = doc.addObject('Part::Feature',nome)
+    obj.Label = nome.replace('_',' ')
+    obj.Shape = forma
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (.14,.15,.17)
+    obj.ViewObject.DisplayMode = 'Flat Lines'
+    obj.ViewObject.AngularDeflection = 10
+    obj.ViewObject.Deviation = .08
+    obj.addProperty('App::PropertyString','Nota','Riferimento')
+    obj.Nota = nota
+    pezzi.append(obj)
+    return obj
+
+
+def anello(re, ri, z, h):
+    return Part.makeCylinder(re,h,V(0,0,z)).cut(
+        Part.makeCylinder(ri,h+.02,V(0,0,z-.01)))
+
+
+def dado(z, h, chiave, r_foro):
+    r = chiave/(2*math.cos(math.pi/6))
+    p = [V(r*math.cos(k*math.pi/3),r*math.sin(k*math.pi/3),z) for k in range(6)]
+    forma = Part.Face(Part.makePolygon(p+[p[0]])).extrude(V(0,0,h))
+    return forma.cut(Part.makeCylinder(r_foro,h+.02,V(0,0,z-.01)))
+
+# Quote rilevate sul rosso e posa indicativa del nero della foto.
+lunghezza_boccola = 17.06
+lunghezza_filetto_isolante = 12.2
+h_collare = lunghezza_boccola-lunghezza_filetto_isolante  # 4.86
+z_punta = -12.2-6.35
+z_fronte = z_punta+44.0
+z_cap = z_fronte-17.0
+r_perno = 2.845/2
+
+# Boccola nera isolante: collare anteriore e lungo filetto da pannello.
+collare = Part.makeCylinder(10.92/2,h_collare,V(0,0,0))
+collare = collare.makeFillet(.18,[e for e in collare.Edges if e.BoundBox.ZLength < .01])
+boccola = Part.makeCylinder(7.54/2,12.2,V(0,0,-12.2))
+# Scanalature circolari: rappresentano visivamente il filetto, passo non verificato.
+for k in range(13):
+    boccola = boccola.cut(Part.makeTorus(7.54/2,.20,V(0,0,-11.7+.9*k)))
+# Due facce piane, come nel rilievo frontale del distributore.
+for y in (6.35/2, -6.35/2-5):
+    boccola = boccola.cut(Part.makeBox(12,5,12.4,V(-6,y,-12.3)))
+isolante = collare.fuse(boccola).cut(Part.makeCylinder(1.5,17.2,V(0,0,-12.25)))
+aggiungi('Boccola_Filettata_e_Collare_Neri',isolante,NERO_COLLARE,
+    'Quote trasferite dal rosso: boccola 17.06, filetto OD7.54 con piani 6.35, flangia OD10.92. Passo esterno illustrativo.')
+
+# Conduttore: perno 4-40, collo scoperto con foro trasversale e presa banana.
+metallo = Part.makeCylinder(r_perno,h_collare-z_punta,V(0,0,z_punta)).fuse(
+    Part.makeCylinder(2.4,z_fronte-h_collare,V(0,0,h_collare)))
+# Foro laterale per filo: visibile nel tratto scoperto tra collare e manopola.
+metallo = metallo.cut(Part.makeCylinder(1.05,6,V(-3,0,(h_collare+z_cap)/2),V(1,0,0)))
+metallo = metallo.cut(Part.makeCylinder(2.,13.2,V(0,0,z_fronte-13.0)))
+aggiungi('Contatto_Banana_e_Perno_4_40',metallo,NICHEL,
+    'Perno 4-40 UNC nominale 2.845; presa banana OD interno4. Foro laterale2.1 e profondita presa stimati.')
+
+# Manopola lunga nera, con bordo arrotondato e righe longitudinali.
+manopola = Part.makeCylinder(5.6,17.0,V(0,0,z_cap))
+manopola = manopola.makeFillet(.3,[e for e in manopola.Edges if e.BoundBox.ZLength < .01])
+manopola = manopola.cut(Part.makeCylinder(2.45,17.2,V(0,0,z_cap-.1)))
+for k in range(24):
+    angolo = 2*math.pi*(k+.5)/24
+    manopola = manopola.cut(Part.makeCylinder(.23,15.5,
+        V(5.63*math.cos(angolo),5.63*math.sin(angolo),z_cap+.75)))
+aggiungi('Manopola_Nera_Zigrinata',manopola,NERO,
+    'Lunghezza17 rilevata sul rosso; diametro11.2 e zigrinatura stimati dalla foto. Posa aperta per mostrare il foro laterale.')
+
+# Fissaggio al pannello: una grande rondella e un grande dado sulla boccola.
+aggiungi('Rondella_Fissaggio_Pannello',anello(5.8,3.85,-3.,1.),NICHEL,
+    'Rondella semplificata, h1 come indicazione del distributore; diametri stimati. Pannello da Z=-2 a Z=0.')
+aggiungi('Dado_Grande_Fissaggio_Pannello',dado(-5.5,2.5,10.,3.8),METALLO,
+    'Spessore2.5 rilevato sul rosso; chiave10 e foro indicativi, non certificati M8.')
+
+# Due dadi piccoli sul perno metallico, oltre il filetto nero.
+aggiungi('Rondella_Terminale_Posteriore',anello(3.,1.5,-12.65,.45),NICHEL,
+    'Rondella di collegamento indicativa; nessuna linguetta saldabile sporgente nella foto di riferimento.')
+aggiungi('Dado_Piccolo_4_40_Serraggio',dado(-15.10,2.45,5.0,r_perno),METALLO,
+    '4-40 UNC; h2.45 rilevato sul rosso, chiave5 stimata.')
+aggiungi('Dado_Piccolo_4_40_Controdado',dado(-17.55,2.45,5.0,r_perno),METALLO,
+    '4-40 UNC, secondo dado; filettatura interna semplificata.')
+
+doc.recompute()
+cartella = Path(__file__).resolve().parent if '__file__' in globals() else Path(
+    '/home/andrea/Scuola/EFES_Project/CAD/Componenti/Binding_Post_09740')
+file_step = cartella/'Binding_Post_09740.step'
+ImportGui.export(pezzi,str(file_step))
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('09740 versione lunga: 44 mm indicativi, manopola17, boccola17.06; perno4-40.\n')
+App.Console.PrintMessage('Origine al centro appoggio pannello; fronte +Z, perno -Z.\n')
+App.Console.PrintMessage('Dettagli non quotati stimati: modello di riferimento, non disegno di fabbricazione.\n')
+App.Console.PrintMessage('STEP a colori per KiCad: %s\n' % file_step)

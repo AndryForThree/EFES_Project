@@ -1,0 +1,259 @@
+# -*- coding: utf-8 -*-
+"""Barra LED diagonale: cornice stampata, diffusore unico, due M2.5.
+QUOTE DI STUDIO: adattare package/passo ai LED e prevedere i due fori sul PCB.
+LED e PCB sono visibili nel documento ma esclusi dai due STEP.
+Il diffusore e' un rettangolo senza fori, trattenuto dalla mascherina nera
+superiore guidata con le stesse due M2.5. Fogli da 0.2 a 1.5 mm senza
+ristampare: spessore_diffusore modifica soltanto la posa di montaggio.
+Z=0 superficie superiore PCB. LED e PCB sono riferimenti, non parti stampate.
+"""
+from pathlib import Path
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+# --- Esportazione STEP: nomi senza estensione, sovrascritti a ogni esecuzione ---
+cartella_step_pcb = '/home/andrea/Scuola/EFES_Project/PCB/CustomLibs/3D'
+nome_step_locale = 'BarraLED_Maschera'
+nome_step_pcb = 'BarraLED_Maschera'
+
+# --- Aspetto e ingombro: misure in mm ---
+numero_led = 8
+passo_led = 3  				# Interasse X dei LED e delle sezioni; indipendente dalle finestre.
+altezza_finestra = 4			# Estensione Y delle aperture, vista dall'alto.
+spessore_divisore = 0.8			# Spessore REALE, perpendicolare alle pareti diagonali.
+spostamento_diagonale = 1 	# Differenza X tra bordo superiore e inferiore.
+bordo_esterno = 1.2
+altezza_cornice = 4.0  # Quota sopra il foglio nominale da 0.5; appoggio 0.5 mm sotto.
+spessore_diffusore = 0.5  # Spessore in uso, 0.2..1.5 mm: cambia solo la posa.
+spessore_mascherina = 0.8  # Coperchio nero con finestre, separato e avvitato.
+
+# --- LED e PCB di riferimento: verificare sul progetto reale ---
+lunghezza_led = 0.8  # X: package 0603 imperiale (1608 metrico).
+larghezza_led = 1.6  # Y.
+altezza_led = 0.6    # Z: indicativa, dipende dal LED scelto.
+spessore_pcb = 1.6
+
+# --- Visualizzazione ---
+trasparenza_cornice = 0
+trasparenza_diffusore = 65
+trasparenza_mascherina = 60
+mostra_pcb = True
+mostra_ferramenta = True
+
+# Quote costruttive derivate; ferramenta M2.5, nessun incasso esagonale.
+V = App.Vector
+# La distanza perpendicolare tra rette parallele inclinate deve coincidere
+# con spessore_divisore. L'intervallo X e' maggiore di un fattore sqrt(1+m^2).
+if altezza_finestra <= 0:
+    raise ValueError('altezza_finestra deve essere positiva.')
+inclinazione_divisore = spostamento_diagonale / altezza_finestra
+divisore_in_x = spessore_divisore * math.hypot(1.0, inclinazione_divisore)
+larghezza_finestra = passo_led - divisore_in_x
+luce_x = (numero_led-1)*passo_led + larghezza_finestra + spostamento_diagonale
+# Bordo sufficiente anche con il diffusore spostato entro il gioco:
+# 1 mm parete + 0.2 mm gioco + 0.2 mm spostamento + 0.5 mm appoggio minimo.
+# I parametri utente e l'interasse delle viti restano invariati.
+bordo_costruttivo = max(bordo_esterno, 1.0 + 0.2 + 0.2 + 0.5)
+lunghezza = luce_x + 2*bordo_costruttivo
+larghezza = altezza_finestra + 2*bordo_costruttivo
+# Appoggio fisso: mantiene la precedente quota con il foglio da 0.5 mm.
+# Non dipende dal foglio scelto: entrambi i pezzi stampati restano identici.
+z_diffusore = altezza_cornice - 0.5
+z_mascherina = z_diffusore + spessore_diffusore
+spessore_foglio_min = 0.2
+spessore_foglio_max = 1.5
+profondita_guida = 2.0
+gioco_guida = 0.25  # Per lato, da verificare sul processo di stampa.
+parete_guida = 1.0
+if not spessore_foglio_min <= spessore_diffusore <= spessore_foglio_max:
+    raise ValueError("Il coperchio e' progettato per fogli da 0.2 a 1.5 mm.")
+if z_diffusore + spessore_foglio_min - profondita_guida <= 0:
+    raise ValueError('Cornice troppo bassa: la guida toccherebbe il PCB.')
+# Foglio centrato sulle camere; nessuna tasca che imponga uno spessore.
+# Il coperchio lo blocca per attrito: centrarlo prima del serraggio.
+parete_tasca = 1.0
+diff_x = lunghezza - 2*parete_tasca - 0.4
+diff_y = larghezza - 2*parete_tasca - 0.4
+# Posizioni fissaggi invariate rispetto al bordo richiesto dall'utente.
+x_vite = (luce_x + 2*bordo_esterno)/2 + 1.2
+r_linguetta = 3.7
+foro_vite = 2.8
+z_sopra_mascherina = z_mascherina + spessore_mascherina
+# Due rondelle da 0.5, dado da 2, almeno 0.45 mm di filetto oltre il dado.
+pacco_serraggio = z_sopra_mascherina + spessore_pcb + 1.0 + 2.0
+lunghezza_vite = next((l for l in (10.,12.,16.,20.,25.,30.)
+                       if l >= z_diffusore+spessore_foglio_max+spessore_mascherina+spessore_pcb+3.0+0.45), None)
+if lunghezza_vite is None:
+    raise ValueError('Pacco troppo alto per la ferramenta prevista.')
+
+if (not isinstance(numero_led, int) or numero_led < 1 or
+        min(larghezza_finestra, altezza_finestra, spessore_divisore,
+            bordo_esterno, spessore_diffusore, spessore_mascherina, lunghezza_led, larghezza_led, altezza_led,
+            spessore_pcb) <= 0 or spostamento_diagonale < 0):
+    raise ValueError('Quote positive richieste: passo_led deve superare lo spessore del divisore proiettato in X; numero_led intero >= 1.')
+if bordo_esterno < 1.2:
+    raise ValueError('Lascia almeno 1.2 mm di bordo per sostenere il diffusore.')
+if passo_led < lunghezza_led+0.3:
+    raise ValueError('Passo troppo piccolo per il package LED: aumentare passo_led.')
+# Verifica ingombro LED piu' 0.3 mm di rispetto per lato in ogni camera.
+# Questo margine e' indicativo: controllare i pad del footprint reale.
+ingombro_led_inclinato = (lunghezza_led + 0.6 +
+    abs(inclinazione_divisore)*(larghezza_led + 0.6))
+if ingombro_led_inclinato > larghezza_finestra or larghezza_led+0.6 > altezza_finestra:
+    raise ValueError('Camera troppo stretta per LED/saldature: aumentare passo o altezza finestra, o ridurre inclinazione/divisore.')
+if z_diffusore < altezza_led+1.0:
+    raise ValueError('Alzare la cornice: servono spazio sopra LED e spessore dei divisori.')
+if larghezza < larghezza_led+2.4:
+    raise ValueError('Cornice troppo stretta rispetto ai LED.')
+doc = App.newDocument('Barra_LED_Diagonale')
+parti_export = []
+
+def oggetto(nome, forma, colore, trasparenza=0, visibile=True, esporta=True):
+    if forma.isNull() or not forma.isValid():
+        raise ValueError('Geometria non valida: '+nome)
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Label = nome.replace('_', ' ')
+    obj.Shape = forma.removeSplitter()
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.Transparency = trasparenza
+    obj.ViewObject.Visibility = visibile
+    if esporta:
+        parti_export.append(obj)
+    return obj
+
+def prisma(punti, z, h):
+    p = [V(x,y,z) for x,y in punti]
+    return Part.Face(Part.makePolygon(p+[p[0]])).extrude(V(0,0,h))
+
+def rondella(z):
+    return Part.makeCylinder(3., .5, V(0,0,z)).cut(
+        Part.makeCylinder(1.35, .5, V(0,0,z)))
+
+def raccorda_esterno_verticale(forma, raggio=0.4):
+    # Prima di fori/finestre: solo contorno esterno e radici delle linguette.
+    forma = forma.removeSplitter()
+    spigoli = [e for e in forma.Edges
+        if e.BoundBox.ZLength > 1e-5 and e.BoundBox.XLength < 1e-6
+        and e.BoundBox.YLength < 1e-6
+        and len(forma.ancestorsOfType(e, Part.Face)) == 2
+        and any(isinstance(f.Surface, Part.Cylinder)
+                for f in forma.ancestorsOfType(e, Part.Face))]
+    if not spigoli:
+        return forma
+    for r in (raggio, raggio/2):
+        try:
+            risultato = forma.makeFillet(r, spigoli)
+            if risultato.isValid() and len(risultato.Solids) == 1:
+                return risultato
+        except Exception:
+            pass
+    App.Console.PrintWarning('Raccordo esterno non applicabile con queste quote.\n')
+    return forma
+
+# Esterno smussato e linguette coassiali alle viti: appoggio rigido sul PCB.
+a,b = lunghezza/2, larghezza/2
+# Smusso contenuto per conservare almeno 1 mm anche agli angoli della tasca.
+smusso = min(0.5,b/3)
+forma = prisma([(-a+smusso,-b),(a-smusso,-b),(a,-b+smusso),
+    (a,b-smusso),(a-smusso,b),(-a+smusso,b),(-a,b-smusso),
+    (-a,-b+smusso)], 0, z_diffusore)
+for x in (-x_vite,x_vite):
+    forma = forma.fuse(Part.makeCylinder(r_linguetta,z_diffusore,V(x,0,0)))
+forma = raccorda_esterno_verticale(forma)
+# Nessun vano comune: ciascuna apertura forma una camera separata.
+# I divisori appoggiano sul PCB (Z=0) e arrivano fino al diffusore.
+# Package e saldature devono restare dentro la rispettiva camera.
+for i in range(numero_led):
+    x = (i-(numero_led-1)/2)*passo_led
+    w,h,s = larghezza_finestra/2,altezza_finestra/2,spostamento_diagonale/2
+    forma = forma.cut(prisma([(x-w-s,-h),(x+w-s,-h),(x+w+s,h),(x-w+s,h)],
+        -0.1,z_diffusore+0.2))
+# Piano superiore fisso: il foglio appoggia direttamente sulle camere.
+for x in (-x_vite,x_vite):
+    forma = forma.cut(Part.makeCylinder(foro_vite/2,z_diffusore+.2,V(x,0,-.1)))
+cornice = oggetto('Cornice_Diagonale_Stampata',forma,(.035,.035,.045),trasparenza_cornice)
+cornice.addProperty('App::PropertyString','Distinta','Montaggio')
+cornice.Distinta = '2 viti M2.5x%d ISO4762; 2 dadi M2.5 ISO4032; 4 rondelle M2.5 OD6 ID2.7 sp.0.5' % lunghezza_vite
+cornice.addProperty('App::PropertyString','Ingombro','Montaggio')
+cornice.Ingombro = 'Corpo %.1fx%.1fx%.1f; totale con linguette %.1f; interasse fori %.1f mm' % (
+    lunghezza,larghezza,z_diffusore,2*(x_vite+r_linguetta),2*x_vite)
+oggetto('Diffusore_Unico_Rettangolare',Part.makeBox(diff_x,diff_y,spessore_diffusore,
+    V(-diff_x/2,-diff_y/2,z_diffusore)),(.92,.95,.95),trasparenza_diffusore)
+
+# Coperchio flottante: piastra superiore e bordo esterno telescopico da 1 mm.
+# Profilo della guida include le linguette: non interferisce con i loro fianchi.
+# La forma locale e' identica per ogni foglio; varia solo la quota z_mascherina.
+def profilo_guida(z, h, espansione):
+    sagoma = Part.makeBox(lunghezza+2*espansione,larghezza+2*espansione,h,
+        V(-a-espansione,-b-espansione,z))
+    for x in (-x_vite,x_vite):
+        sagoma = sagoma.fuse(Part.makeCylinder(r_linguetta+espansione,h,V(x,0,z)))
+    return raccorda_esterno_verticale(sagoma)
+
+espansione = gioco_guida + parete_guida
+mascherina = profilo_guida(z_mascherina,spessore_mascherina,espansione)
+guida = profilo_guida(z_mascherina-profondita_guida,profondita_guida,espansione).cut(
+    profilo_guida(z_mascherina-profondita_guida-.01,profondita_guida+.02,gioco_guida))
+mascherina = mascherina.fuse(guida)
+for x in (-x_vite,x_vite):
+    mascherina = mascherina.cut(Part.makeCylinder(foro_vite/2,spessore_mascherina+.2,V(x,0,z_mascherina-.1)))
+for i in range(numero_led):
+    x = (i-(numero_led-1)/2)*passo_led
+    w,h,s = larghezza_finestra/2,altezza_finestra/2,spostamento_diagonale/2
+    mascherina = mascherina.cut(prisma([(x-w-s,-h),(x+w-s,-h),(x+w+s,h),(x-w+s,h)],
+        z_mascherina-.1,spessore_mascherina+.2))
+# Azzurro solo per distinguere il pezzo nel CAD; produrre in nero opaco.
+oggetto('Mascherina_Superiore_Nera',mascherina,(.10,.65,.95),trasparenza_mascherina)
+
+# PCB puramente illustrativo: la scheda reale puo essere molto piu grande.
+pcb_x = 2*(x_vite+r_linguetta)+1.0
+pcb = Part.makeBox(pcb_x,larghezza+1,spessore_pcb,V(-pcb_x/2,-(larghezza+1)/2,-spessore_pcb))
+for x in (-x_vite,x_vite):
+    pcb = pcb.cut(Part.makeCylinder(foro_vite/2,spessore_pcb+.2,V(x,0,-spessore_pcb-.1)))
+oggetto('PCB_Riferimento_Due_Fori_M25',pcb,(.035,.26,.12),visibile=mostra_pcb,esporta=False)
+for i in range(numero_led):
+    colore = (.08,.8,.25) if i/numero_led < .5 else ((1.,.63,.06) if i/numero_led < .8 else (.95,.08,.05))
+    x = (i-(numero_led-1)/2)*passo_led
+    oggetto('LED_%02d_Riferimento' % (i+1),Part.makeBox(lunghezza_led,larghezza_led,altezza_led,
+        V(x-lunghezza_led/2,-larghezza_led/2,0)),colore,esporta=False)
+
+for j,x in enumerate((-x_vite,x_vite),1):
+    # Testa cilindrica a brugola (esagono solo metallico, non nella plastica).
+    z_testa = z_sopra_mascherina+.5
+    vite = Part.makeCylinder(1.25,lunghezza_vite,V(x,0,z_testa),V(0,0,-1)).fuse(
+        Part.makeCylinder(2.25,2.5,V(x,0,z_testa)))
+    chiave = [(x+1/math.cos(math.pi/6)*math.cos(k*math.pi/3),
+               1/math.cos(math.pi/6)*math.sin(k*math.pi/3)) for k in range(6)]
+    vite = vite.cut(prisma(chiave,z_testa+1.2,1.4))
+    oggetto('Vite_%d_M25x%d' % (j,lunghezza_vite),vite,(.68,.7,.73),visibile=mostra_ferramenta)
+    for nome,z in [('Superiore',z_sopra_mascherina),('Inferiore',-spessore_pcb-.5)]:
+        washer = rondella(z)
+        washer.translate(V(x,0,0))
+        oggetto('Rondella_%d_%s' % (j,nome),washer,(.72,.74,.77),visibile=mostra_ferramenta)
+    z = -spessore_pcb-.5-2.
+    vertici = [(x+2.5/math.cos(math.pi/6)*math.cos(k*math.pi/3),
+                2.5/math.cos(math.pi/6)*math.sin(k*math.pi/3)) for k in range(6)]
+    dado = prisma(vertici,z,2).cut(Part.makeCylinder(1.25,2,V(x,0,z)))
+    oggetto('Dado_%d_M25' % j,dado,(.65,.67,.70),visibile=mostra_ferramenta)
+
+doc.recompute()
+cartella = Path(__file__).resolve().parent if '__file__' in globals() else Path(
+    '/home/andrea/Scuola/EFES_Project/CAD/Barra_LED_Proposte')
+cartella_pcb = Path(cartella_step_pcb).expanduser()
+cartella_pcb.mkdir(parents=True, exist_ok=True)
+file_step_locale = cartella/(nome_step_locale+'.step')
+file_step_pcb = cartella_pcb/(nome_step_pcb+'.step')
+for file_step in dict.fromkeys((file_step_locale, file_step_pcb)):
+    ImportGui.export(parti_export,str(file_step))
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage(cornice.Ingombro+'\n')
+App.Console.PrintMessage('Diffusore unico %.1f x %.1f x %.1f mm: trattenuto dalla mascherina superiore.\n' % (diff_x,diff_y,spessore_diffusore))
+App.Console.PrintMessage(cornice.Distinta+'\n')
+App.Console.PrintMessage('Stessi pezzi stampati per fogli 0.2..1.5 mm; guida sovrapposta almeno 0.5 mm.\n')
+App.Console.PrintMessage('Coperchio flottante: centrare il foglio e serrare appena, alternando le due viti. Non chiudere a forza il gioco tra linguette.\n')
+App.Console.PrintMessage('STEP locale aggiornato: %s\n' % file_step_locale)
+App.Console.PrintMessage('STEP PCB aggiornato: %s\n' % file_step_pcb)

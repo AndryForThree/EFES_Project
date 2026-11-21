@@ -1,0 +1,24 @@
+{
+  "_nota": "ESEMPIO DI MONTAGGIO, non rilievo delle foto. Passo 10 mm; altre quote provvisorie. Fori numerati da 1. Sopra/sotto sono le facce locali del pezzo. Rotazione in gradi vista dalla faccia di destinazione; distanza e' il gioco tra le facce in mm.",
+  "passo_griglia": 10,
+  "riferimento": "barra_base_A",
+  "pezzi": [
+    {"nome": "barra_base_A", "tipo": "piattina_forata", "parametri": {"numero_fori": 11}},
+    {"nome": "barra_base_B", "tipo": "piattina_forata", "parametri": {"numero_fori": 11}},
+    {"nome": "collegamento_A", "tipo": "piattina_forata", "parametri": {"numero_fori": 7}},
+    {"nome": "collegamento_B", "tipo": "piattina_forata", "parametri": {"numero_fori": 7}},
+    {"nome": "distanziale_A", "tipo": "distanziale", "parametri": {"altezza": 8}},
+    {"nome": "distanziale_B", "tipo": "distanziale", "parametri": {"altezza": 8}},
+    {"nome": "barra_rialzata", "tipo": "piattina_forata", "parametri": {"numero_fori": 7}}
+  ],
+  "collegamenti": [
+    {"pezzo": "collegamento_A", "attacco": "foro_1", "su": "barra_base_A", "attacco_su": "foro_1", "lato": "sopra", "rotazione": 90},
+    {"pezzo": "collegamento_B", "attacco": "foro_1", "su": "barra_base_A", "attacco_su": "foro_11", "lato": "sopra", "rotazione": 90},
+    {"pezzo": "barra_base_B", "attacco": "foro_1", "su": "collegamento_A", "attacco_su": "foro_7", "lato": "sotto"},
+    {"pezzo": "barra_base_B", "attacco": "foro_11", "su": "collegamento_B", "attacco_su": "foro_7", "lato": "sotto"},
+    {"pezzo": "distanziale_A", "attacco": "foro_1", "su": "barra_base_A", "attacco_su": "foro_3", "lato": "sopra"},
+    {"pezzo": "distanziale_B", "attacco": "foro_1", "su": "barra_base_A", "attacco_su": "foro_9", "lato": "sopra"},
+    {"pezzo": "barra_rialzata", "attacco": "foro_1", "su": "distanziale_A", "attacco_su": "foro_1", "lato": "sopra"},
+    {"pezzo": "barra_rialzata", "attacco": "foro_7", "su": "distanziale_B", "attacco_su": "foro_1", "lato": "sopra"}
+  ]
+}

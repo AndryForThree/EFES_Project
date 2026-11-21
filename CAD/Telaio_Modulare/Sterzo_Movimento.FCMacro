@@ -1,0 +1,19 @@
+# Eseguire dopo Sterzo.FCMacro. Chiudendo il pannello si ripristina la posa iniziale.
+from pathlib import Path
+import importlib.util
+import FreeCAD as App
+import FreeCADGui as Gui
+from PySide import QtCore, QtWidgets
+
+spec = importlib.util.spec_from_file_location('movimento_sterzo', Path(__file__).resolve().parent/'cinematica_sterzo.py')
+movimento = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(movimento)
+doc = App.ActiveDocument
+if doc is None:
+    raise ValueError('Eseguire prima Sterzo.FCMacro.')
+precedente = Gui.getMainWindow().findChild(QtWidgets.QDockWidget, 'EFES_Sterzo_Movimento')
+if precedente is not None:
+    precedente.close()
+pannello = movimento.Pannello(doc, Gui.getMainWindow())
+Gui.getMainWindow().addDockWidget(QtCore.Qt.RightDockWidgetArea, pannello)
+pannello.show()

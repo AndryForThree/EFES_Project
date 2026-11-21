@@ -1,0 +1,138 @@
+(footprint "INDUCT_SRP4020T-6R8M"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 2 -2.5 0)
+		(unlocked yes)
+		(layer "F.SilkS")
+		(uuid "fc9ddf16-7efc-4cfa-a77a-025568b29f2f")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+		)
+	)
+	(property "Value" "INDUCT_SRP4020T-6R8M"
+		(at 1.5 -6 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "b5b3e48a-5030-4bad-bb1c-c42ab5b24411")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "d01ee267-5628-45b4-84ea-c8450eb21fe9")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a5db988d-02e2-431b-85f0-cfc322994eca")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start 2.55 -1.2)
+		(end 1.15 -1.2)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "8f5aa257-d7ff-4a5f-956c-67e659c0e0a1")
+	)
+	(fp_line
+		(start 2.6 1.2)
+		(end 1.2 1.2)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.SilkS")
+		(uuid "4d2fed12-4691-419b-bc05-a74b4daa2eab")
+	)
+	(fp_rect
+		(start -0.75 -1.85)
+		(end 4.45 1.85)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "ec02b487-4471-41af-bfd0-4bc19d0837fd")
+	)
+	(fp_rect
+		(start -0.75 -1.85)
+		(end 4.45 1.85)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "aeba6d68-2f1e-49a9-9208-5ee7f6d4cb20")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 1.5 -4.5 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(uuid "99d0572d-453b-45ed-a24a-ffa20e2dee12")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+		(at 0 0)
+		(size 1.5 2.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "aeee9032-77d0-4732-8afb-512bfcc738f4")
+	)
+	(pad "2" smd roundrect
+		(at 3.7 0)
+		(size 1.5 2.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "292d5ca7-28c8-4dcb-b398-e72acbe1c1af")
+	)
+	(embedded_fonts no)
+	(model "${MY_3D_MODELS}/INDUCT_SRP4020T-6R8M.stp"
+		(offset
+			(xyz 1.85 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -0 -0 -0)
+		)
+	)
+)

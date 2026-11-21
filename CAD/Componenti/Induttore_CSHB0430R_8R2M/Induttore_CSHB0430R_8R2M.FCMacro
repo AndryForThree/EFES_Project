@@ -1,0 +1,108 @@
+# -*- coding: utf-8 -*-
+"""CODACA CSHB0430R-8R2M, induttore SMD 8.2 uH: riferimento KiCad.
+Fonte: Datasheets/Inductor/INDUCT_CSHB0430R-8R2M.pdf, pagina 1,
+Product Dimensions, revisione 07/14/2020.
+INGOMBRO nominale con terminali: X4.4 +/-0.35, Y4.2 +/-0.2,
+Z2.8 +/-0.2 mm. Superfici saldabili: 0.8 +/-0.3 per 2.0 +/-0.3.
+Rientri inferiori: 1.0 per 2.5 mm. Sporgenza inferiore <=0.15 mm.
+Spessore lamierino/stand-off scelto 0.10 mm; altezza risvolto 0.80,
+raggi e dettagli grafici non quotati sono ricostruiti indicativamente.
+Il corpo e' largo 4.2 in X per lasciare 0.1 di terminale per lato,
+inferito dal disegno: il 4.4 quotato comprende i terminali sporgenti.
+Nessun avvolgimento esposto: il componente e' un induttore stampato schermato.
+Origine: centro XY, Z=0 piano inferiore dei terminali (piano saldatura).
+Terminale 1 a X negativo, 2 a X positivo; punto identificativo indicativo.
+Il Typical Pad Layout e' del PCB: NON viene esportato come parte del componente.
+STEP a colori generato automaticamente nella cartella della macro; nessun STL.
+"""
+from pathlib import Path
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+# Quote nominali dal disegno; le tolleranze non sono maggiorazioni del CAD.
+L = 4.4
+W = 4.2
+H = 2.8
+L_TERMINALE = 0.8
+W_TERMINALE = 2.0
+RISPESSORE = 0.10  # Ricostruito, entro il limite inferiore 0.15 max.
+V = App.Vector
+doc = App.newDocument('CODACA_CSHB0430R_8R2M')
+pezzi = []
+
+
+def aggiungi(nome, forma, colore, nota, singolo=True):
+    forma = forma.removeSplitter()
+    if not forma.isValid() or (singolo and len(forma.Solids) != 1):
+        raise ValueError('Forma non valida: '+nome)
+    obj = doc.addObject('Part::Feature',nome)
+    obj.Label = nome.replace('_',' ')
+    obj.Shape = forma
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (.2,.2,.21)
+    obj.ViewObject.DisplayMode = 'Flat Lines'
+    obj.ViewObject.Deviation = .05
+    obj.addProperty('App::PropertyString','Nota','Quote')
+    obj.Nota = nota
+    pezzi.append(obj)
+    return obj
+
+
+# Corpo grigio di polvere magnetica stampata, spigoli leggermente arrotondati.
+corpo = Part.makeBox(L-2*RISPESSORE,W,H-RISPESSORE,
+    V(-(L-2*RISPESSORE)/2,-W/2,RISPESSORE))
+verticali = [e for e in corpo.Edges if e.BoundBox.ZLength > H-.2]
+corpo = corpo.makeFillet(.18,verticali)  # Raggio estetico non quotato.
+terminali = []
+for segno in (-1,1):
+    x = -L/2 if segno < 0 else L/2-L_TERMINALE
+    piede = Part.makeBox(L_TERMINALE,W_TERMINALE,RISPESSORE,
+        V(x,-W_TERMINALE/2,0))
+    x_lato = -L/2 if segno < 0 else L/2-RISPESSORE
+    risvolto = Part.makeBox(RISPESSORE,W_TERMINALE,.8,
+        V(x_lato,-W_TERMINALE/2,0))
+    terminali.append(piede.fuse(risvolto).removeSplitter())
+    # Rientro nello stampaggio: rettangolo 1.0x2.5 dalla vista inferiore.
+    x_rientro = -(L/2-RISPESSORE) if segno < 0 else (L/2-RISPESSORE)-1.0
+    corpo = corpo.cut(Part.makeBox(1.0,2.5,.21,V(x_rientro,-1.25,-.01)))
+
+# Marcatura superficiale geometrica, inclusa nello STEP a colori.
+# Un font di sistema e' usato solo per la scritta, non per definire il package.
+font = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
+inchiostro = Part.makeCylinder(.10,.004,V(-1.5,-1.5,H-.004))
+if font.exists():
+    import Draft
+    testo = Draft.makeShapeString(String='8R2',FontFile=str(font),Size=.9,Tracking=0)
+    doc.recompute()
+    facce = testo.Shape.copy()
+    doc.removeObject(testo.Name)
+    facce.rotate(V(0,0,0),V(0,0,1),90)
+    centro = facce.BoundBox.Center
+    facce.translate(V(-centro.x,-centro.y,H-.004-facce.BoundBox.ZMin))
+    caratteri = facce.extrude(V(0,0,.004))
+    inchiostro = Part.makeCompound([caratteri,inchiostro])
+else:
+    App.Console.PrintWarning('Font non disponibile: scritta 8R2 omessa; quote invariate.\n')
+# L'inchiostro e' inserito nella superficie: nessuna maggiorazione dell'altezza.
+corpo = corpo.cut(inchiostro)
+obj = aggiungi('Corpo_Magnetico_Grigio',corpo,(.43,.44,.46),
+    'Ingombro complessivo 4.4x4.2x2.8; corpo grigio stampato, raggi e dettagli interni indicativi.')
+obj.addProperty('App::PropertyString','Tolleranze_Datasheet','Quote')
+obj.Tolleranze_Datasheet = 'X +/-0.35; Y +/-0.2; H +/-0.2 mm. Modello alle quote nominali.'
+for i,t in enumerate(terminali,1):
+    aggiungi('Terminale_%d_Stagnato' % i,t,(.80,.82,.85),
+        'Area inferiore nominale 0.8x2.0 mm; lamierino 0.10 e risvolto0.80 ricostruiti.')
+aggiungi('Marcatura_8R2_e_Punto',inchiostro,(.045,.045,.05),
+    'Grafica identificativa 8R2=8.2uH; font e punto indicativi, non polarita elettrica.',False)
+
+doc.recompute()
+cartella = Path(__file__).resolve().parent if '__file__' in globals() else Path(
+    '/home/andrea/Scuola/EFES_Project/CAD/Componenti/Induttore_CSHB0430R_8R2M')
+file_step = cartella/'Induttore_CSHB0430R_8R2M.step'
+ImportGui.export(pezzi,str(file_step))
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('CODACA CSHB0430R-8R2M: 4.4 x 4.2 x 2.8 mm nominali; terminali 0.8 x 2.0 mm.\n')
+App.Console.PrintMessage('Origine centro XY, Z=0 sotto terminali. STEP KiCad: %s\n' % file_step)

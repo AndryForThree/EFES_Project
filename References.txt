@@ -7,7 +7,6 @@ DRV8871 Driver da comprare (si trova su aliexpress la schedina gia fatta)
 DRV8876 Driver da comprare (si trova su aliexpress la schedina gia fatta) 
 DRV8874 Driver da comprare (si trova su aliexpress la schedina gia fatta) Probabilmente il migliore (bassa Rds ON)
 
-TCAN3413DR		CAN FD Tranciver
 
 TS02-66-50-BK-100-LCR-D	Pulsante generale
 
@@ -15,15 +14,6 @@ PTV09A-2020U-B102	Potenziometro
 
 9049			Magnete radiale (Digikey)
 BEARING-624ZZ		Cuscinetto (DigiKey)
-
-
-
-
-BSS138				MOSFET
-
-APT1608SGD3			LED GREEN
-LY Q976.01-Q1R2-36-1		LED Yelllow
-LR Q976.01-P2R2-1-20-R18	LED RED
 
 
 CMS-30204-18L200		Speaker
@@ -34,3 +24,42 @@ INA500BIDBVR			INA (OpAmp da STrumentazione)
 				Anti Aliasing Filter - Series Resistor
 				Anti Aliasing Filter - Parallel Resistor
 				Anti Aliasing Filter - Cap.
+				
+				
+				
+
+
+Rating Cavi per il report	https://usa.proterial.com/resources-downloads/faqs/what-is-the-current-carrying-capacity-of-copper-conductors/?utm_source=chatgpt.com
+
+Banana Connector for PCB	09740
+Support Fascette per cablaggio	3240707		Almeno 20 pezzi
+
+Termorestringente 2:1 (3.18 mm)	F221B1/8 BK206 (Per AWG 24 con guaina grossa e AWG20)
+Termorestringente 2:1 (2.54 mm)	Q2-F-3/32-01-SS500FT (per AWG24)
+
+Solder Lug (per banana, M3)	7328		10 pezzi
+
+Cavo cablaggio Nero	AWG20	C2040ABHR-06-HUA.48.01	3m
+Cavo cablaggio Rosso	AWG20	C2040A.48.03	3m
+Cavo cablaggio Nero	AWG24	C2100A.48.01	4m
+Cavo cablaggio Rosso	AWG24	C2015A.48.03	4m	
+Cavo cablaggio Blu	AWG24	C2015A.48.07	4m	CANH
+Cavo cablaggio Verde	AWG24	C2015A.48.06	4m	CANL
+Cavo cablaggio Viola	AWG24	C2015A.48.19	15m	Segnali Generali
+Cavo cablaggio Giallo	AWG24	C2015A.48.05	8m	Interlock
+
+				
+				
+				
+				
+				
+			
+POwer COnsumptions 
+
+
+Connetore Shrouded
+SFH11-PBPC-D05-ST-BK	10 Pin	Socket 	(lato cablaggio)		0.40 $
+SBH11-PBPC-D05-RA-BK	10 Pin	Pin	(Lato PCB, Right Angle)		0.47 $
+SBH11-PBPC-D05-ST-BK	10 Pin	Pin	(Lato PCB, Vertical)		0.23 $
+
+

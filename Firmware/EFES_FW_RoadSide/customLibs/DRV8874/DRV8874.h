@@ -71,6 +71,8 @@
 // ==============================================================================================
 
 // Possible configuration of the PMODE pin
+// This configuration defines how the 2 Input signals are interpreted by
+// the driver
 typedef enum {
 	DRV8874_CONTROL_PH_EN,	// PMODE tied LOW
 	DRV8874_CONTROL_IN_IN,	// PMODE tied HIGH (PWM control mode)
@@ -78,6 +80,8 @@ typedef enum {
 } DRV8874_ControlMode;
 
 // Possible configuration of the IMODE pin
+// This configuration defines how the Driver recovers from an Overcurrent fault
+// 
 typedef enum {
 	DRV8874_IMODE_FIXED_RETRY,	// If IMODE Pin is connected directly to GND
 	DRV8874_IMODE_CBC_RETRY,	// If IMODE Pin is connected to GND through a 20 kOhm resistor

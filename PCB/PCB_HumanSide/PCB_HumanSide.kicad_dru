@@ -1,0 +1,104 @@
+# JLCPCB / rigid FR-4 / 4 copper layers / economy prototype process.
+# Intended build: 1.6mm finished, F.Cu+B.Cu 1oz, In1.Cu+In2.Cu 0.5oz,
+# green soldermask, white silkscreen, HASL leaded; no special stackup/HDI.
+# JLCPCB official capabilities checked 2026-11-19:
+# https://jlcpcb.com/capabilities/pcb-capabilities/
+# https://cart.jlcpcb.com/quote
+#
+# IMPORTANT: custom DRC file supplements, but does NOT set global Board Setup.
+# Board Setup > Design Rules > Constraints (all lengths in mm):
+#   minimum clearance             0.15
+#   minimum track width           0.15
+#   minimum connection width      0.15
+#   minimum annular width         0.12  (for 0.45/0.20 via, ring=0.125)
+#   minimum via diameter          0.45
+#   minimum through hole/drill    0.20  (PTH min 0.30 is checked below)
+#   copper to hole clearance      0.25  (inner PTH hole rule below >=0.30)
+#   copper to routed edge         0.30  (V-cut edges need >=0.40)
+#   hole to hole clearance        0.20  (pad-involved >=0.45 below)
+#   minimum silk item clearance   0.15
+#   minimum silk text height      1.00
+#   minimum silk text stroke      0.15
+#
+# In Net Classes: Default clearance 0.20; track width 0.25;
+# default via diameter/drill 0.60/0.30. Optional dense via 0.45/0.20.
+# In Board Stackup: exactly 4 Cu layers; blind/buried/microvias disabled.
+# In Solder Mask/Paste: review expansion, aim for mask aperture 1:1 (0 mm)
+# where appropriate; check 0.09 mm mask-opening to adjacent track manually.
+#
+# IMPORTANT pricing distinction: multilayer 0.20 drill is not extra only when
+# the via diameter is >=0.45mm. All vias below are restricted accordingly.
+# This file cannot validate trace CURRENT, impedance, panel pricing or DFM.
+
+(version 1)
+
+# KiCad 9 does not reliably accept 'disallow blind_via buried_via' tokens:
+# check the Via_Type property directly, so only ordinary through vias pass.
+(rule "ECONOMY 4L - through vias only"
+  (constraint assertion "A.Via_Type == 'Through'")
+  (condition "A.Type == 'Via'"))
+
+(rule "ECONOMY 4L - via diameter fee-safe minimum"
+  (constraint via_diameter (min 0.45mm))
+  (condition "A.Type == 'Via'"))
+
+(rule "ECONOMY 4L - via drill fee-safe minimum"
+  (constraint hole_size (min 0.20mm))
+  (condition "A.Type == 'Via'"))
+
+# JLCPCB multilayer PTH ring >=0.20 recommended; absolute minimum 0.15.
+# We require the recommended figure for non-via plated pads.
+(rule "JLC 4L - plated through-hole pad annular ring"
+  (constraint annular_width (min 0.20mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'Through-hole'"))
+
+# This conservative PTH drill size avoids very fine plated connector holes.
+(rule "ECONOMY 4L - PTH round-hole drill"
+  (constraint hole_size (min 0.30mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'Through-hole' && A.Hole_Size_X == A.Hole_Size_Y"))
+
+(rule "JLC 4L - NPTH round-hole diameter"
+  (constraint hole_size (min 0.50mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'NPTH, mechanical' && A.Hole_Size_X == A.Hole_Size_Y"))
+
+# JLCPCB published multilayer plated-slot min is 0.35mm, NPTH 1.00mm.
+(rule "JLC 4L - plated slot minimum width"
+  (constraint hole_size (min 0.35mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'Through-hole' && A.Hole_Size_X != A.Hole_Size_Y"))
+
+(rule "JLC 4L - NPTH slot minimum width"
+  (constraint hole_size (min 1.00mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'NPTH, mechanical' && A.Hole_Size_X != A.Hole_Size_Y"))
+
+# Via-via can use 0.20 global; if either hole is a pad use >=0.45.
+# Mixed pad-via gap is intentionally conservative.
+(rule "JLC 4L - drill separation with pads"
+  (constraint hole_to_hole (min 0.45mm))
+  (condition "A.Type == 'Pad' || B.Type == 'Pad'")
+  (severity error))
+
+# Crucial for 4-layer boards: PTH drill to other-net copper in inner layers.
+# Via-to-copper is already protected by global 0.25 (JLCPCB minimum 0.20).
+(rule "JLC 4L - inner PTH hole to other-net copper"
+  (layer inner)
+  (constraint hole_clearance (min 0.30mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'Through-hole'"))
+
+(rule "JLC 4L - outer PTH hole to other-net tracks"
+  (layer outer)
+  (constraint hole_clearance (min 0.35mm))
+  (condition "A.Type == 'Track' && B.Type == 'Pad' && B.Pad_Type == 'Through-hole'"))
+
+(rule "JLC 4L - different-net SMD pads clearance"
+  (constraint clearance (min 0.15mm))
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'SMD' && B.Type == 'Pad' && B.Pad_Type == 'SMD'"))
+
+# 0.2-0.25mm BGA lands need ENIG; 0.25mm minimum targets HASL economy.
+(rule "ECONOMY 4L - minimum SMD pad dimensions"
+  (constraint assertion "A.Size_X >= 0.25mm && A.Size_Y >= 0.25mm")
+  (condition "A.Type == 'Pad' && A.Pad_Type == 'SMD'"))
+
+# Avoid solder wicking into vias under exposed SMD pads, even on same net.
+(rule "ECONOMY 4L - no via holes inside SMD pads"
+  (constraint physical_hole_clearance (min 0.20mm))
+  (condition "B.Type == 'Pad' && B.Pad_Type == 'SMD'"))
