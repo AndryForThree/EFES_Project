@@ -60,8 +60,8 @@
           "hatch_smoothing_level": 0,
           "hatch_smoothing_value": 0.1,
           "hatch_thickness": 1.0,
-          "min_clearance": 0.5,
-          "min_island_area": 10.0,
+          "min_clearance": 0.3556,
+          "min_island_area": 9.99999999996,
           "min_thickness": 0.25,
           "pad_connection": 1,
           "remove_islands": 0,
@@ -318,7 +318,8 @@
         0.254,
         0.381,
         0.508,
-        1.016
+        1.016,
+        1.651
       ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
@@ -658,7 +659,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "",
+      "plot": "Outputs/",
       "specctra_dsn": "",
       "step": "",
       "vrml": ""

@@ -10446,7 +10446,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "SCHOTTKY_SS84C"
+	(symbol "SCHOTTKY_SS34"
 		(pin_names
 			(hide yes)
 		)
@@ -10465,7 +10465,7 @@
 				)
 			)
 		)
-		(property "Value" "SS84C"
+		(property "Value" "SS34"
 			(at 0 3.048 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10475,7 +10475,7 @@
 				)
 			)
 		)
-		(property "Footprint" "EFES:SOD-123_HandSolder"
+		(property "Footprint" "Diode_SMD:D_SMA"
 			(at -0.508 8.89 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10508,7 +10508,7 @@
 				)
 			)
 		)
-		(property "PN" " DS24W"
+		(property "PN" "SS34"
 			(at -0.254 6.604 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10519,7 +10519,7 @@
 				)
 			)
 		)
-		(symbol "SCHOTTKY_SS84C_0_1"
+		(symbol "SCHOTTKY_SS34_0_1"
 			(polyline
 				(pts
 					(xy -1.27 1.27) (xy -1.27 -1.27)
@@ -10557,7 +10557,7 @@
 				)
 			)
 		)
-		(symbol "SCHOTTKY_SS84C_1_1"
+		(symbol "SCHOTTKY_SS34_1_1"
 			(polyline
 				(pts
 					(xy -1.27 1.27) (xy -0.762 1.27) (xy -0.762 0.762)
@@ -12147,7 +12147,7 @@
 				)
 			)
 		)
-		(property "Footprint" "EFES:SOD-123_HandSolder"
+		(property "Footprint" "EFES:SOD-123_Bidirectional_HandSolder"
 			(at -0.508 8.89 0)
 			(show_name no)
 			(do_not_autoplace no)

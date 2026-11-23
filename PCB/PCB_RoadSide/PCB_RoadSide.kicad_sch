@@ -4504,7 +4504,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "EFES_Symbols:SCHOTTKY_SS84C"
+		(symbol "EFES_Symbols:SCHOTTKY_SS34"
 			(pin_names
 				(hide yes)
 			)
@@ -4523,7 +4523,7 @@
 					)
 				)
 			)
-			(property "Value" "SS84C"
+			(property "Value" "SS34"
 				(at 0 3.048 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4533,7 +4533,7 @@
 					)
 				)
 			)
-			(property "Footprint" "EFES:SOD-123_HandSolder"
+			(property "Footprint" "Diode_SMD:D_SMA"
 				(at -0.508 8.89 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4566,7 +4566,7 @@
 					)
 				)
 			)
-			(property "PN" " DS24W"
+			(property "PN" "SS34"
 				(at -0.254 6.604 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4577,7 +4577,7 @@
 					)
 				)
 			)
-			(symbol "SCHOTTKY_SS84C_0_1"
+			(symbol "SCHOTTKY_SS34_0_1"
 				(polyline
 					(pts
 						(xy -1.27 1.27) (xy -1.27 -1.27)
@@ -4615,7 +4615,7 @@
 					)
 				)
 			)
-			(symbol "SCHOTTKY_SS84C_1_1"
+			(symbol "SCHOTTKY_SS34_1_1"
 				(polyline
 					(pts
 						(xy -1.27 1.27) (xy -0.762 1.27) (xy -0.762 0.762)
@@ -6174,6 +6174,9 @@
 			(embedded_fonts no)
 		)
 		(symbol "EFES_Symbols:TVS_SMF17CA"
+			(pin_numbers
+				(hide yes)
+			)
 			(pin_names
 				(hide yes)
 			)
@@ -6202,7 +6205,7 @@
 					)
 				)
 			)
-			(property "Footprint" "EFES:SOD-123_HandSolder"
+			(property "Footprint" "EFES:SOD-123_Bidirectional_HandSolder"
 				(at -0.508 8.89 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -6348,102 +6351,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Mechanical:Fiducial"
-			(exclude_from_sim no)
-			(in_bom no)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "FID"
-				(at 0 5.08 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "Fiducial"
-				(at 0 3.175 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Fiducial Marker"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "fiducial marker"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "Fiducial*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "Fiducial_0_1"
-				(circle
-					(center 0 0)
-					(radius 1.27)
-					(stroke
-						(width 0.508)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "Mechanical:MountingHole"
 			(pin_names
 				(offset 1.016)
@@ -6538,184 +6445,6 @@
 					)
 					(fill
 						(type none)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "TVS_SMF17CA_1"
-			(pin_numbers
-				(hide yes)
-			)
-			(pin_names
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "D"
-				(at 0 5.334 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "SMF17CA"
-				(at 0 3.302 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" "EFES:SOD-123_HandSolder"
-				(at -0.508 8.89 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "PN" "SMF17CA"
-				(at -0.254 6.604 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "TVS_SMF17CA_1_0_1"
-				(polyline
-					(pts
-						(xy 0 1.27) (xy -0.508 1.778)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 1.27) (xy 0 -1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 0) (xy -2.54 -1.27) (xy -2.54 1.27) (xy 0 0)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 0) (xy 2.54 -1.27) (xy 2.54 1.27) (xy 0 0)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.508 -1.778) (xy 0 -1.27)
-					)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "TVS_SMF17CA_1_1_1"
-				(pin passive line
-					(at -5.08 0 0)
-					(length 2.54)
-					(name "K"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 0 180)
-					(length 2.54)
-					(name "A"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
 					)
 				)
 			)
@@ -7049,8 +6778,8 @@
 		(uuid "5e98ce3a-0ac2-4247-87c6-5a283a9004f5")
 	)
 	(rectangle
-		(start 142.24 105.41)
-		(end 175.26 123.19)
+		(start 147.32 105.41)
+		(end 168.91 116.84)
 		(radius 1.524)
 		(stroke
 			(width 0.508)
@@ -7186,8 +6915,8 @@
 		(uuid "bd470df3-baa5-46b1-a7a7-1fcd331f95cb")
 	)
 	(rectangle
-		(start 143.51 109.22)
-		(end 162.56 121.92)
+		(start 148.59 109.22)
+		(end 167.64 115.57)
 		(stroke
 			(width 0)
 			(type dash)
@@ -7244,18 +6973,6 @@
 			(type none)
 		)
 		(uuid "f646848b-0dd0-46a6-9822-45cf10133507")
-	)
-	(rectangle
-		(start 163.83 109.22)
-		(end 173.99 121.92)
-		(stroke
-			(width 0)
-			(type dash)
-		)
-		(fill
-			(type none)
-		)
-		(uuid "fdc7a1c6-0939-4a57-be69-5ff751ac6bc1")
 	)
 	(text "LEDs"
 		(exclude_from_sim no)
@@ -7353,16 +7070,6 @@
 			(justify left)
 		)
 		(uuid "349fa0f5-e3aa-497c-a609-c5fd0cfeedf1")
-	)
-	(text "Fiducials"
-		(exclude_from_sim no)
-		(at 168.656 108.204 0)
-		(effects
-			(font
-				(size 1.016 1.016)
-			)
-		)
-		(uuid "3562e625-ac22-454f-be20-13269c9e6487")
 	)
 	(text "Motor Interface"
 		(exclude_from_sim no)
@@ -7727,9 +7434,20 @@
 		)
 		(uuid "c94bd177-35c4-44e2-a72c-969d44f1313c")
 	)
+	(text "This diode is chosen carefuilly, because it must 2.2A of continuous stall \ncurrent of Motor, Peaks of 4.5A in speacial motor conditions, and guarantee a low \nvoltage drop to avoid excessive losses of prower (problem also \nfor power \ndissipation)"
+		(exclude_from_sim no)
+		(at 314.198 118.618 0)
+		(effects
+			(font
+				(size 0.762 0.762)
+			)
+			(justify left)
+		)
+		(uuid "cb1860f3-b298-4bd9-b11f-f0ad2c01e6ef")
+	)
 	(text "Mounting Holes M3"
 		(exclude_from_sim no)
-		(at 152.908 108.204 0)
+		(at 157.988 108.204 0)
 		(effects
 			(font
 				(size 1.016 1.016)
@@ -8331,6 +8049,18 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "fef5ef78-082a-4096-a722-1d328957cceb")
+	)
+	(no_connect
+		(at 383.54 38.1)
+		(uuid "36c15575-4c4b-400a-9025-c629eb878e4a")
+	)
+	(no_connect
+		(at 391.16 39.37)
+		(uuid "b0b944a5-7a1b-4ebb-b26b-6f92f408d005")
+	)
+	(no_connect
+		(at 383.54 43.18)
+		(uuid "dd9be5e9-c0fa-42f1-8ca3-b9e05f29000d")
 	)
 	(wire
 		(pts
@@ -8941,16 +8671,6 @@
 			(type default)
 		)
 		(uuid "3557d2ad-ec7b-4a37-ba34-c1b614550c41")
-	)
-	(wire
-		(pts
-			(xy 384.81 38.1) (xy 383.54 38.1)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3577ab0b-bf4f-401d-b293-6167c65cfb50")
 	)
 	(wire
 		(pts
@@ -14259,7 +13979,6 @@
 		)
 	)
 	(symbol
-		(lib_name "TVS_SMF17CA_1")
 		(lib_id "EFES_Symbols:TVS_SMF17CA")
 		(at 353.06 129.54 90)
 		(unit 1)
@@ -14292,7 +14011,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "EFES:SOD-123_HandSolder"
+		(property "Footprint" "EFES:SOD-123_Bidirectional_HandSolder"
 			(at 344.17 130.048 0)
 			(hide yes)
 			(show_name no)
@@ -15698,82 +15417,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:Fiducial")
-		(at 166.37 119.38 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "3d893d90-069c-4506-aa10-eef5cd2c34f9")
-		(property "Reference" "FID3"
-			(at 168.148 119.38 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Fiducial"
-			(at 168.91 120.6499 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Fiducial:Fiducial_1mm_Mask2mm"
-			(at 166.37 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 166.37 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Fiducial Marker"
-			(at 166.37 119.38 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_RoadSide"
-				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
-					(reference "FID3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:PWR_FLAG")
 		(at 304.8 172.72 270)
 		(unit 1)
@@ -16350,82 +15993,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:Fiducial")
-		(at 166.37 115.57 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "47cee900-31b6-4baf-9f77-e0d297241af0")
-		(property "Reference" "FID2"
-			(at 168.148 115.57 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Fiducial"
-			(at 168.91 116.8399 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Fiducial:Fiducial_1mm_Mask2mm"
-			(at 166.37 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 166.37 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Fiducial Marker"
-			(at 166.37 115.57 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_RoadSide"
-				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
-					(reference "FID2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "EFES_Symbols:LDO_TLV70033DDCT")
 		(at 285.75 205.74 0)
 		(unit 1)
@@ -16746,6 +16313,96 @@
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
 					(reference "R13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "EFES_Symbols:SCHOTTKY_SS34")
+		(at 346.71 123.19 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "51f20b6b-33a8-4b46-bd98-2d1230dea85d")
+		(property "Reference" "D4"
+			(at 346.71 125.476 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SS34"
+			(at 346.71 127.508 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 347.218 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 346.71 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 346.71 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "SS34"
+			(at 346.964 129.794 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7e91c06f-2711-4f80-b31c-fa50ea993cad")
+		)
+		(pin "2"
+			(uuid "7502694a-194c-491c-9a22-62431393c203")
+		)
+		(instances
+			(project "PCB_RoadSide"
+				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
+					(reference "D4")
 					(unit 1)
 				)
 			)
@@ -17373,7 +17030,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "EFES:SOD-123_HandSolder"
+		(property "Footprint" "EFES:SOD-123_Bidirectional_HandSolder"
 			(at 270.51 130.048 0)
 			(hide yes)
 			(show_name no)
@@ -22809,7 +22466,7 @@
 	)
 	(symbol
 		(lib_id "Mechanical:MountingHole")
-		(at 156.21 113.03 0)
+		(at 161.29 113.03 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -22819,7 +22476,7 @@
 		(dnp no)
 		(uuid "c8fd21b3-7d5e-45f2-8ca7-3e40add9ea55")
 		(property "Reference" "H3"
-			(at 158.496 113.03 0)
+			(at 163.576 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -22830,7 +22487,7 @@
 			)
 		)
 		(property "Value" "MountingHole"
-			(at 158.75 114.2999 0)
+			(at 163.83 114.2999 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22842,7 +22499,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 156.21 113.03 0)
+			(at 161.29 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22853,7 +22510,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 156.21 113.03 0)
+			(at 161.29 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -22864,7 +22521,7 @@
 			)
 		)
 		(property "Description" "Mounting Hole without connection"
-			(at 156.21 113.03 0)
+			(at 161.29 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -23067,96 +22724,6 @@
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
 					(reference "R6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "EFES_Symbols:SCHOTTKY_SS84C")
-		(at 346.71 123.19 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "cbb87582-b118-4a7a-ade6-e0f899fce8a3")
-		(property "Reference" "D4"
-			(at 346.71 125.984 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SS84C"
-			(at 346.964 127.762 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "EFES:SOD-123_HandSolder"
-			(at 347.218 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 346.71 123.19 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 346.71 123.19 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "PN" " DS24W"
-			(at 346.964 129.794 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a6dad966-49e1-4d61-a05b-f3adbe318b34")
-		)
-		(pin "2"
-			(uuid "ae4dcf13-d3d0-414e-bbd0-d016eef82cf4")
-		)
-		(instances
-			(project "PCB_RoadSide"
-				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
-					(reference "D4")
 					(unit 1)
 				)
 			)
@@ -23501,82 +23068,6 @@
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
 					(reference "SB31")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Mechanical:Fiducial")
-		(at 166.37 111.76 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d20d2059-0a9a-476f-be89-70e7c059629e")
-		(property "Reference" "FID1"
-			(at 168.148 111.76 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Fiducial"
-			(at 168.91 113.0299 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Fiducial:Fiducial_1mm_Mask2mm"
-			(at 166.37 111.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 166.37 111.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Fiducial Marker"
-			(at 166.37 111.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_RoadSide"
-				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
-					(reference "FID1")
 					(unit 1)
 				)
 			)
@@ -24217,82 +23708,6 @@
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
 					(reference "#PWR034")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Mechanical:MountingHole")
-		(at 147.32 118.11 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "de4315cd-2d8e-4284-8b15-61450a0272d9")
-		(property "Reference" "H2"
-			(at 149.606 118.11 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "MountingHole"
-			(at 149.86 119.3799 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 147.32 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 147.32 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Mounting Hole without connection"
-			(at 147.32 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_RoadSide"
-				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac"
-					(reference "H2")
 					(unit 1)
 				)
 			)
@@ -25524,7 +24939,7 @@
 	)
 	(symbol
 		(lib_id "Mechanical:MountingHole")
-		(at 147.32 113.03 0)
+		(at 152.4 113.03 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -25534,7 +24949,7 @@
 		(dnp no)
 		(uuid "f4d77772-0e1d-4858-9d14-3e54643e0e2f")
 		(property "Reference" "H1"
-			(at 149.606 113.03 0)
+			(at 154.686 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25545,7 +24960,7 @@
 			)
 		)
 		(property "Value" "MountingHole"
-			(at 149.86 114.2999 0)
+			(at 154.94 114.2999 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25557,7 +24972,7 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 147.32 113.03 0)
+			(at 152.4 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25568,7 +24983,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 147.32 113.03 0)
+			(at 152.4 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -25579,7 +24994,7 @@
 			)
 		)
 		(property "Description" "Mounting Hole without connection"
-			(at 147.32 113.03 0)
+			(at 152.4 113.03 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
