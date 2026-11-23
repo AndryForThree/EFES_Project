@@ -20023,7 +20023,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 120.65 254 0)
 			(hide yes)
 			(show_name no)
@@ -22915,7 +22915,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 63.5 223.52 0)
 			(hide yes)
 			(show_name no)
@@ -23272,7 +23272,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 120.65 220.98 0)
 			(hide yes)
 			(show_name no)
@@ -25942,7 +25942,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 63.5 256.54 0)
 			(hide yes)
 			(show_name no)

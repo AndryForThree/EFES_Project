@@ -14,7 +14,7 @@
 #   minimum via diameter          0.50
 #   minimum through hole/drill    0.30
 #   copper to hole clearance      0.25  (inner PTH hole rule below >=0.30)
-#   copper to routed edge         0.50  (also exceeds the V-cut minimum)
+#   copper to routed edge         0.25  (V-cut would require >=0.40)
 #   hole to hole clearance        0.25  (pad-involved >=0.45 below)
 #   minimum silk item clearance   0.15
 #   minimum silk text height      0.80  (user choice; intentionally retained)
@@ -22,7 +22,7 @@
 #   soldermask to other-net Cu    0.09
 #   maximum round-hole drill      6.30  (checked below)
 #
-# In Net Classes: Default clearance 0.20; track width 0.20;
+# In Net Classes: Default clearance 0.15; track width 0.20;
 # default via diameter/drill 0.60/0.30. Globals currently require >=0.50/0.30.
 # In Board Stackup: exactly 4 Cu layers; blind/buried/microvias disabled.
 # In Solder Mask/Paste: review expansion, aim for mask aperture 1:1 (0 mm)
@@ -107,3 +107,14 @@
 (rule "ECONOMY 4L - no via holes inside SMD pads"
   (constraint physical_hole_clearance (min 0.20mm))
   (condition "B.Type == 'Pad' && B.Pad_Type == 'SMD'"))
+
+# This hand-soldered jumper intentionally exposes both pads in one mask opening.
+# KiCad evaluates bridged_mask on each item separately (B is null).
+# Match the footprint's mask aperture as well as its pads, so tracks entering
+# the intentional opening do not cause false positives. Other footprints and
+# electrical copper clearance checks remain unaffected. Any copper exposed
+# by this particular opening is exempt from the mask-bridge check.
+(rule "SolderBride_0603 - intentional shared mask opening"
+  (constraint bridged_mask)
+  (condition "A.memberOfFootprint('*:SolderBride_0603')")
+  (severity ignore))

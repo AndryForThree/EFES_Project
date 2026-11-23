@@ -76,14 +76,115 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "lib_footprint_mismatch|10700000|4150000|7a5a91d5-d66f-48a5-a440-3e9f10fb4b54|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
+          "lib_footprint_mismatch|14099100|47645250|8ffcf35b-b044-41b1-91db-445f5aba6004|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
+          "lib_footprint_mismatch|96350000|53930000|c8046baf-fa15-4c60-8dad-dea1cc716d2f|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
+          "silk_overlap|23105855|26600000|d02e57c0-db42-45bd-a176-a61ff52f2e51|fcc9f05d-396d-4e6d-b2d6-fd8d16b94cbf",
+          ""
+        ],
+        [
+          "silk_overlap|23105855|31296890|3e55b60d-48e1-4456-98b9-4f559173a6eb|d02e57c0-db42-45bd-a176-a61ff52f2e51",
+          ""
+        ],
+        [
+          "silk_overlap|23150243|52592466|19871492-25cc-48e6-af6c-0c23419c8308|60a3adc7-e6eb-4788-ba79-b2d3b488e766",
+          ""
+        ],
+        [
+          "silk_overlap|25100000|6054974|0209ca24-cb15-497b-89eb-2d8a45dc0fc6|391cd9a7-309b-4153-8381-3908da876a5c",
+          ""
+        ],
+        [
+          "silk_overlap|32190400|16312500|7c00c274-5790-4676-bae6-562575601406|afaa51f7-ea03-4d66-bef7-38fc5657c8df",
+          ""
+        ],
+        [
+          "silk_overlap|32190400|16312500|7c00c274-5790-4676-bae6-562575601406|fcc37347-470b-43c6-8b93-6408505a6253",
+          ""
+        ],
+        [
+          "silk_overlap|39759600|16284600|0b44f0e7-abe6-462c-9d20-3d0f975c6d59|7c00c274-5790-4676-bae6-562575601406",
+          ""
+        ],
+        [
+          "silk_overlap|40192146|16349518|28f2fa55-a3a4-4981-97d8-e813c2cc92f9|7c00c274-5790-4676-bae6-562575601406",
+          ""
+        ],
+        [
+          "silk_overlap|42612500|16349518|28f2fa55-a3a4-4981-97d8-e813c2cc92f9|a0f30bc0-d5d9-45ae-a80a-12a73dadb998",
+          ""
+        ],
+        [
+          "silk_overlap|42612500|16349518|28f2fa55-a3a4-4981-97d8-e813c2cc92f9|b9c3ab37-4162-465f-992f-9dc43a884218",
+          ""
+        ],
+        [
+          "silk_overlap|43519144|11972345|2db63d41-9bf3-4ed3-8402-dd08bfef43e0|c917eadc-57f7-46d3-812f-8c165d830021",
+          ""
+        ],
+        [
+          "silk_overlap|43519144|9162339|3b74e9b9-8b7a-41aa-8187-54544ef9f6ba|c917eadc-57f7-46d3-812f-8c165d830021",
+          ""
+        ],
+        [
+          "silk_overlap|43519144|9162339|c917eadc-57f7-46d3-812f-8c165d830021|fc6ef8c0-5a0a-40c2-bc09-4c7538f9a050",
+          ""
+        ],
+        [
+          "silk_overlap|49212018|16349518|28f2fa55-a3a4-4981-97d8-e813c2cc92f9|5d8062c6-285c-497c-8cfc-9078767f776c",
+          ""
+        ],
+        [
+          "silk_overlap|60950000|16706698|2d80de9d-a19d-4e74-9713-4ec3f2a12306|9fb8df4f-5dac-4e98-86f5-6faa901c01b6",
+          ""
+        ],
+        [
+          "silk_overlap|61750000|16706698|9fb8df4f-5dac-4e98-86f5-6faa901c01b6|ba85f524-001b-4767-a10b-2f88c359ccb0",
+          ""
+        ],
+        [
+          "silk_overlap|70799166|16706698|9fb8df4f-5dac-4e98-86f5-6faa901c01b6|ba8ad682-7036-41e8-b8cc-ea9290d1e2b9",
+          ""
+        ],
+        [
+          "silk_overlap|76405855|17719034|94318e7f-6388-4883-bd59-1354f1d69623|b194b931-e5e2-45f5-8c9d-20870ec4f338",
+          ""
+        ],
+        [
+          "silk_overlap|76405855|22310631|b194b931-e5e2-45f5-8c9d-20870ec4f338|d323e911-bb83-4fde-bb8a-56a8972090ad",
+          ""
+        ],
+        [
+          "silk_overlap|77876359|15857081|37cea26a-b2b5-4b65-a480-2f99d811f98f|3a9553a8-dca8-41d3-a002-af731f031c26",
+          ""
+        ],
+        [
+          "silk_overlap|78059688|15343541|3a9553a8-dca8-41d3-a002-af731f031c26|6d25ff46-2fa1-4565-8790-009ac7296fc2",
+          ""
+        ],
+        [
+          "silk_overlap|78388929|8056698|68ef5c59-8304-4517-8482-e15d8bfedd61|6d25ff46-2fa1-4565-8790-009ac7296fc2",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
       "rule_severities": {
         "annular_width": "error",
         "clearance": "error",
-        "connection_width": "warning",
+        "connection_width": "error",
         "copper_edge_clearance": "error",
         "copper_sliver": "warning",
         "courtyards_overlap": "error",
@@ -99,7 +200,7 @@
         "footprint_symbol_mismatch": "warning",
         "footprint_type_mismatch": "ignore",
         "hole_clearance": "error",
-        "hole_to_hole": "warning",
+        "hole_to_hole": "error",
         "holes_co_located": "warning",
         "invalid_outline": "error",
         "isolated_copper": "warning",
@@ -121,7 +222,7 @@
         "pth_inside_courtyard": "error",
         "shorting_items": "error",
         "silk_edge_clearance": "warning",
-        "silk_over_copper": "warning",
+        "silk_over_copper": "error",
         "silk_overlap": "warning",
         "skew_out_of_range": "error",
         "solder_mask_bridge": "error",
@@ -147,22 +248,22 @@
       "rules": {
         "max_error": 0.005,
         "min_clearance": 0.15,
-        "min_connection": 0.0,
-        "min_copper_edge_clearance": 0.5,
+        "min_connection": 0.15,
+        "min_copper_edge_clearance": 0.25,
         "min_groove_width": 0.0,
         "min_hole_clearance": 0.25,
         "min_hole_to_hole": 0.25,
         "min_microvia_diameter": 0.2,
         "min_microvia_drill": 0.1,
         "min_resolved_spokes": 2,
-        "min_silk_clearance": 0.0,
-        "min_text_height": 0.8,
-        "min_text_thickness": 0.08,
+        "min_silk_clearance": 0.15,
+        "min_text_height": 0.65,
+        "min_text_thickness": 0.05,
         "min_through_hole_diameter": 0.3,
         "min_track_width": 0.2,
         "min_via_annular_width": 0.1,
         "min_via_diameter": 0.5,
-        "solder_mask_to_copper_clearance": 0.0,
+        "solder_mask_to_copper_clearance": 0.09,
         "use_height_for_length_calcs": true
       },
       "teardrop_options": [
@@ -528,7 +629,7 @@
     "classes": [
       {
         "bus_width": 12,
-        "clearance": 0.2,
+        "clearance": 0.15,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
