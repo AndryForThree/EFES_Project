@@ -1,0 +1,44 @@
+# STM32CubeMX/CMake: regenerate SDK and build scaffolding from .ioc.
+# Keep custom C/H, .ioc, root CMakeLists.txt, scripts and source assets.
+Drivers/
+Middlewares/
+cmake/
+CMakePresets.json
+CMakeUserPresets.json
+startup_stm32*.s
+STM32*.ld
+.mxproject
+mx.scratch
+.project
+.cproject
+
+# Compiler, CMake and Ninja output (also applies to RoadSide).
+build/
+cmake-build-*/
+Debug/
+Release/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+*.ninja
+.ninja_*
+*.o
+*.obj
+*.elf
+*.axf
+*.hex
+*.bin
+*.map
+*.d
+*.su
+*.gcda
+*.gcno
+*.gcov
+*.list
+*.lst
+
+# Generated display assets: inputs live under Firmware/Scripts/.
+/EFES_FW_HumanSide/customLibs/ST7789/Assets/assets_generated.[ch]
+/EFES_FW_HumanSide/customLibs/ST7789/Fonts/fonts_generated.[ch]

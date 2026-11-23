@@ -17,12 +17,11 @@ La destinazione è `Firmware/EFES_FW_HumanSide/customLibs/ST7789/Fonts/`.
 Ogni esecuzione ricrea entrambi i file usando tutta la lista nel JSON.
 
 Git conserva i TTF effettivamente usati da `fonts.json`, le relative licenze,
-lo script, il JSON e i C/H generati. Le altre varianti scaricate in `baseFonts/`
+lo script e il JSON. I C/H generati restano locali. Le altre varianti scaricate in `baseFonts/`
 restano locali e sono ignorate. Se aggiungi un nuovo file sorgente al JSON,
 aggiungi anche la sua eccezione nella sezione font del `.gitignore` principale.
 Cambiare solo dimensione o intervallo di un font già presente non richiede
-modificare il `.gitignore`. I C/H generati permettono di compilare il firmware
-senza eseguire Python; i TTF servono quando vuoi rigenerarli.
+modificare il `.gitignore`. Dopo un clone eseguire il generatore prima di compilare il firmware.
 
 Per scegliere configurazione o destinazione diverse:
 

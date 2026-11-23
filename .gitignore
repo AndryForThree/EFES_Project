@@ -70,3 +70,66 @@ venv/
 *.swo
 .DS_Store
 Thumbs.db
+
+# KiCad: local UI state, locks, automatic history and recovery copies.
+# Keep schematics, boards, project settings, rules, symbols and footprints.
+.history/
+Backups_Codex/
+_restore_backup_*/
+*-backups/
+*.kicad_prl
+*.kicad_sch-bak
+*.kicad_pcb-bak
+*.lck
+~*.lck
+fp-info-cache
+
+# KiCad fabrication/plot outputs; 3D library models remain project inputs.
+/PCB/**/*.pdf
+/PCB/**/Gerber*/
+/PCB/**/gerber*/
+/PCB/**/*.gbr
+/PCB/**/*.gbrjob
+/PCB/**/*.drl
+/PCB/**/*.pos
+/PCB/CustomLibs/test/
+/PCB.zip
+
+# FreeCAD: keep macros, Python/JSON inputs and editable FCStd documents.
+# CAD exports can be regenerated; PCB/CustomLibs/3D is a required input library.
+/CAD/**/*.step
+/CAD/**/*.STEP
+/CAD/**/*.stp
+/CAD/**/*.stl
+/CAD/**/*.STL
+/CAD/**/Anteprima_*.png
+*.FCStd1
+*.FCStd2
+*.FCBak
+
+# Quartus/ModelSim: additional local databases, reports and simulator products.
+/FPGA/**/greybox_tmp/
+/FPGA/**/simulation/modelsim/work/
+/FPGA/**/work/
+/FPGA/**/*.rpt
+/FPGA/**/*.summary
+/FPGA/**/*.smsg
+/FPGA/**/*.jdi
+/FPGA/**/*.sof
+/FPGA/**/*.pof
+/FPGA/**/*.jic
+/FPGA/**/*.db_info
+/FPGA/**/*.flock
+/FPGA/**/*.wlf
+/FPGA/**/transcript
+
+# Python packaging and coverage output; retain pyproject/requirements/configs.
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local assistant metadata.
+.agents/
+.codex/
+.aws/
