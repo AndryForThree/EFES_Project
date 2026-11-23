@@ -1,0 +1,131 @@
+# -*- coding: utf-8 -*-
+"""YAGEO JC24F5001R: fusibile SMD 2410, 5 A, modello per KiCad.
+Fonte: Datasheets/Fuse/FUSE_5A_JC24F.pdf, pagina 3, Jan. 20, 2026 V.1.
+Quote nominali comprensive dei terminali: L=6.1 +/-0.3, W=T=2.6 +/-0.2 mm.
+Lunghezza di ogni elettrodo D=1.6 +/-0.2 mm; luce centrale nominale 2.9 mm.
+Raggi, rientro del corpo ceramico e grafica sono dettagli indicativi non quotati.
+Non sono modellati filo fusibile interno, saldature o pad del PCB.
+Origine centro XY; asse lungo X; Z=0 sotto i terminali, piano di saldatura.
+Componente non polarizzato. Esporta STEP a colori in entrambe le cartelle.
+"""
+from pathlib import Path
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+
+# --- ESPORTAZIONE: cartella PCB e nomi senza estensione, personalizzabili ---
+cartella_step_pcb = '/home/andrea/Scuola/EFES_Project/PCB/CustomLibs/3D'
+nome_step_locale = 'FUSE_JC24F5001R'
+nome_step_pcb = 'FUSE_JC24F5001R'
+
+# --- DIMENSIONI NOMINALI DAL DATASHEET, in mm ---
+lunghezza = 6.1
+larghezza = 2.6
+altezza = 2.6
+lunghezza_terminale = 1.6
+
+# --- DETTAGLI VISIVI NON QUOTATI ---
+rientro_ceramica = 0.10  # Rispetto ai cappucci, per lato in Y e Z.
+raggio_spigoli = 0.05
+mostra_marcatura = True
+
+for nome in (nome_step_locale, nome_step_pcb):
+    if not nome.strip() or Path(nome).name != nome or nome in ('.', '..'):
+        raise ValueError('Usare nomi file senza percorso e senza estensione.')
+if not all(math.isfinite(q) and q > 0 for q in
+           (lunghezza, larghezza, altezza, lunghezza_terminale)):
+    raise ValueError('Le dimensioni devono essere positive e finite.')
+luce_ceramica = lunghezza-2*lunghezza_terminale
+if (luce_ceramica <= 0 or not math.isfinite(rientro_ceramica) or
+        not 0 <= rientro_ceramica < min(larghezza, altezza)/2):
+    raise ValueError('Controllare lunghezza terminali e rientro della ceramica.')
+if not math.isfinite(raggio_spigoli) or not 0 <= raggio_spigoli < min(
+        lunghezza_terminale, luce_ceramica, larghezza-2*rientro_ceramica,
+        altezza-2*rientro_ceramica)/2:
+    raise ValueError('Raggio spigoli troppo grande per le quote impostate.')
+
+V = App.Vector
+doc = App.newDocument('YAGEO_JC24F5001R')
+pezzi = []
+
+
+def aggiungi(nome, forma, colore, nota, singolo=True):
+    forma = forma.removeSplitter()
+    if forma.isNull() or not forma.isValid() or (singolo and len(forma.Solids) != 1):
+        raise ValueError('Geometria non valida: '+nome)
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Label = nome.replace('_', ' ')
+    obj.Shape = forma
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (.25, .25, .27)
+    obj.ViewObject.Deviation = .05
+    obj.addProperty('App::PropertyString', 'Nota', 'Datasheet')
+    obj.Nota = nota
+    pezzi.append(obj)
+    return obj
+
+
+# I cappucci rappresentano l'inviluppo esterno del metallo, senza cavita' interne.
+for i, x in enumerate((-lunghezza/2, lunghezza/2-lunghezza_terminale), 1):
+    cappuccio = Part.makeBox(lunghezza_terminale, larghezza, altezza,
+                            V(x, -larghezza/2, 0))
+    if raggio_spigoli:
+        cappuccio = cappuccio.makeFillet(raggio_spigoli, cappuccio.Edges)
+    aggiungi('Terminale_%d_Stagnato' % i, cappuccio, (.78, .80, .83),
+             'Elettrodo D=1.6 +/-0.2 mm; inviluppo W=T=2.6 +/-0.2 mm; raggio estetico.')
+
+# Ceramica visibile fra i cappucci: ingombro centrale leggermente rientrante.
+corpo = Part.makeBox(luce_ceramica, larghezza-2*rientro_ceramica,
+                     altezza-2*rientro_ceramica,
+                     V(-luce_ceramica/2, -larghezza/2+rientro_ceramica, rientro_ceramica))
+if raggio_spigoli:
+    longitudinali = [e for e in corpo.Edges if e.BoundBox.XLength > luce_ceramica-1e-6]
+    corpo = corpo.makeFillet(raggio_spigoli, longitudinali)
+
+# Marcatura incassata nella superficie: nessun aumento delle quote esterne.
+font = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
+inchiostro = None
+if mostra_marcatura and font.exists():
+    import Draft
+    testo = Draft.makeShapeString(String='5A', FontFile=str(font), Size=.8, Tracking=0)
+    doc.recompute()
+    grafica = testo.Shape.copy()
+    doc.removeObject(testo.Name)
+    scala = min(1.0, (luce_ceramica-.4)/grafica.BoundBox.XLength,
+                (larghezza-2*rientro_ceramica-.4)/grafica.BoundBox.YLength)
+    if scala > 0:
+        grafica.scale(scala)
+        bb = grafica.BoundBox
+        grafica.translate(V(-bb.Center.x, -bb.Center.y,
+                           altezza-rientro_ceramica-.004-bb.ZMin))
+        inchiostro = grafica.extrude(V(0, 0, .004))
+        corpo = corpo.cut(inchiostro)
+elif mostra_marcatura:
+    App.Console.PrintWarning('Font non disponibile: marcatura 5A omessa.\n')
+
+obj = aggiungi('Corpo_Ceramico', corpo, (.92, .91, .85),
+               'Ceramica chiara; rientro 0.10 mm indicativo. Ingombro totale nominale 6.1 x 2.6 x 2.6 mm.')
+obj.addProperty('App::PropertyString', 'Codice', 'Datasheet')
+obj.Codice = 'YAGEO JC24F5001R - 5 A, 125 Vdc, fast acting'
+obj.addProperty('App::PropertyString', 'Fonte', 'Datasheet')
+obj.Fonte = 'Datasheets/Fuse/FUSE_5A_JC24F.pdf, pagina 3, Jan. 20, 2026 V.1'
+if inchiostro is not None:
+    aggiungi('Marcatura_5A', inchiostro, (.10, .12, .22),
+             'Marcatura identificativa indicativa; nessuna polarita.', singolo=False)
+
+doc.recompute()
+cartella = Path(__file__).resolve().parent if '__file__' in globals() else Path(
+    '/home/andrea/Scuola/EFES_Project/CAD/Componenti/Fuse_JC24F5001R')
+cartella_pcb = Path(cartella_step_pcb).expanduser()
+cartella_pcb.mkdir(parents=True, exist_ok=True)
+for file_step in dict.fromkeys((cartella/(nome_step_locale+'.step'),
+                                cartella_pcb/(nome_step_pcb+'.step'))):
+    ImportGui.export(pezzi, str(file_step))
+    App.Console.PrintMessage('STEP aggiornato: %s\n' % file_step)
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('JC24F5001R: %.2f x %.2f x %.2f mm; terminali %.2f mm.\n' %
+                         (lunghezza, larghezza, altezza, lunghezza_terminale))
+App.Console.PrintMessage('Origine centro XY, lunghezza lungo X, Z=0 sotto i terminali.\n')

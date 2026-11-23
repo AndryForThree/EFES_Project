@@ -4092,7 +4092,7 @@
 					)
 				)
 			)
-			(property "Value" "JB12S1001R"
+			(property "Value" "1A"
 				(at 2.286 2.794 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -8845,7 +8845,7 @@
 	)
 	(wire
 		(pts
-			(xy 196.85 93.98) (xy 199.39 93.98)
+			(xy 196.85 93.98) (xy 200.66 93.98)
 		)
 		(stroke
 			(width 0)
@@ -9225,7 +9225,7 @@
 	)
 	(wire
 		(pts
-			(xy 196.85 114.3) (xy 200.66 114.3)
+			(xy 196.85 114.3) (xy 201.93 114.3)
 		)
 		(stroke
 			(width 0)
@@ -12937,7 +12937,7 @@
 		(uuid "1d3e19eb-f715-44de-b0e2-1db0a3532fe2")
 	)
 	(label "CAN_H"
-		(at 199.39 93.98 0)
+		(at 200.66 93.98 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -13298,7 +13298,7 @@
 		(uuid "80b4a211-fb9c-430c-b8e3-b497c2485aa5")
 	)
 	(label "CAN_L"
-		(at 200.66 114.3 0)
+		(at 201.93 114.3 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -17867,7 +17867,7 @@
 				)
 			)
 		)
-		(property "Value" "JB12S1001R"
+		(property "Value" "1A"
 			(at 344.17 103.632 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19050,7 +19050,7 @@
 		(dnp no)
 		(uuid "56b50e15-cab1-44f1-b7fb-09283157b9bb")
 		(property "Reference" "D1"
-			(at 177.8 118.618 0)
+			(at 162.306 119.126 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19061,7 +19061,7 @@
 			)
 		)
 		(property "Value" "PESD2CAN24XLT-QR"
-			(at 193.548 120.904 0)
+			(at 162.306 117.094 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

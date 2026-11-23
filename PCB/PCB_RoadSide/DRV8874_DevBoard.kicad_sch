@@ -2182,7 +2182,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1c57af02-71bc-46cd-9043-90f361e530ea")
-		(property "Reference" "R14"
+		(property "Reference" "R36"
 			(at 46.99 97.7899 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2246,7 +2246,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "R14")
+					(reference "R36")
 					(unit 1)
 				)
 			)
@@ -2263,7 +2263,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "33050790-6b1a-4d20-acaa-40af5916bc65")
-		(property "Reference" "R16"
+		(property "Reference" "R38"
 			(at 91.694 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2327,7 +2327,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "R16")
+					(reference "R38")
 					(unit 1)
 				)
 			)
@@ -2345,7 +2345,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "49425023-75d6-4700-a0a0-115a6ce532e1")
-		(property "Reference" "#PWR029"
+		(property "Reference" "#PWR060"
 			(at 97.79 33.02 0)
 			(hide yes)
 			(show_name no)
@@ -2406,7 +2406,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR029")
+					(reference "#PWR060")
 					(unit 1)
 				)
 			)
@@ -2424,7 +2424,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "4ca5c232-e284-4107-bbf3-c17f8769150b")
-		(property "Reference" "J12"
+		(property "Reference" "J16"
 			(at 74.93 24.13 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2501,7 +2501,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "J12")
+					(reference "J16")
 					(unit 1)
 				)
 			)
@@ -2518,7 +2518,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "54b908b8-ee33-49a6-b394-d52f9165d8c1")
-		(property "Reference" "J13"
+		(property "Reference" "J17"
 			(at 122.682 24.892 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2597,7 +2597,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "J13")
+					(reference "J17")
 					(unit 1)
 				)
 			)
@@ -2615,7 +2615,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "5fe48ce6-7ace-4575-b858-3c3a60cdb276")
-		(property "Reference" "#PWR026"
+		(property "Reference" "#PWR057"
 			(at 57.15 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -2675,7 +2675,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR026")
+					(reference "#PWR057")
 					(unit 1)
 				)
 			)
@@ -2693,7 +2693,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7290cadf-8a39-44d2-8118-85abed8f68b0")
-		(property "Reference" "#PWR027"
+		(property "Reference" "#PWR058"
 			(at 67.31 130.81 0)
 			(hide yes)
 			(show_name no)
@@ -2753,7 +2753,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR027")
+					(reference "#PWR058")
 					(unit 1)
 				)
 			)
@@ -2771,7 +2771,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "77b02d01-7fa0-4fff-9972-9d23dcee83c9")
-		(property "Reference" "#PWR030"
+		(property "Reference" "#PWR061"
 			(at 104.14 33.02 0)
 			(hide yes)
 			(show_name no)
@@ -2832,7 +2832,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR030")
+					(reference "#PWR061")
 					(unit 1)
 				)
 			)
@@ -2850,7 +2850,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7b07f3ca-5b49-4c53-a2b0-b431e13d8a1d")
-		(property "Reference" "#PWR031"
+		(property "Reference" "#PWR062"
 			(at 161.29 73.66 0)
 			(hide yes)
 			(show_name no)
@@ -2911,7 +2911,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR031")
+					(reference "#PWR062")
 					(unit 1)
 				)
 			)
@@ -2929,7 +2929,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "82bf29e5-a34e-4860-b915-e1dd2a2c73c7")
-		(property "Reference" "C12"
+		(property "Reference" "C23"
 			(at 163.83 99.0599 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2993,7 +2993,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "C12")
+					(reference "C23")
 					(unit 1)
 				)
 			)
@@ -3011,7 +3011,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "86c72859-3328-4cb4-ac21-7a62c1daea26")
-		(property "Reference" "#PWR032"
+		(property "Reference" "#PWR063"
 			(at 154.94 129.54 0)
 			(hide yes)
 			(show_name no)
@@ -3071,7 +3071,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR032")
+					(reference "#PWR063")
 					(unit 1)
 				)
 			)
@@ -3089,7 +3089,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "880fe1dc-7a82-4aac-a937-14d33bf613d2")
-		(property "Reference" "U10"
+		(property "Reference" "U9"
 			(at 132.08 55.88 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3198,7 +3198,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "U10")
+					(reference "U9")
 					(unit 1)
 				)
 			)
@@ -3216,7 +3216,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a73d038f-0d77-4755-90fd-5635f071aab1")
-		(property "Reference" "#PWR025"
+		(property "Reference" "#PWR056"
 			(at 45.72 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -3276,7 +3276,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR025")
+					(reference "#PWR056")
 					(unit 1)
 				)
 			)
@@ -3294,7 +3294,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "adfe649b-bfa0-478a-9a51-729df777bc43")
-		(property "Reference" "C8"
+		(property "Reference" "C19"
 			(at 49.53 68.5799 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3358,7 +3358,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "C8")
+					(reference "C19")
 					(unit 1)
 				)
 			)
@@ -3376,7 +3376,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b601b683-7360-4a3d-8545-1b00940659f9")
-		(property "Reference" "R15"
+		(property "Reference" "R37"
 			(at 69.85 118.1099 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3440,7 +3440,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "R15")
+					(reference "R37")
 					(unit 1)
 				)
 			)
@@ -3458,7 +3458,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ba9dd87f-95bf-466d-8a8c-0519ca320a14")
-		(property "Reference" "C11"
+		(property "Reference" "C22"
 			(at 104.14 68.5799 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3522,7 +3522,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "C11")
+					(reference "C22")
 					(unit 1)
 				)
 			)
@@ -3540,7 +3540,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e0d4f7ef-511b-4437-9375-5b74d1709eb9")
-		(property "Reference" "C9"
+		(property "Reference" "C20"
 			(at 60.96 68.5799 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3604,7 +3604,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "C9")
+					(reference "C20")
 					(unit 1)
 				)
 			)
@@ -3622,7 +3622,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e23eff56-96b5-45f9-8b3e-0794b89ad61a")
-		(property "Reference" "C10"
+		(property "Reference" "C21"
 			(at 81.28 68.5799 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3686,7 +3686,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "C10")
+					(reference "C21")
 					(unit 1)
 				)
 			)
@@ -3704,7 +3704,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f354636e-59cc-46ab-b375-38aeae4bb920")
-		(property "Reference" "#PWR024"
+		(property "Reference" "#PWR055"
 			(at 44.45 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -3764,7 +3764,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR024")
+					(reference "#PWR055")
 					(unit 1)
 				)
 			)
@@ -3782,7 +3782,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f51dfe9e-372d-47d7-920f-c32c859a3cbf")
-		(property "Reference" "#PWR028"
+		(property "Reference" "#PWR059"
 			(at 77.47 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -3842,7 +3842,7 @@
 		(instances
 			(project "PCB_RoadSide"
 				(path "/151fd9c4-7f86-469f-9766-2f8f39f568ac/2538a602-6d24-4786-91e7-e7687b99518d/f65f2abe-2fdc-45cd-9392-016de073207e"
-					(reference "#PWR028")
+					(reference "#PWR059")
 					(unit 1)
 				)
 			)

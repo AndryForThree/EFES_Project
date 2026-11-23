@@ -8,14 +8,14 @@
         "apply_defaults_to_fp_fields": false,
         "apply_defaults_to_fp_shapes": false,
         "apply_defaults_to_fp_text": false,
-        "board_outline_line_width": 0.05,
-        "copper_line_width": 0.2,
+        "board_outline_line_width": 0.0508,
+        "copper_line_width": 0.254,
         "copper_text_italic": false,
-        "copper_text_size_h": 1.5,
-        "copper_text_size_v": 1.5,
-        "copper_text_thickness": 0.3,
+        "copper_text_size_h": 0.762,
+        "copper_text_size_v": 0.762,
+        "copper_text_thickness": 0.1524,
         "copper_text_upright": false,
-        "courtyard_line_width": 0.05,
+        "courtyard_line_width": 0.0508,
         "dimension_precision": 4,
         "dimension_units": 3,
         "dimensions": {
@@ -841,7 +841,7 @@
         "uuid": "56a4dd56-b194-49be-99c1-2fad06098b0e"
       }
     ],
-    "used_designators": "#PWR2,#PWR8-37,#PWR39-40,#PWR42-43,#PWR45-53,#PWR91-92,#PWR115-119,#PWR121-146,#PWR164-166,C7-8,C47-67,F1,J2-8,J13-17,J33,JP1-8,JP10-42,L1-4,Q1-16,R1-4,R7-58,R60-63,R98-117,S1-7,TP1-5,U1-24,U42-45",
+    "used_designators": "#PWR2,#PWR8-37,#PWR39-40,#PWR42-43,#PWR45-53,#PWR91-92,#PWR115-119,#PWR121-146,#PWR164-166,C7-8,C47-67,F1,J2-8,J13-17,J33,JP1-8,JP10-43,L1-4,Q1-16,R1-4,R7-58,R60-63,R98-117,S1-7,TP1-5,U1-24,U42-45",
     "variants": []
   },
   "sheets": [

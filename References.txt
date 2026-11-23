@@ -10,7 +10,8 @@ DRV8874 Driver da comprare (si trova su aliexpress la schedina gia fatta) Probab
 
 TS02-66-50-BK-100-LCR-D	Pulsante generale
 
-PTV09A-2020U-B102	Potenziometro
+PDB181-E420F-104B	Potenziometro Simulazione Velocita
+PDB181-K420F-103B	Potenziometro Posizione Motore
 
 9049			Magnete radiale (Digikey)
 BEARING-624ZZ		Cuscinetto (DigiKey)
@@ -21,9 +22,6 @@ CMS-30204-18L200		Speaker
 TMUX1219DBVR			ADC MUX (unico prob -> 12 Ohm di mismatch Ron tra diversi package)
 ADS7044IDCUR			ADC Diff. 
 INA500BIDBVR			INA (OpAmp da STrumentazione)
-				Anti Aliasing Filter - Series Resistor
-				Anti Aliasing Filter - Parallel Resistor
-				Anti Aliasing Filter - Cap.
 				
 				
 				
@@ -48,18 +46,11 @@ Cavo cablaggio Verde	AWG24	C2015A.48.06	4m	CANL
 Cavo cablaggio Viola	AWG24	C2015A.48.19	15m	Segnali Generali
 Cavo cablaggio Giallo	AWG24	C2015A.48.05	8m	Interlock
 
-				
-				
-				
-				
-				
-			
-POwer COnsumptions 
-
 
 Connetore Shrouded
 SFH11-PBPC-D05-ST-BK	10 Pin	Socket 	(lato cablaggio)		0.40 $
 SBH11-PBPC-D05-RA-BK	10 Pin	Pin	(Lato PCB, Right Angle)		0.47 $
 SBH11-PBPC-D05-ST-BK	10 Pin	Pin	(Lato PCB, Vertical)		0.23 $
-
+SFH11-PBPC-D07-ST-BK	14 Pin	Socket 	(lato cablaggio)		
+SBH11-PBPC-D07-RA-BK	14 Pin	Pin	(Lato PCB, Right Angle)		
 

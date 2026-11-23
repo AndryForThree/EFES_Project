@@ -1,0 +1,107 @@
+# -*- coding: utf-8 -*-
+"""Bourns SRR7045: modello semplificato alle quote nominali del datasheet locale.
+Ingombro 7 x 7 x 4.5 mm, tolleranze +/-0.3 mm. Terminali 2 x 1.5 mm,
+luce interna 4 mm (vista inferiore, pagina 1). Origine centro XY,
+Z=0 piano di saldatura; terminali lungo Y. Raggi, spessore del metallo,
+altezza della base e dettagli superficiali sono ricostruzioni estetiche.
+"""
+from pathlib import Path
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import ImportGui
+import MeshPart
+
+# Esportazione: nomi senza estensione; STEP a colori e STL in entrambe le cartelle.
+cartella_3d_pcb = '/home/andrea/Scuola/EFES_Project/PCB/CustomLibs/3D'
+nome_locale = 'INDUCT_SRR7045'
+nome_pcb = 'INDUCT_SRR7045'
+esporta_step = True
+esporta_stl = True
+
+L = 7.0
+H = 4.5
+larghezza_terminale = 2.0
+lunghezza_terminale = 1.5
+spessore_metallo = 0.15  # Non quotato.
+altezza_base = 0.9       # Non quotata.
+
+cartella = Path(__file__).resolve().parent
+cartella_pcb = Path(cartella_3d_pcb).expanduser()
+for nome in (nome_locale, nome_pcb):
+    if not nome or Path(nome).name != nome or nome in ('.', '..'):
+        raise ValueError('Il nome di esportazione deve essere un nome file senza percorso.')
+cartella_pcb.mkdir(parents=True, exist_ok=True)
+
+V = App.Vector
+doc = App.newDocument('Bourns_SRR7045')
+pezzi = []
+
+
+def aggiungi(nome, forma, colore, nota):
+    forma = forma.removeSplitter()
+    if not forma.isValid() or len(forma.Solids) != 1:
+        raise ValueError('Solido non valido: '+nome)
+    obj = doc.addObject('Part::Feature', nome)
+    obj.Shape = forma
+    obj.ViewObject.ShapeColor = colore
+    obj.ViewObject.LineColor = (.15, .15, .16)
+    obj.ViewObject.DisplayMode = 'Flat Lines'
+    obj.ViewObject.Deviation = .05
+    obj.addProperty('App::PropertyString', 'Nota', 'Quote')
+    obj.Nota = nota
+    pezzi.append(obj)
+
+
+# Base quadrata con due angoli opposti smussati, come nella vista inferiore.
+a = L/2
+c = 1.5  # Smusso indicativo, non quotato.
+vertici = [(-a, -a+c), (-a+c, -a), (a, -a),
+           (a, a-c), (a-c, a), (-a, a)]
+punti = [V(x, y, spessore_metallo) for x, y in vertici]
+base = Part.Face(Part.makePolygon(punti+[punti[0]])).extrude(
+    V(0, 0, altezza_base-spessore_metallo))
+
+# Terminali a filo del contorno; le sedi nella ferrite evitano compenetrazioni.
+for i, y in enumerate((-a, a-lunghezza_terminale), 1):
+    terminale = Part.makeBox(larghezza_terminale, lunghezza_terminale,
+                            spessore_metallo,
+                            V(-larghezza_terminale/2, y, 0))
+    risvolto = Part.makeBox(larghezza_terminale, spessore_metallo, .7,
+        V(-larghezza_terminale/2, -a if i == 1 else a-spessore_metallo, 0))
+    terminale = terminale.fuse(risvolto)
+    base = base.cut(terminale)
+    aggiungi('Terminale_%d_Stagnato' % i, terminale, (.78, .80, .83),
+             'Superficie inferiore 2 x 1.5 mm; distanza interna fra terminali 4 mm. Spessore stimato 0.15 mm.')
+
+aggiungi('Base_Ferrite', base, (.13, .13, .14),
+         'Contorno nominale 7 x 7 mm. Smussi e altezza base indicativi.')
+
+# Schermatura circolare; incavo superiore solo estetico, senza aumentare H.
+corpo = Part.makeCylinder(a, H-altezza_base, V(0, 0, altezza_base))
+incavo = Part.makeCylinder(a-.3, .08, V(0, 0, H-.08))
+corpo = corpo.cut(incavo)
+aggiungi('Schermatura_Ferrite', corpo, (.22, .22, .23),
+         'Altezza totale 4.5 mm; corpo circolare ricostruito dal disegno. Nessun valore di induttanza presunto.')
+
+doc.recompute()
+# STL: unione geometrica dei pezzi, per eliminare le facce di contatto interne.
+if esporta_stl:
+    unione = pezzi[0].Shape.multiFuse([p.Shape for p in pezzi[1:]]).removeSplitter()
+    if not unione.isValid():
+        raise ValueError('Geometria STL non valida.')
+    mesh = MeshPart.meshFromShape(Shape=unione, LinearDeflection=.025,
+                                 AngularDeflection=.15, Relative=False)
+
+destinazioni = dict.fromkeys((cartella/nome_locale, cartella_pcb/nome_pcb))
+for destinazione in destinazioni:
+    if esporta_step:
+        ImportGui.export(pezzi, str(destinazione)+'.step')
+        App.Console.PrintMessage('STEP aggiornato: %s.step\n' % destinazione)
+    if esporta_stl:
+        mesh.write(str(destinazione)+'.stl')
+        App.Console.PrintMessage('STL aggiornato: %s.stl\n' % destinazione)
+
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+App.Console.PrintMessage('SRR7045: 7 x 7 x 4.5 mm nominali; origine centro XY, Z=0 sotto i terminali.\n')

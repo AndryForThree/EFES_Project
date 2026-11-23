@@ -109,6 +109,8 @@ mostra_battuta_finecorsa_2 = True  # seconda battuta montata, presente per corse
 # --- FERRAMENTA - oggetti separati; nessuna variazione ai pezzi stampati ---
 mostra_ferramenta = True  # spegne tutta la ferramenta e salta la sua costruzione
 # Lunghezze commerciali scelte automaticamente con almeno 1 mm oltre il dado.
+spessore_pcb = 1.6  # PCB da Z=-spessore_pcb a Z=0; piedini appoggiati direttamente.
+# Fissaggi piedini: testa e rondella sopra, rondella e dado autobloccante sotto PCB.
 
 # ==================== FINE PARAMETRI PRINCIPALI ====================
 
@@ -118,6 +120,8 @@ mostra_ferramenta = True  # spegne tutta la ferramenta e salta la sua costruzion
 # I valori sotto conservano la geometria attuale con i parametri di default.
 
 # Controlli iniziali con messaggi riferiti al pannello principale.
+if not math.isfinite(spessore_pcb) or spessore_pcb <= 0:
+    raise ValueError('PCB: lo spessore deve essere positivo e finito, in mm.')
 if not (diametro_cerchio_bottom > diametro_cerchio_top > 0):
     raise ValueError('Torre: il diametro alla base deve superare quello in alto, entrambi positivi.')
 if not (0 < quota_supporto_inferiore and quota_supporto_inferiore+16 < quota_supporto_superiore):
@@ -963,6 +967,12 @@ def posizioni_ferramenta_m3(documento,quote,quote_fc):
         if presente(nome):
             collare(nome,collare_vite_x,z,angolo)
     if presente('Supporto_Torre'):
+        # Le sedi superiori dei piedini sono gia' modellate nella torre.
+        # Il PCB occupa -spessore_pcb..0 e non viene esportato come solido.
+        z_piedini = spessore_piedini-sede_rondella_profondita
+        for i,p in enumerate(centri_viti_piedini,1):
+            posizioni.append(('Piedino_PCB_%d'%i,V(p.x,p.y,z_piedini),
+                              V(0,0,-1),z_piedini+spessore_pcb))
         for nome,q,lato in (('Ghiera_Inferiore',quota_supporto_inferiore,'sotto'),
                             ('Ghiera_Superiore',quota_supporto_superiore,'sopra')):
             if not presente(nome):
@@ -990,7 +1000,6 @@ def posizioni_ferramenta_m3(documento,quote,quote_fc):
             for i,(angolo,forma) in enumerate(quote_fc['battute'],1):
                 if presente('Finecorsa_Battuta_%d'%i):
                     posizioni.append(('Battuta_Finecorsa_%d'%i,polare(quote_fc['raggio'],angolo,z),V(0,0,-1),pacco))
-    # Basette/PCB escluse: spessore PCB, distanziali e fissaggio sono ancora da definire.
     return posizioni
 
 
@@ -1002,7 +1011,9 @@ def aggiungi_ferramenta_m3(documento,quote,quote_fc):
     gruppo.addProperty('App::PropertyString','Criterio','Ferramenta')
     gruppo.Criterio = 'Dado alto 4 mm; due rondelle da 0.5; margine richiesto oltre dado: due filetti, 1 mm.'
     gruppo.addProperty('App::PropertyString','Rappresentazione','Ferramenta')
-    gruppo.Rappresentazione = 'Filetti lisci al diametro nominale; ingombri esterni commerciali. Fissaggi PCB esclusi.'
+    gruppo.Rappresentazione = 'Filetti lisci al diametro nominale; ingombri esterni commerciali. Fissaggi piedini/PCB inclusi, senza distanziali.'
+    gruppo.addProperty('App::PropertyFloat','SpessorePCB','Ferramenta')
+    gruppo.SpessorePCB = spessore_pcb;gruppo.setEditorMode('SpessorePCB',1)
     distinta,esiti = {},[]
     for nome,origine,direzione,pacco in posizioni_ferramenta_m3(documento,quote,quote_fc):
         # 0.5 + 0.5 rondelle, 4 dado, 1 oltre dado = 6 mm oltre il pacco.
@@ -1038,7 +1049,7 @@ def aggiungi_ferramenta_m3(documento,quote,quote_fc):
         esiti.append('%s: M3x%d, oltre dado %.2f mm; consigliata M3x%d; %s'%
                      (nome,lunghezza,sporgenza,consigliata,stato))
     gruppo.addProperty('App::PropertyString','AmbitoDistinta','Ferramenta')
-    gruppo.AmbitoDistinta = 'Solo fissaggi dei componenti presenti nella vista; attivare tutti i pezzi per la distinta completa. Fissaggi PCB esclusi.'
+    gruppo.AmbitoDistinta = 'Solo fissaggi dei componenti generati; attivare tutti i pezzi per la distinta completa. Fissaggi PCB inclusi quando la torre e presente.'
     gruppo.addProperty('App::PropertyStringList','Distinta','Ferramenta')
     quantita = sum(distinta.values())
     gruppo.Distinta = ['%d viti M3x%d ISO4762'%(n,l) for l,n in sorted(distinta.items())]+[
@@ -1046,7 +1057,7 @@ def aggiungi_ferramenta_m3(documento,quote,quote_fc):
     gruppo.addProperty('App::PropertyStringList','Verifiche','Ferramenta')
     gruppo.Verifiche = esiti
     App.Console.PrintMessage('\nFerramenta visualizzata: '+', '.join(gruppo.Distinta)+'.\n')
-    App.Console.PrintMessage('Distinta: solo componenti visualizzati; Fissaggi PCB esclusi.\n')
+    App.Console.PrintMessage('Distinta: fissaggi dei componenti generati, inclusi i piedini sul PCB da %.2f mm quando la torre e presente.\n' % spessore_pcb)
     for esito in esiti:
         if esito.endswith('OK: almeno due filetti oltre il dado'):
             App.Console.PrintMessage(esito+'\n')
