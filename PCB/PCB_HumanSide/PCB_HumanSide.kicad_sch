@@ -4720,7 +4720,7 @@
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "D"
-				(at 0 4.572 0)
+				(at 0 5.08 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -4730,7 +4730,7 @@
 				)
 			)
 			(property "Value" "DS24W"
-				(at 0 2.54 0)
+				(at 0 3.048 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -4822,6 +4822,30 @@
 				)
 			)
 			(symbol "SCHOTTKY_DS24W_1_1"
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -0.762 1.27) (xy -0.762 0.762)
+					)
+					(stroke
+						(width 0.254)
+						(type solid)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -1.27) (xy -1.778 -1.27) (xy -1.778 -0.762)
+					)
+					(stroke
+						(width 0.254)
+						(type solid)
+					)
+					(fill
+						(type none)
+					)
+				)
 				(pin passive line
 					(at -3.81 0 0)
 					(length 2.54)
@@ -6356,6 +6380,9 @@
 			(embedded_fonts no)
 		)
 		(symbol "EFES_Symbols:TVS_SMF17CA"
+			(pin_numbers
+				(hide yes)
+			)
 			(pin_names
 				(hide yes)
 			)
@@ -6384,7 +6411,7 @@
 					)
 				)
 			)
-			(property "Footprint" "EFES:SOD-123_HandSolder"
+			(property "Footprint" "EFES:SOD-123_Bidirectional_HandSolder"
 				(at -0.508 8.89 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -6703,102 +6730,6 @@
 								(size 1.27 1.27)
 							)
 						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "Mechanical:Fiducial"
-			(exclude_from_sim no)
-			(in_bom no)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "FID"
-				(at 0 5.08 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "Fiducial"
-				(at 0 3.175 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Fiducial Marker"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "fiducial marker"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "Fiducial*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "Fiducial_0_1"
-				(circle
-					(center 0 0)
-					(radius 1.27)
-					(stroke
-						(width 0.508)
-						(type default)
-					)
-					(fill
-						(type background)
 					)
 				)
 			)
@@ -7326,18 +7257,6 @@
 		(uuid "88e74a93-bd87-497c-8dd2-55cf0c3914d4")
 	)
 	(rectangle
-		(start 245.11 134.62)
-		(end 255.27 147.32)
-		(stroke
-			(width 0)
-			(type dash)
-		)
-		(fill
-			(type none)
-		)
-		(uuid "91d5b2bb-b368-496e-94ba-d5a5261e0660")
-	)
-	(rectangle
 		(start 242.57 52.07)
 		(end 292.1 95.25)
 		(radius 1.524)
@@ -7364,8 +7283,8 @@
 		(uuid "a263e670-13ed-48ef-b6ee-66ae6298ad45")
 	)
 	(rectangle
-		(start 109.22 238.76)
-		(end 125.73 254)
+		(start 101.6 226.06)
+		(end 121.92 242.57)
 		(stroke
 			(width 0)
 			(type dash)
@@ -7690,7 +7609,7 @@
 	)
 	(text "The series resistors are the termination resistors for the\nrespective SPI trasmission lines. In general, SPI do not need \ntermination from the standard, but because this connection is \nbetween two different boards, with un-definied cable length in a \nnoisy enviroment, the terminations are used to avoid reflections\nat high SPI frequencies, which can generate ringing \n(particularly critical on CLK line, where it can trigger \nmultiple clock edges. In other lines it is instead sufficient to \nslow down the SPI speed, to let the transmission line settle \nbefore sampling it). \nThese resistors must be mounted as close as possible to the \ndriver to be effective. \nThese terminations, if no ringing is observed during testing, \nshould be substitued with 0 Ohm resistors"
 		(exclude_from_sim no)
-		(at 89.662 218.186 0)
+		(at 81.026 211.328 0)
 		(effects
 			(font
 				(size 0.762 0.762)
@@ -7800,9 +7719,9 @@
 		)
 		(uuid "9a70fef7-9653-45b0-b617-6716509b3a55")
 	)
-	(text "\"Fault Simulation \nConnector\", which \nremoves power \nsupply to \nthe Sensor Board"
+	(text "\"Fault Simulation Connector\", \nwhich removes power supply to \nthe Sensor Board"
 		(exclude_from_sim no)
-		(at 111.506 242.824 0)
+		(at 103.124 229.87 0)
 		(effects
 			(font
 				(size 0.762 0.762)
@@ -7925,16 +7844,6 @@
 			(justify left)
 		)
 		(uuid "e733c966-a018-489d-88e2-7c57ce85a4ef")
-	)
-	(text "Fiducials"
-		(exclude_from_sim no)
-		(at 249.936 133.604 0)
-		(effects
-			(font
-				(size 1.016 1.016)
-			)
-		)
-		(uuid "f228151f-f4ea-4e09-9020-2365f4c53a40")
 	)
 	(text "The Inductor proposed by the TI design was not available, so a new one, compatible with the DCDC circuit \nrequirements is selected using the following constraints\n\n	- DC resistance: <= 150 mOhm (to maintain or improve the DCDC efficiency)\n	- Saturation Current: From the report, the max current on L is 827.37 mA	\n		--> I_str >= 1.5A (to guarantee some margin)\n	- RMS Current: Considering the current on L as a triangular wave (it is a semplification), the RMS current is computed as:\n		--> I_RMS = sqrt(I_OUT^2 + (Delta_I_L^2 / 12)) = sqrt(0.5^2 + (0.65475^2 / 12)) = 0.535 A\n		--> I_RMS >= 1 A (to have some margin)\n	- L should be preferrably shielded to reduce EMI emissions"
 		(exclude_from_sim no)
@@ -8683,6 +8592,10 @@
 		(at 93.98 191.77)
 		(uuid "06054961-94ba-4a03-8bb1-2f2f849bdb11")
 	)
+	(no_connect
+		(at 81.28 186.69)
+		(uuid "f00f5044-7348-4a1a-b741-7fc4e62a0ca8")
+	)
 	(wire
 		(pts
 			(xy 331.47 132.08) (xy 331.47 138.43)
@@ -8802,26 +8715,6 @@
 			(type default)
 		)
 		(uuid "050ad87a-406b-4b3d-8e76-fea0873b7b6d")
-	)
-	(wire
-		(pts
-			(xy 102.87 251.46) (xy 115.57 251.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "05667a20-a910-405e-9908-d81bf7d6a3b8")
-	)
-	(wire
-		(pts
-			(xy 199.39 34.29) (xy 199.39 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "056ccfd6-3e2e-445e-9cae-ed7110e5a9fa")
 	)
 	(wire
 		(pts
@@ -9005,6 +8898,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 238.76) (xy 123.19 256.54)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "10817d86-ce1e-42e2-b2e6-8b6896d72fa0")
+	)
+	(wire
+		(pts
 			(xy 205.74 194.31) (xy 205.74 198.12)
 		)
 		(stroke
@@ -9085,16 +8988,6 @@
 	)
 	(wire
 		(pts
-			(xy 194.31 34.29) (xy 194.31 35.56)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "17f46bcd-b5ed-4f44-973a-ac874e89ee46")
-	)
-	(wire
-		(pts
 			(xy 256.54 71.12) (xy 259.08 71.12)
 		)
 		(stroke
@@ -9125,7 +9018,7 @@
 	)
 	(wire
 		(pts
-			(xy 78.74 228.6) (xy 78.74 256.54)
+			(xy 78.74 231.14) (xy 78.74 256.54)
 		)
 		(stroke
 			(width 0)
@@ -9182,16 +9075,6 @@
 			(type default)
 		)
 		(uuid "1b401c91-6b80-446c-856a-8e6803b74629")
-	)
-	(wire
-		(pts
-			(xy 383.54 168.91) (xy 383.54 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1b4f43b9-2165-4043-8214-bf2be80bb775")
 	)
 	(wire
 		(pts
@@ -9255,6 +9138,16 @@
 	)
 	(wire
 		(pts
+			(xy 107.95 241.3) (xy 111.76 241.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "206b4d24-bfe2-46a8-844e-cf2adfda5201")
+	)
+	(wire
+		(pts
 			(xy 80.01 254) (xy 90.17 254)
 		)
 		(stroke
@@ -9275,7 +9168,7 @@
 	)
 	(wire
 		(pts
-			(xy 194.31 34.29) (xy 199.39 34.29)
+			(xy 201.93 40.64) (xy 208.28 40.64)
 		)
 		(stroke
 			(width 0)
@@ -9595,7 +9488,7 @@
 	)
 	(wire
 		(pts
-			(xy 102.87 259.08) (xy 104.14 259.08)
+			(xy 102.87 259.08) (xy 119.38 259.08)
 		)
 		(stroke
 			(width 0)
@@ -9615,7 +9508,7 @@
 	)
 	(wire
 		(pts
-			(xy 102.87 256.54) (xy 104.14 256.54)
+			(xy 102.87 256.54) (xy 123.19 256.54)
 		)
 		(stroke
 			(width 0)
@@ -9825,16 +9718,6 @@
 	)
 	(wire
 		(pts
-			(xy 113.03 248.92) (xy 115.57 248.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "40355251-d8d1-458b-a7a4-b9d54c726bb0")
-	)
-	(wire
-		(pts
 			(xy 240.03 255.27) (xy 241.3 255.27)
 		)
 		(stroke
@@ -9915,6 +9798,16 @@
 	)
 	(wire
 		(pts
+			(xy 104.14 251.46) (xy 102.87 251.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "44c49883-11ed-4c23-8faf-d770cad74860")
+	)
+	(wire
+		(pts
 			(xy 115.57 119.38) (xy 115.57 120.65)
 		)
 		(stroke
@@ -9962,16 +9855,6 @@
 			(type default)
 		)
 		(uuid "488ad310-5022-4343-b49d-7f5427c567d5")
-	)
-	(wire
-		(pts
-			(xy 102.87 248.92) (xy 104.14 248.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "48b26616-0734-4d1e-a6b8-0ff312f65021")
 	)
 	(wire
 		(pts
@@ -10105,7 +9988,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 228.6) (xy 63.5 229.87)
+			(xy 63.5 231.14) (xy 63.5 229.87)
 		)
 		(stroke
 			(width 0)
@@ -10222,16 +10105,6 @@
 			(type default)
 		)
 		(uuid "62249063-546a-4ef6-a167-03836c33e26d")
-	)
-	(wire
-		(pts
-			(xy 97.79 38.1) (xy 129.54 38.1)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6325e952-bdc9-4432-9d4f-4fc3ea54e6fb")
 	)
 	(wire
 		(pts
@@ -10422,6 +10295,16 @@
 			(type default)
 		)
 		(uuid "714efeae-34f5-470d-87ae-6a311a033b5f")
+	)
+	(wire
+		(pts
+			(xy 97.79 38.1) (xy 129.54 38.1)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "72c0961a-c014-4981-89be-3d4ec0107577")
 	)
 	(wire
 		(pts
@@ -10975,16 +10858,6 @@
 	)
 	(wire
 		(pts
-			(xy 104.14 247.65) (xy 104.14 248.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "93a380da-43f1-476c-9f10-cf3fbd94abb4")
-	)
-	(wire
-		(pts
 			(xy 287.02 133.35) (xy 287.02 134.62)
 		)
 		(stroke
@@ -11025,7 +10898,7 @@
 	)
 	(wire
 		(pts
-			(xy 63.5 228.6) (xy 78.74 228.6)
+			(xy 63.5 231.14) (xy 78.74 231.14)
 		)
 		(stroke
 			(width 0)
@@ -11765,6 +11638,16 @@
 	)
 	(wire
 		(pts
+			(xy 111.76 241.3) (xy 111.76 238.76)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c440d9c0-c0f1-4459-a458-cd94ed451ae3")
+	)
+	(wire
+		(pts
 			(xy 359.41 139.7) (xy 359.41 138.43)
 		)
 		(stroke
@@ -11975,6 +11858,16 @@
 	)
 	(wire
 		(pts
+			(xy 104.14 248.92) (xy 102.87 248.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cd8d299f-ed62-405d-bdec-f77993039693")
+	)
+	(wire
+		(pts
 			(xy 46.99 219.71) (xy 49.53 219.71)
 		)
 		(stroke
@@ -12182,16 +12075,6 @@
 			(type default)
 		)
 		(uuid "db139e57-9d62-41e4-9a71-d05ba2fa7d49")
-	)
-	(wire
-		(pts
-			(xy 199.39 40.64) (xy 208.28 40.64)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "db7efdcc-e6c0-4b65-829a-c161bcfec111")
 	)
 	(wire
 		(pts
@@ -12505,6 +12388,16 @@
 	)
 	(wire
 		(pts
+			(xy 114.3 238.76) (xy 123.19 238.76)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f12df025-ea4a-4539-b21d-263874256ab7")
+	)
+	(wire
+		(pts
 			(xy 182.88 209.55) (xy 184.15 209.55)
 		)
 		(stroke
@@ -12813,16 +12706,6 @@
 		)
 		(uuid "0363e77b-abc2-4f97-a848-b201ca16e90b")
 	)
-	(label "SPEAKER_OUT+"
-		(at 111.76 273.05 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "03ad78ac-fa5d-46f9-89c1-830f3e6da959")
-	)
 	(label "PERIPH_SPI_CLK"
 		(at 262.89 31.75 180)
 		(effects
@@ -13106,6 +12989,16 @@
 		)
 		(uuid "3ec078fa-eade-472a-bc33-8a502a9c8c04")
 	)
+	(label "CAN_H"
+		(at 104.14 251.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4278b430-001b-47b6-9ccc-1f175bf05f1b")
+	)
 	(label "PERIPH_SPI_MOSI"
 		(at 118.11 45.72 180)
 		(effects
@@ -13187,16 +13080,6 @@
 		)
 		(uuid "5b03c45b-21db-4cc1-98f3-a59eb366e190")
 	)
-	(label "CAN_H"
-		(at 87.63 248.92 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "5deda33d-4af1-4a6f-9d72-8ed8dff2e408")
-	)
 	(label "CAN_TX"
 		(at 162.56 255.27 180)
 		(effects
@@ -13226,6 +13109,16 @@
 			(justify left bottom)
 		)
 		(uuid "70905550-46db-46c7-a1f5-2c50add7f22a")
+	)
+	(label "SPEAKER_OUT+"
+		(at 87.63 248.92 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "72f2b0e6-808c-494d-be7b-4f148a4b3b07")
 	)
 	(label "BUTTON_RIGHT"
 		(at 67.31 124.46 0)
@@ -13599,7 +13492,7 @@
 		(uuid "c9d3ef1e-e0cd-486f-ae61-df340f9152c7")
 	)
 	(label "5V"
-		(at 113.03 248.92 180)
+		(at 107.95 241.3 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -13739,16 +13632,6 @@
 		)
 		(uuid "ece2eb0e-94db-4042-bc09-7d3ef8d8e5f0")
 	)
-	(label "SPEAKER_OUT-"
-		(at 111.76 275.59 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "ee4b7f04-1fc1-42e2-9b89-c82f83006b50")
-	)
 	(label "BUTTON_DOWN"
 		(at 67.31 80.01 0)
 		(effects
@@ -13808,6 +13691,16 @@
 			(justify right bottom)
 		)
 		(uuid "f2d588d4-b5b6-4b9f-9860-db40bdd676fa")
+	)
+	(label "SPEAKER_OUT-"
+		(at 104.14 248.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f6bcea6e-a8d1-4139-b21f-890b45a20777")
 	)
 	(label "3V3"
 		(at 205.74 38.1 180)
@@ -14250,86 +14143,6 @@
 			(project "PCB_HumanSide"
 				(path "/56a4dd56-b194-49be-99c1-2fad06098b0e"
 					(reference "R20")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint_Probe")
-		(at 383.54 168.91 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "0a278157-6c8e-41fe-8583-ec9caebc67d0")
-		(property "Reference" "TP11"
-			(at 387.35 166.0524 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint_Probe"
-			(at 387.35 168.5924 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.5x1.5mm"
-			(at 388.62 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 388.62 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point (alternative probe-style design)"
-			(at 383.54 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "731ba8c8-0727-4bc6-a22a-d1ca62f81b68")
-		)
-		(instances
-			(project "PCB_HumanSide"
-				(path "/56a4dd56-b194-49be-99c1-2fad06098b0e"
-					(reference "TP11")
 					(unit 1)
 				)
 			)
@@ -16110,82 +15923,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:Fiducial")
-		(at 247.65 144.78 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "2e785ff7-6d01-4851-9a24-7f31aa7be6e8")
-		(property "Reference" "FID3"
-			(at 249.428 144.78 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Fiducial"
-			(at 250.19 146.0499 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Fiducial:Fiducial_1mm_Mask2mm"
-			(at 247.65 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 247.65 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Fiducial Marker"
-			(at 247.65 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_HumanSide"
-				(path "/56a4dd56-b194-49be-99c1-2fad06098b0e"
-					(reference "FID3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 359.41 176.53 0)
 		(unit 1)
@@ -16652,82 +16389,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:Fiducial")
-		(at 247.65 140.97 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "3429c13a-b19d-4b73-a2f1-acaf17cea78f")
-		(property "Reference" "FID2"
-			(at 249.428 140.97 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Fiducial"
-			(at 250.19 142.2399 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Fiducial:Fiducial_1mm_Mask2mm"
-			(at 247.65 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 247.65 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Fiducial Marker"
-			(at 247.65 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_HumanSide"
-				(path "/56a4dd56-b194-49be-99c1-2fad06098b0e"
-					(reference "FID2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "EFES_Symbols:SolderBride_0603")
 		(at 168.91 265.43 0)
 		(unit 1)
@@ -17155,7 +16816,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "EFES:SOD-123_HandSolder"
+		(property "Footprint" "EFES:SOD-123_Bidirectional_HandSolder"
 			(at 355.6 113.538 0)
 			(hide yes)
 			(show_name no)
@@ -18804,82 +18465,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:Fiducial")
-		(at 247.65 137.16 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "55991778-16d7-4858-a4c2-8587a9d71a2e")
-		(property "Reference" "FID1"
-			(at 249.428 137.16 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "Fiducial"
-			(at 250.19 138.4299 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Fiducial:Fiducial_1mm_Mask2mm"
-			(at 247.65 137.16 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 247.65 137.16 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Fiducial Marker"
-			(at 247.65 137.16 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_HumanSide"
-				(path "/56a4dd56-b194-49be-99c1-2fad06098b0e"
-					(reference "FID1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "EFES_Symbols:SolderBride_0603")
 		(at 234.95 214.63 0)
 		(unit 1)
@@ -19440,82 +19025,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Mechanical:MountingHole")
-		(at 224.79 143.51 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "5adb4470-fcf2-4ca5-877d-ce679361631c")
-		(property "Reference" "H2"
-			(at 227.076 143.51 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "MountingHole"
-			(at 227.33 144.7799 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
-			(at 224.79 143.51 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 224.79 143.51 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Mounting Hole without connection"
-			(at 224.79 143.51 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(instances
-			(project "PCB_HumanSide"
-				(path "/56a4dd56-b194-49be-99c1-2fad06098b0e"
-					(reference "H2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Connector_Generic:Conn_01x12")
 		(at 226.06 255.27 0)
 		(unit 1)
@@ -19548,7 +19057,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 226.06 255.27 0)
 			(hide yes)
 			(show_name no)
@@ -21949,7 +21458,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
 			(at 334.01 34.5948 0)
 			(hide yes)
 			(show_name no)
@@ -23130,7 +22639,7 @@
 				)
 			)
 		)
-		(property "Value" "SBH11-PBPC-D05-RA-BK"
+		(property "Value" "SBH11-PBPC-D07-RA-BK"
 			(at 97.536 237.49 0)
 			(hide yes)
 			(show_name no)
@@ -24153,7 +23662,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 177.8 224.79 0)
 			(hide yes)
 			(show_name no)
@@ -25545,7 +25054,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 177.8 257.81 0)
 			(hide yes)
 			(show_name no)
@@ -26823,7 +26332,7 @@
 	)
 	(symbol
 		(lib_id "Connector_Generic:Conn_01x02")
-		(at 120.65 248.92 0)
+		(at 111.76 233.68 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -26833,7 +26342,7 @@
 		(dnp no)
 		(uuid "cb91cc4b-3f4e-48d9-8674-edfee2a5eb7a")
 		(property "Reference" "J9"
-			(at 123.19 250.19 90)
+			(at 108.966 233.426 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -26843,7 +26352,7 @@
 			)
 		)
 		(property "Value" "Conn_01x02"
-			(at 123.19 250.444 90)
+			(at 113.284 231.14 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26854,7 +26363,7 @@
 			)
 		)
 		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
-			(at 120.65 248.92 0)
+			(at 111.76 233.68 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26865,7 +26374,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 120.65 248.92 0)
+			(at 111.76 233.68 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -26876,7 +26385,7 @@
 			)
 		)
 		(property "Description" "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 120.65 248.92 0)
+			(at 111.76 233.68 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -27164,7 +26673,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical"
+		(property "Footprint" "EFES:PinSocket_1x12_P2.54mm_Vertical_TightCourtyard"
 			(at 226.06 222.25 0)
 			(hide yes)
 			(show_name no)
@@ -28679,7 +28188,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 104.14 247.65 180)
+		(at 119.38 259.08 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -28687,10 +28196,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "e5dd7085-95f9-4759-bd52-3b45881b7de4")
 		(property "Reference" "#PWR013"
-			(at 104.14 241.3 0)
+			(at 125.73 259.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28701,17 +28209,18 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 104.14 242.57 0)
+			(at 122.936 257.048 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Footprint" ""
-			(at 104.14 247.65 0)
+			(at 119.38 259.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28722,7 +28231,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 104.14 247.65 0)
+			(at 119.38 259.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -28733,7 +28242,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 104.14 247.65 0)
+			(at 119.38 259.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -30469,7 +29978,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 194.31 35.56 0)
+		(at 201.93 40.64 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -30479,7 +29988,7 @@
 		(dnp no)
 		(uuid "fca0e9b4-83b2-45c4-b4bf-8b86f18572ca")
 		(property "Reference" "#PWR020"
-			(at 194.31 41.91 0)
+			(at 195.58 40.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -30490,7 +29999,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 194.31 39.624 0)
+			(at 197.866 40.64 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -30500,7 +30009,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 194.31 35.56 0)
+			(at 201.93 40.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -30511,7 +30020,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 194.31 35.56 0)
+			(at 201.93 40.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -30522,7 +30031,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 194.31 35.56 0)
+			(at 201.93 40.64 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
