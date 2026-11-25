@@ -3664,6 +3664,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 204.47 193.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "1f0b1067-4eb2-4e32-b685-97e08d98b88d")
 		)
@@ -5333,6 +5344,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 342.9 212.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "bf0cdcd7-c948-4018-a973-ce02858d648a")
 		)
@@ -6094,6 +6116,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 257.81 238.76 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "8a11ee72-9553-4988-8fca-a3696b8e9053")
 		)
@@ -6422,6 +6455,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 177.8 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 177.8 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -6994,6 +7038,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 203.2 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "39a492b3-96e1-4edb-bc2b-3508973a6d37")
 		)
@@ -7389,6 +7444,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 255.27 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "c24e2953-d545-48e3-90bc-02f94921e549")
 		)
@@ -7460,6 +7526,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 176.53 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 176.53 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -7700,6 +7777,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 256.54 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 256.54 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -8689,6 +8777,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 256.54 194.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "16b826a4-230b-4b36-a7ae-8057be5a3aad")
 		)
@@ -9633,6 +9732,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 342.9 95.25 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 342.9 95.25 0)
 			(hide yes)
 			(show_name no)

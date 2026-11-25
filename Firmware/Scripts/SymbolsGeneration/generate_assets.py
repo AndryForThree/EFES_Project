@@ -51,9 +51,9 @@ def load_image(path, size):
         except Exception as exc:
             raise SystemExit(f"Impossibile rasterizzare SVG {path}: {exc}") from exc
     with Image.open(path) as source:
-        if source.format != "PNG" or source.mode != "RGBA":
-            raise SystemExit(f"Serve un PNG RGBA oppure un SVG: {path}")
-        return source.copy()
+        if source.format != "PNG":
+            raise SystemExit(f"Serve un PNG oppure un SVG: {path}")
+        return source.convert('RGBA')
 
 
 def generate_asset(spec, base_dir, size):
@@ -102,6 +102,23 @@ def make_binary(asset):
                                 asset['width'], asset['height'], len(asset['palette']),
                                 len(data), len(payload), zlib.crc32(payload))
     return header + payload
+
+
+def asset_preview(asset):
+    """Decode the actual exported pixels for visual review on the PC."""
+    pixels = []
+    data = asset['data']
+    for i in range(asset['width'] * asset['height']):
+        if asset['format'] == 'palette4_alpha4':
+            code = data[i]
+            color, alpha = asset['palette'][code >> 4], (code & 15) * 17
+        else:
+            color, alpha = (data[2*i] << 8) | data[2*i+1], 255
+        pixels.append((((color >> 11) & 31) * 255 // 31,
+                       ((color >> 5) & 63) * 255 // 63, (color & 31) * 255 // 31, alpha))
+    image = Image.new('RGBA', (asset['width'], asset['height']))
+    image.putdata(pixels)
+    return image
 
 
 def encode_image(name, image):
@@ -276,6 +293,14 @@ def main():
     (output / "assets_generated.c").write_text(make_source(c_assets), encoding="utf-8")
     if bin_assets or (binary_output / 'assets_binary.json').exists():
         write_binaries(bin_assets, binary_output)
+    for spec, asset in zip(specs, assets):
+        if spec.get('preview', False):
+            preview_dir = config.parent / settings.get('preview_dir', 'generated/preview')
+            preview_dir.mkdir(parents=True, exist_ok=True)
+            asset_preview(asset).save(preview_dir / f'{asset["name"]}.png')
+    if settings.get('kicad'):
+        from generate_kicad import generate_kicad
+        generate_kicad(settings['kicad'], config.parent)
     print(f"Generated {output / 'assets_generated.h'}")
     print(f"Generated {output / 'assets_generated.c'}")
     for asset in assets:

@@ -1,4 +1,4 @@
-PY ?= python3
+PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 
 .PHONY: all check
 all:

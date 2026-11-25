@@ -3437,7 +3437,7 @@
 	)
 	(text "nCS of ADC is pull-up to 3V3_Digtal, because the nCS is shared \nbetween the channles, and so it should not depend on the correct\nfunctionality of any of the two Channel dedicated power supplies"
 		(exclude_from_sim no)
-		(at 227.076 130.556 0)
+		(at 229.616 137.16 0)
 		(effects
 			(font
 				(size 0.762 0.762)
@@ -3561,7 +3561,7 @@
 	)
 	(text "\"Fault Simulation Connector\", which simulates a situation in\nwhich the Sensor is generating a VDIAG error (voltage under \n0.39 V).\n\nNo pull-down on the VDIAG signal, so the behaviour in the \ncase of Stuck-Open fault is not defined. This is done to not\nadd a resistor without purpose, because this connection is\ninside the PCB, and so it should not need protection."
 		(exclude_from_sim no)
-		(at 91.948 184.15 0)
+		(at 92.202 185.166 0)
 		(effects
 			(font
 				(size 0.762 0.762)
@@ -6266,6 +6266,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 99.06 218.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "fc62db46-02cb-4cb8-a497-544f0ff484fe")
 		)
@@ -6428,6 +6439,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 100.33 266.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "a3ad5141-ab44-442d-b9a7-b000ce960cdb")
 		)
@@ -6509,6 +6531,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B105KOFNNNE"
+			(at 38.1 41.91 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "a9a8464a-7913-48ef-843f-1bc1b6161cbc")
 		)
@@ -6580,6 +6613,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 41.91 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 41.91 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -7059,6 +7103,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 85.09 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B105KOFNNNE"
 			(at 85.09 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -8139,6 +8194,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 85.09 41.91 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B105KOFNNNE"
 			(at 85.09 41.91 0)
 			(hide yes)
 			(show_name no)
@@ -9897,6 +9963,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 41.91 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 41.91 133.35 0)
 			(hide yes)
 			(show_name no)
@@ -12480,6 +12557,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B104KACNFNC"
+			(at 262.89 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "23450fa8-9e00-4592-ac71-b91dedff1d42")
 		)
@@ -12967,6 +13055,17 @@
 				)
 			)
 		)
+		(property "PN" "CL21B105KOFNNNE"
+			(at 38.1 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "e5d12d25-4020-4d06-8bc0-bb8b3f216fd7")
 		)
@@ -13038,6 +13137,17 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
+			(at 262.89 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PN" "CL21B104KACNFNC"
 			(at 262.89 110.49 0)
 			(hide yes)
 			(show_name no)

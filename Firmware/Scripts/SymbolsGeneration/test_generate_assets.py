@@ -8,7 +8,7 @@ import zlib
 from pathlib import Path
 
 from PIL import Image
-from generate_assets import generate_asset, load_image, make_binary, BINARY_HEADER, SCRIPT_DIR
+from generate_assets import generate_asset, load_image, make_binary, asset_preview, BINARY_HEADER, SCRIPT_DIR
 
 
 class InputTests(unittest.TestCase):
@@ -48,6 +48,40 @@ class InputTests(unittest.TestCase):
         Image.new('RGBA', (8, 8)).save(self.root / 'empty.png')
         with self.assertRaisesRegex(SystemExit, 'Nessun pixel visibile in TEST'):
             generate_asset({'name': 'TEST', 'file': 'empty.png'}, self.root, None)
+
+    def test_rgb_png_and_export_preview(self):
+        image = Image.new('RGB', (2, 1))
+        image.putdata([(255, 0, 0), (0, 255, 0)])
+        image.save(self.root / 'rgb.png')
+        asset = generate_asset({'name': 'RGB', 'file': 'rgb.png', 'output': 'bin', 'format': 'rgb565'}, self.root, None)
+        self.assertEqual(bytes(asset['data']), bytes.fromhex('f80007e0'))
+        self.assertEqual(list(asset_preview(asset).getdata()), [(255, 0, 0, 255), (0, 255, 0, 255)])
+
+    def test_kicad_polygons_preserve_holes_and_painted_width(self):
+        import re
+        from generate_kicad import artwork, footprint, read_svg
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
+        self.svg.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10">'
+                            '<path fill-rule="evenodd" d="M0 0 L20 0 L20 10 L0 10 Z '
+                            'M5 2 L15 2 L15 8 L5 8 Z"/></svg>')
+        geometry = artwork(read_svg(self.svg), 12)
+        text = footprint('SBW_Test_12mm', geometry)
+        pieces = []
+        for block in re.findall(r'\(fp_poly \(pts (.*?)\) \(stroke', text):
+            points = [(float(x), float(y)) for x, y in re.findall(r'\(xy ([-\d.]+) ([-\d.]+)\)', block)]
+            pieces.append(Polygon(points))
+        exported = unary_union(pieces)
+        self.assertAlmostEqual(exported.bounds[2] - exported.bounds[0], 12)
+        self.assertLess(exported.symmetric_difference(geometry).area, 1e-7)
+        self.assertNotIn('(pad ', text)
+        self.assertIn('(layer "F.SilkS")', text)
+
+    def test_kicad_rejects_unsupported_svg(self):
+        from generate_kicad import read_svg
+        self.svg.write_text('<svg xmlns="http://www.w3.org/2000/svg"><circle r="5"/></svg>')
+        with self.assertRaisesRegex(ValueError, 'polygon paths'):
+            read_svg(self.svg)
 
     def test_rectangle_keeps_proportions(self):
         image = load_image(self.svg, [80, 60])

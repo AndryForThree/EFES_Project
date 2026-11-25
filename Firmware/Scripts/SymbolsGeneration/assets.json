@@ -71,6 +71,78 @@
       "size": 16,
       "output": "c",
       "format": "palette4_alpha4"
+    },
+    {
+      "name": "SBW_SYMBOL_64",
+      "file": "source/SBW/symbol.png",
+      "size": 64,
+      "output": "bin",
+      "format": "palette4_alpha4",
+      "background": "#ffffff",
+      "preview": true
+    },
+    {
+      "name": "SBW_SYMBOL_96",
+      "file": "source/SBW/symbol.png",
+      "size": 96,
+      "output": "bin",
+      "format": "palette4_alpha4",
+      "background": "#ffffff",
+      "preview": true
+    },
+    {
+      "name": "SBW_LOGO",
+      "file": "source/SBW/logo.png",
+      "size": [
+        240,
+        180
+      ],
+      "output": "bin",
+      "format": "rgb565",
+      "background": "#ffffff",
+      "preview": true
+    },
+    {
+      "name": "SBW_STARTUP",
+      "file": "source/SBW/startup.png",
+      "size": [
+        320,
+        240
+      ],
+      "output": "bin",
+      "format": "rgb565",
+      "background": "#ffffff",
+      "preview": true
     }
-  ]
+  ],
+  "preview_dir": "generated/preview",
+  "kicad": {
+    "source": "source/SBW/pcb.svg",
+    "output_dir": "../../../PCB/CustomLibs/EFES_Footprints.pretty",
+    "preview": "generated/preview/SBW_KiCad.png",
+    "variants": [
+      {
+        "name": "SBW_Logo",
+        "widths_mm": [
+          20,
+          30,
+          40
+        ]
+      },
+      {
+        "name": "SBW_Symbol",
+        "crop": [
+          0,
+          0,
+          2000,
+          1230
+        ],
+        "widths_mm": [
+          8,
+          12,
+          16
+        ]
+      }
+    ]
+  }
 }

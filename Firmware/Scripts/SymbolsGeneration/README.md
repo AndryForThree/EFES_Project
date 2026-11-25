@@ -1,12 +1,12 @@
 # Asset ST7789: PNG/SVG -> C o binario
 
 `generate_assets.py` sostituisce il vecchio convertitore SSD1306. Richiede
-Pillow (e CairoSVG per gli SVG) e legge `assets.json`. Genera `assets_generated.h`
+Pillow (CairoSVG per gli SVG, Shapely per i footprint) e legge `assets.json`. Genera `assets_generated.h`
 e `.c` per gli asset interni, file `.bin` per quelli destinati alla Flash esterna. Nessun file
 custom viene cercato o modificato dal Python. Ogni esecuzione rigenera l'intero
 registro. Il Makefile esegue lo stesso comando, senza build del firmware.
 
-Mettere i PNG RGBA o gli SVG sorgenti in `source/`, conservando gli originali.
+Mettere i PNG o gli SVG sorgenti in `source/`, conservando gli originali.
 Poi compilare la lista nel JSON, per esempio:
 
 ```json
@@ -35,7 +35,7 @@ Poi compilare la lista nel JSON, per esempio:
 
 Non ci sono immagini sostitutive. Il nome deve
 essere un identificatore C maiuscolo e univoco, senza il prefisso ASSET_.
-I percorsi sono relativi al JSON, oppure assoluti; i file possono essere PNG RGBA
+I percorsi sono relativi al JSON, oppure assoluti; i file possono essere PNG
 oppure SVG. Per usare un SVG basta indicarlo in `file`, per esempio
 `"file": "source/logo.svg"`; il resto della configurazione resta uguale.
 
@@ -47,8 +47,9 @@ intrinseche dello SVG: specificarle nel file oppure indicare `size` nel JSON.
 Per risultati portabili usare SVG autosufficienti e convertire eventuali
 scritte in tracciati.
 
-Dipendenze: `python3 -m pip install -r requirements.txt` nell'ambiente Python
-usato per il generatore. I soli PNG continuano a richiedere soltanto Pillow.
+I PNG RGB vengono normalizzati in RGBA in memoria, senza una copia sorgente
+aggiuntiva. Dipendenze: `python3 -m pip install -r requirements.txt` nell'ambiente
+Python usato per il generatore. I soli PNG continuano a richiedere soltanto Pillow.
 
 ```sh
 cd ~/Scuola/EFES_Project/Firmware/Scripts/SymbolsGeneration
@@ -141,6 +142,91 @@ generatore elimina solo i vecchi binari elencati nel precedente indice;
 preserva gli altri file della cartella.
 
 Verifica con `make check` (o `python3 -m unittest -v test_generate_assets`).
+
+## Logo SBW importato
+
+Dal pacchetto `SteerByWire_Logo_Final.zip` sono conservati solo quattro file
+in `source/SBW/`, rinominati senza alterarne i contenuti:
+
+| Sorgente | Originale nel pacchetto | Uso |
+| --- | --- | --- |
+| `symbol.png` | `01_simbolo_colore_trasparente.png` | Simbolo colorato |
+| `logo.png` | `03_logo_completo_verticale_trasparente.png` | Logo con scritta |
+| `startup.png` | `06_splash_screen_320x240.png` | Splash completa |
+| `pcb.svg` | `10_pcb_monocromatico_vettoriale.svg` | Tutta la geometria KiCad |
+
+Le immagini a colori fornite sono raster; lo SVG è esclusivamente la versione
+monocromatica per PCB. Sono due rappresentazioni approvate distinte, non un
+unico master vettoriale a colori. Non sono stati ritracciati né ridisegnati.
+Sono omessi riferimenti, immagini su bianco, anteprime ingrandite e copie
+monocromatiche duplicate. La scritta è già dentro logo e splash: non serve
+un font aggiuntivo. La variante KiCad senza scritta è un ritaglio dello
+stesso `pcb.svg`, definito in `assets.json`, non un secondo SVG.
+
+Preparazione una tantum dopo un clone:
+
+```sh
+cd Firmware/Scripts/SymbolsGeneration
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Poi, dalla radice del progetto, un solo comando:
+
+```sh
+make -C Firmware/Scripts/SymbolsGeneration
+```
+
+Il Makefile sceglie `.venv` se presente. La configurazione esistente aggiunge:
+
+| Output binario | Pixel | Formato | Byte, intestazione inclusa |
+| --- | --- | --- | --- |
+| `SBW_SYMBOL_64.bin` | 64×64 | palette4_alpha4 | 4152 |
+| `SBW_SYMBOL_96.bin` | 96×96 | palette4_alpha4 | 9272 |
+| `SBW_LOGO.bin` | 240×180 | rgb565, fondo bianco | 86424 |
+| `SBW_STARTUP.bin` | 320×240 | rgb565 | 153624 |
+
+Sono in `Firmware/ExternalFlash/Assets/`, esclusi dal registro C: nessuna nuova
+immagine viene collegata al firmware o mostrata automaticamente all'avvio.
+Le icone C precedenti continuano a essere generate come prima.
+Le voci con `preview: true` producono PNG dei pixel effettivamente esportati
+in `generated/preview/`, dopo la quantizzazione. Il simbolo mantiene le
+proporzioni in un riquadro quadrato trasparente; lo spazio dipinto può quindi
+essere inferiore alla misura del riquadro. Le dimensioni si cambiano nel JSON.
+
+### Versioni KiCad
+
+Lo stesso comando chiama `generate_kicad.py` se nel JSON è presente `kicad`.
+I footprint vengono generati nella libreria esistente `PCB/CustomLibs/EFES_Footprints.pretty`:
+
+- `SBW_Logo_20mm`, `SBW_Logo_30mm`, `SBW_Logo_40mm`: logo e scritta.
+- `SBW_Symbol_8mm`, `SBW_Symbol_12mm`, `SBW_Symbol_16mm`: solo simbolo.
+
+Le misure indicano la larghezza della geometria dipinta, centrata sull'origine.
+I footprint contengono poligoni riempiti su F.SilkS, senza pad; i fori sono
+conservati mediante decomposizione in poligoni senza fori. Non esistono versioni
+“nere” e “bianche”: in KiCad il colore dipende dalla visualizzazione del layer.
+Per il retro si può capovolgere il footprint nell'editor.
+L'anteprima comparativa è `generated/preview/SBW_KiCad.png`, con scala grafica
+comune per tutte le misure. Non costituisce un render verificato da KiCad.
+
+Il convertitore interpreta i tracciati poligonali assoluti M/L/Z dello SVG
+fornito. Costrutti diversi (curve, trasformazioni, testo, immagini) vengono
+rifiutati: un nuovo SVG deve essere esportato nello stesso formato oppure
+richiederà un'estensione del convertitore. Nessuna forma del logo è definita
+nel Python. La libreria è derivata: non modificarne i file a mano.
+
+Non sono stati modificati i PCB o le tabelle delle librerie. Per provarli,
+aggiungere questa `.pretty` alle librerie footprint di progetto e posizionare
+le varianti desiderate. Se in seguito cambia il sorgente, rigenerare e usare
+**Update Footprints from Library** su tutte le PCB interessate: i footprint
+già posizionati contengono copie embedded.
+
+KiCad CLI/editor non è disponibile nell'ambiente di generazione. I test
+verificano geometria, dimensioni e conservazione dei fori, ma restano apertura
+nel KiCad 10 del progetto, controllo DRC e Gerber prima della fabbricazione.
+Controllare soprattutto chip, separazioni della strada e scritta nelle misure
+piccole, con le regole del produttore, e la distanza dalle aperture soldermask.
 
 ## Disegno e rotazione
 

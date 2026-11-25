@@ -1,0 +1,36 @@
+{
+  "assets": [
+    {
+      "name": "SBW_SYMBOL_64",
+      "file": "SBW_SYMBOL_64.bin",
+      "format": "palette4_alpha4",
+      "width": 64,
+      "height": 64,
+      "file_bytes": 4152
+    },
+    {
+      "name": "SBW_SYMBOL_96",
+      "file": "SBW_SYMBOL_96.bin",
+      "format": "palette4_alpha4",
+      "width": 96,
+      "height": 96,
+      "file_bytes": 9272
+    },
+    {
+      "name": "SBW_LOGO",
+      "file": "SBW_LOGO.bin",
+      "format": "rgb565",
+      "width": 240,
+      "height": 180,
+      "file_bytes": 86424
+    },
+    {
+      "name": "SBW_STARTUP",
+      "file": "SBW_STARTUP.bin",
+      "format": "rgb565",
+      "width": 320,
+      "height": 240,
+      "file_bytes": 153624
+    }
+  ]
+}
