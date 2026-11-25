@@ -24426,7 +24426,7 @@
 				(extension_offset 0.5)
 				(keep_text_aligned yes)
 			)
-			(gr_text "800"
+			(gr_text "20.32"
 				(at 50.515 24.11 0)
 				(layer "Cmts.User")
 				(uuid "7360ca63-27e7-4c4a-98f3-95a0fbe62197")
@@ -33674,6 +33674,44 @@
 				(pts
 					(xy 75.14431 21.669959) (xy 76.070804 21.669959) (xy 76.070804 21.37711) (xy 76.253241 21.37711)
 					(xy 76.253241 22.183631) (xy 76.070804 22.183631) (xy 76.070804 21.890782) (xy 75.14431 21.890782)
+				)
+			)
+		)
+	)
+	(dimension
+		(type orthogonal)
+		(layer "In2.Cu")
+		(uuid "60bca023-6454-42b3-9119-2e8a2545895f")
+		(pts
+			(xy 6.9 58) (xy 100.5 58.3)
+		)
+		(height 5)
+		(orientation 0)
+		(format
+			(prefix "")
+			(suffix "")
+			(units 3)
+			(units_format 0)
+			(precision 4)
+			(suppress_zeroes yes)
+		)
+		(style
+			(thickness 0.2)
+			(arrow_length 1.27)
+			(text_position_mode 0)
+			(arrow_direction outward)
+			(extension_height 0.58642)
+			(extension_offset 0.5)
+			(keep_text_aligned yes)
+		)
+		(gr_text "93.6"
+			(at 53.7 61.2 0)
+			(layer "In2.Cu")
+			(uuid "60bca023-6454-42b3-9119-2e8a2545895f")
+			(effects
+				(font
+					(size 1.5 1.5)
+					(thickness 0.3)
 				)
 			)
 		)

@@ -661,7 +661,7 @@
       "netlist": "",
       "plot": "Outputs/",
       "specctra_dsn": "",
-      "step": "",
+      "step": "3D/PCB_RoadSide.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""

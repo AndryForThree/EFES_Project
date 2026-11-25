@@ -11,6 +11,7 @@ import Part
 
 CARTELLA = Path(__file__).resolve().parent
 FILE_STERZO = CARTELLA / 'sterzo_cad.json'
+MOSTRA_SCHEDE = True  # I montaggi attivi sono definiti in schede.json.
 
 # Quote di montaggio PROVVISORIE: misurare i propri pezzi EiTech.
 SPESSORE_ASTE = 1.0
@@ -248,8 +249,20 @@ for nome, forma, colore, nota in forme:
 meta = doc.addObject('App::FeaturePython', 'Dati_Sterzo')
 meta.addProperty('App::PropertyBool', 'GeneratoSterzo').GeneratoSterzo = True
 meta.addProperty('App::PropertyString', 'Revisione').Revisione = uuid.uuid4().hex
-meta.addProperty('App::PropertyString', 'DatiJSON').DatiJSON = json.dumps(dict(export=data, trasmissione=dati_trasmissione))
+meta.addProperty('App::PropertyString', 'DatiJSON').DatiJSON = json.dumps(dict(
+    export=data, trasmissione=dati_trasmissione,
+    telaio=dict(passo=PASSO_FORI, base_z=base_telaio, spessore=s, pezzi=piano['pezzi']) if piano else None))
 doc.recompute()
+if MOSTRA_SCHEDE:
+    spec_schede = importlib.util.spec_from_file_location('schede_cad', CARTELLA/'schede_cad.py')
+    schede = importlib.util.module_from_spec(spec_schede)
+    spec_schede.loader.exec_module(schede)
+    schede.genera(doc, CARTELLA/'schede.json')
+else:
+    for obj in list(doc.Objects):
+        if getattr(obj, 'GeneratoSchede', False):
+            doc.removeObject(obj.Name)
+    doc.recompute()
 Gui.activeDocument().activeView().viewAxonometric()
 Gui.activeDocument().activeView().fitAll()
 App.Console.PrintMessage('Sterzo: posa centrale da %s. Coordinate X destra, Y retro, Z alto.\n' % FILE_STERZO)

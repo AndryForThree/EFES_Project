@@ -1,0 +1,39 @@
+{
+  "_nota": "Percorsi relativi alla cartella della macro. Attiva una scheda dopo avere scelto i fissaggi. Rotazione antioraria vista dall'alto, in gradi; altezza dal lato superiore del pezzo alla faccia inferiore del PCB. Origine STEP espressa nelle coordinate KiCad usate all'esportazione: non cambiarla senza riesportare il modello.",
+  "dettaglio_schede": "ingombri",
+  "libreria": {
+    "RoadSide": {
+      "pcb": "../../PCB/PCB_RoadSide/PCB_RoadSide.kicad_pcb",
+      "step": "../../PCB/PCB_RoadSide/3D/PCB_RoadSide.step",
+      "origine_step_kicad": [0, 0]
+    },
+    "HumanSide": {
+      "pcb": "../../PCB/PCB_HumanSide/PCB_HumanSide.kicad_pcb",
+      "step": "../../PCB/PCB_HumanSide/PCB_HumanSide.step",
+      "origine_step_kicad": [70, 35]
+    }
+  },
+  "schede": [
+    {
+      "nome": "RoadSide",
+      "tipo": "RoadSide",
+      "attiva": true,
+      "rotazione": 0,
+      "altezza_distanziale": 10,
+      "fissaggi": [
+        {"foro_pcb": "H3", "pezzo_telaio": "Longherone_SX", "foro_telaio": 8}
+      ]
+    },
+    {
+      "nome": "HumanSide",
+      "tipo": "HumanSide",
+      "attiva": true,
+      "rotazione": 180,
+      "altezza_distanziale": 10,
+      "fissaggi": [
+        {"foro_pcb": "H3", "pezzo_telaio": "Traversa_posteriore", "foro_telaio": 14},
+        {"foro_pcb": "H1", "pezzo_telaio": "Traversa_posteriore", "foro_telaio": 5}
+      ]
+    }
+  ]
+}

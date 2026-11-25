@@ -136,6 +136,11 @@ class Movimento:
 
 
 def interferenze(doc):
+    schede, sterzo = doc.getObject('Dati_Schede'), doc.getObject('Dati_Sterzo')
+    if schede is not None and (sterzo is None or schede.RevisioneSterzo != sterzo.Revisione):
+        raise ValueError('Schede riferite a un telaio precedente: eseguire Schede.FCMacro.')
+    if any(getattr(o, 'DettaglioScheda', '') == 'ingombri' for o in doc.Objects):
+        App.Console.PrintWarning('Schede in vista ingombri: le collisioni con i componenti sono conservative; per la verifica dettagliata usare dettaglio_schede=completo.\n')
     oggetti = [o for o in doc.Objects if hasattr(o, 'Shape') and not o.Shape.isNull()]
     forme = [(o, o.Shape, o.Shape.BoundBox) for o in oggetti]
     risultati = []
